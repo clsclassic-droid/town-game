@@ -608,6 +608,23 @@ function workerBlocks(x, y) {
   return false;
 }
 
+// v238: หลังวางอาคารทับช่องที่มีคนงาน: คนงานที่ยืนในส่วนกลางของอาคาร (เดินไม่ได้) ขยับไปขอบช่องที่ใกล้สุด
+// คนที่กำลังเดินเดินตามทางเดิมจนจบงาน งานถัดไปหาทางใหม่เลี่ยงอาคารเอง (กติกาเดียวกันทั้งผู้เล่นและ AI)
+function nudgeWorkersOff(x, y) {
+  for (const row of board) for (const c of row) {
+    const w = isHouse(c) ? c.farmer : (isRanch(c) ? c.rancher : null);
+    if (!w || (w.x >> 2) !== x || (w.y >> 2) !== y || walkableMicro(w.x, w.y)) continue;
+    let best = null, bd = Infinity;
+    for (let ly = 0; ly < MICRO; ly++) for (let lx = 0; lx < MICRO; lx++) {
+      const mx = x * MICRO + lx, my = y * MICRO + ly;
+      if (!walkableMicro(mx, my)) continue;
+      const d = Math.abs(mx - w.x) + Math.abs(my - w.y);
+      if (d < bd) { bd = d; best = [mx, my]; }
+    }
+    if (best) { w.x = best[0]; w.y = best[1]; }
+  }
+  clearPathCache();
+}
 // น้ำที่พืชมีตอนนี้ = น้ำจากคน + น้ำ passive (สูงสุดตามที่พืชต้องการ)
 function fieldWaterTotal(c) {
   return Math.min(c.need, c.water + c.passive);
@@ -3899,7 +3916,7 @@ function placementProblem(x, y, type = buildType) {
   if (board[y][x]) return 'occupied';
   if (isDoorTile(x, y) && !DOOR_OK_TYPES.includes(type)) return 'door'; // พืชเดินทับได้ จึงวางบนช่องประตูได้
   const blocksWalk = !['road', 'field', 'cotton', 'sugarcane', 'saltfield', 'tree', 'oaktree'].includes(type);
-  if (blocksWalk && workerBlocks(x, y)) return 'worker';
+  // v238: วางทับช่องที่มีคนงานได้แล้ว (คนงานถูกขยับไปขอบช่อง ดู nudgeWorkersOff)
   if (NEEDS_ROAD[type] && !neighbors4(x, y).some(([nx, ny]) => isRoad(nx, ny))) return 'road';
   if (type === 'tradedepot' && !depotEdgeOk(x, y)) return 'edge';
   if (woodStock() < (WOOD_COST[type] || 0)) return 'wood';
@@ -5969,7 +5986,7 @@ function placeBuildingInner(x, y, type) {
   if (isDoorTile(x, y) && !DOOR_OK_TYPES.includes(type)) return 'ช่องนี้เป็นประตูของอาคาร';
   // สิ่งก่อสร้างที่เดินทับไม่ได้ ห้ามวางทับคนงานหรือเส้นทางที่คนงานกำลังเดิน
   const blocksWalk = !['road', 'field', 'cotton', 'sugarcane', 'saltfield', 'tree', 'oaktree'].includes(type);
-  if (blocksWalk && workerBlocks(x, y)) return 'มีคนงานเดินผ่านช่องนี้อยู่ ลองใหม่อีกครั้ง';
+  // v238: บอสให้วางได้แม้มีคนงานเดินผ่าน (เดิมห้าม) คนงานที่ยืนกลางช่องจะถูกขยับไปขอบช่องหลังวาง
   if (NEEDS_ROAD[type] && !neighbors4(x, y).some(([nx, ny]) => isRoad(nx, ny))) return 'ต้องวางให้ติดกับถนนก่อน';
   if (type === 'tradedepot' && !depotEdgeOk(x, y)) return 'Trade Depot ต้องวางที่ขอบแผนที่ ด้านที่ติดป่า ที่ราบ หรือทะเลทราย';
   const woodNeed = WOOD_COST[type] || 0;
@@ -5993,6 +6010,7 @@ function placeBuildingInner(x, y, type) {
     : null);
   const door = doorCell ? { x: doorCell[0], y: doorCell[1] } : null;
   board[y][x] = makeCell(type, gameNow(), x, y, door);
+  if (blocksWalk) nudgeWorkersOff(x, y); // v238
   clearPathCache(); // ให้คนงานหาเส้นทางใหม่อ้อมสิ่งก่อสร้างที่เพิ่งวาง
   playSfx('build');
   if (type === 'road') attachRoadToBuildings(x, y);
