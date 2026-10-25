@@ -8122,6 +8122,7 @@ function drawSide(s, now) {
   if (showRange) drawWaterRange();
   if (showShade) drawShadeRange();
   if (s.isHuman) drawFloatFx(); // v235
+  if (s.isHuman && tutorialMode) drawTutorialTiles(); // v239
   ctx.restore();
 }
 function drawSideLabels() {
@@ -8456,8 +8457,9 @@ function showSetupMenu() {
     sTitle('Town Game'),
     sNote('เลือกโหมดเริ่มเกม'),
     ...(saved ? [sBtn(saved.online ? `▶ กลับเข้าห้องออนไลน์ ${saved.online.code}` : '▶ เล่นต่อจากที่บันทึกไว้', () => resumeSavedGame(), true)] : []),
-    ...(onlineAvailable() ? [sBtn('🌐 แข่งออนไลน์กับเพื่อน', () => showOnlineMenu(), !saved)] : []), // v237
-    sBtn('🏡 เล่นคนเดียว', showSoloSetup, !saved && !onlineAvailable()),
+    sBtn(tutSeen() ? '🎓 บทเรียนสำหรับมือใหม่' : '🎓 เล่นครั้งแรก? ลองบทเรียน 3 นาที', startTutorial, !saved && !tutSeen()), // v239
+    ...(onlineAvailable() ? [sBtn('🌐 แข่งออนไลน์กับเพื่อน', () => showOnlineMenu(), !saved && tutSeen())] : []), // v237
+    sBtn('🏡 เล่นคนเดียว', showSoloSetup, !saved && !onlineAvailable() && tutSeen()),
     sBtn('⚡ แข่งด่วน 15 นาที', showQuickSetup, false), // v235
     sBtn('🪜 เป้าหลายขั้น', showChainSetup, false), // v235
     sBtn('🤖 สู้กับ AI (ตั้งค่าเอง)', showVsSetup, false),
@@ -8765,6 +8767,8 @@ function showVsSetup() {
 function startMatch(cfg) {
   floatFx = [];
   vsMode = !!cfg.vs;
+  tutorialMode = !!cfg.tutorial; // v239: บทเรียน = พืชโต/บ่อน้ำเติมเร็วขึ้น 4 เท่า ไม่บันทึกเซฟ
+  if (tutorialMode) timeScale = TUT_TIME_SCALE; else if (timeScale === TUT_TIME_SCALE) timeScale = 1;
   onlineMode = !!cfg.online; // v237: ออนไลน์ = กระดานเดียวของเรา + อันดับเพื่อน (ไม่ใช่โหมดสองฝั่ง)
   if (onlineMode) { setGameSpeed(1); refreshSpeedPill(); }
   onlineBots = [];
@@ -8825,6 +8829,7 @@ function shiftTimes(o, delta) {
 }
 function saveGame() {
   try {
+    if (tutorialMode) return; // v239: ไม่บันทึกระหว่างบทเรียน (เซฟเกมจริงที่มีอยู่ไม่ถูกทับ)
     if (gameOver) { localStorage.removeItem(SAVE_KEY); return; }
     if (!matchActive) return; // หน้าตั้งค่าไม่ทับของที่บันทึกไว้
     captureSide(activeSide);
@@ -9082,6 +9087,172 @@ function setupViewSwitch() {
   });
   applyStageView();
 }
+// ==================== v239: บทเรียนสำหรับมือใหม่ (พาทำทีละขั้น) ====================
+// เมืองเริ่มต้นเหมือนเกมปกติ + แผนที่ตายตัว (สระใกล้ทุ่ง) · ระหว่างบทเรียนพืชโต/บ่อน้ำเติมเร็วขึ้น 4 เท่า (timeScale 0.25)
+// ไม่บันทึกเซฟระหว่างบทเรียน · กด "เล่นเมืองนี้ต่อ" แล้วกลับเป็นเวลาปกติและเริ่มบันทึก
+const TUT_KEY = 'townGame.tutorialSeen';
+const TUT_TIME_SCALE = 0.25;
+let tutorialMode = false;
+let tut = null; // { i, timer, el, bubble, body, glowEl, min }
+function tutSeen() { try { return localStorage.getItem(TUT_KEY) === '1'; } catch (e) { return true; } }
+function tutTerrain() {
+  return {
+    biome: 'plains', borders: Object.fromEntries(BORDER_SLOTS.map((k) => [k, 'plains'])),
+    features: [{ type: 'pond', x: 5, y: 10 }, { type: 'pond', x: 5, y: 12 }, { type: 'tree', x: 2, y: 3 }, { type: 'tree', x: 12, y: 2 }, { type: 'tree', x: 13, y: 13 }],
+  };
+}
+function tutFind(type) { let p = null; eachCell((c, x, y) => { if (!p && c && c.type === type) p = [x, y]; }); return p; }
+function tutTab(type) { const t = tabList.find((o) => o.row === groupRows[type]); return t ? t.tab : null; }
+function tutTrip() { let t = false; eachCell((c) => { if (c && c.type === 'tradedepot' && c.trip) t = true; }); return t; }
+function tutSold() { return (humanSide.produced.wheat || 0) > 0; }
+const TUT_FIELD_TILES = [[4, 11], [5, 11], [6, 11]];
+const TUT_DEPOT_TILES = [[15, 7], [15, 8], [15, 9]];
+const TUT_STEPS = [
+  { title: 'ยินดีต้อนรับสู่ Town Game 👋', next: true,
+    text: 'เป้าหมายคือสร้างเมืองฟาร์ม ผลิตของ แล้วส่งขายเพื่อเก็บ <b>💰 เงิน</b> และ <b>⭐ ดาว</b> (ดูได้ที่แผงมุมซ้ายบน)<br>บทเรียนนี้ใช้เวลาประมาณ 3 นาที ระหว่างบทเรียนพืชจะโตเร็วกว่าปกติ' },
+  { title: 'รู้จักเมืองของคุณ', next: true,
+    tiles: () => [[7, 7], [8, 7], [4, 10], [4, 9]],
+    text: 'กรอบสีเหลืองคือของที่มีให้ตั้งแต่เริ่ม:<br>🏠 <b>บ้านเกษตรกร</b> คนงานรดน้ำและเก็บข้าวสาลี<br>🏗 <b>ไซโล</b> เก็บข้าวสาลี<br>🌾 <b>ทุ่งข้าวสาลี</b> ต้องมีน้ำครบ 3 ถึงจะโต<br>🪣 <b>บ่อน้ำ</b> เกษตรกรมาตักน้ำไปรดทุ่ง<br>อาคารต้องติด<b>ถนน</b> (เส้นสีน้ำตาล) คนงานถึงจะออกมาทำงานได้' },
+  { title: 'ปลูกข้าวสาลีเพิ่ม (1/3)', el: () => tutTab('field'),
+    done: () => openRow === groupRows.field || buildType === 'field' || countType('field') >= 4,
+    text: 'กดแท็บ <b>ฟาร์ม</b> ที่แถบด้านล่าง' },
+  { title: 'ปลูกข้าวสาลีเพิ่ม (2/3)', el: () => toolButtons.field,
+    done: () => buildType === 'field' || countType('field') >= 4,
+    text: 'เลือก <b>🌾 ทุ่งข้าวสาลี</b>' },
+  { title: 'ปลูกข้าวสาลีเพิ่ม (3/3)', tiles: () => TUT_FIELD_TILES.filter(([x, y]) => !board[y][x]),
+    done: () => countType('field') >= 4,
+    progress: () => `ปลูกแล้ว ${Math.max(0, countType('field') - 1)}/3 แปลง`,
+    text: 'แตะช่องกรอบเหลืองระหว่าง <b>💧 สระ</b> 2 บ่อ ให้ครบ 3 แปลง<br>สระให้น้ำฟรีกับทุ่งที่อยู่ใกล้ (ติดกัน 2 ห่าง 1 ช่อง 1) ทุ่งที่ติดสระ 2 บ่อได้น้ำครบเลย เกษตรกรไม่ต้องรดน้ำ' },
+  { title: 'สร้างจุดขายของ (1/3)', el: () => tutTab('tradedepot'),
+    done: () => openRow === groupRows.tradedepot || buildType === 'tradedepot' || countType('tradedepot') >= 1,
+    text: 'ระหว่างรอข้าวสาลีโต มาสร้างที่ขายของกัน<br>กดแท็บ <b>ขนส่ง</b>' },
+  { title: 'สร้างจุดขายของ (2/3)', el: () => toolButtons.tradedepot,
+    done: () => buildType === 'tradedepot' || countType('tradedepot') >= 1,
+    text: 'เลือก <b>🚚 Trade Depot</b> (ใช้เงิน $5,000 และไม้ 5 จากคลังไม้)' },
+  { title: 'สร้างจุดขายของ (3/3)', tiles: () => (countType('tradedepot') ? [] : TUT_DEPOT_TILES),
+    done: () => countType('tradedepot') >= 1,
+    text: 'แตะช่องกรอบเหลือง<b>ที่ขอบแผนที่ด้านขวา</b><br>Trade Depot ต้องวางที่ขอบแผนที่ (รถออกไปขายนอกเมือง)' },
+  { title: 'รอข้าวสาลีเข้าไซโล', tiles: () => [[8, 7]],
+    done: () => kindStock('wheat') >= SHIPMENT || tutTrip() || tutSold(),
+    progress: () => `🌾 ข้าวสาลีในไซโล ${kindStock('wheat')}/${SHIPMENT}`,
+    text: `รถขนของส่งทีละ ${SHIPMENT} ชิ้น ต้องรอให้มีข้าวสาลีครบก่อน ดูเกษตรกรตักน้ำ รดทุ่ง แล้วเก็บข้าวสาลีไปเก็บที่ไซโลได้เลย<br>💡 รู้ไว้: บ้านคนงานมี<b>ค่าแรง</b>หักทุกนาที (ดูได้ที่แถบสถานะ) อย่าสร้างเกินจำเป็น ถ้าเงินหมด = เกมจบ` },
+  { title: 'ขายข้าวสาลี (1/2)', tiles: () => { const p = tutFind('tradedepot'); return p ? [p] : []; },
+    done: () => !!depotPopup || tutTrip() || tutSold(),
+    text: 'ข้าวสาลีครบแล้ว! แตะที่ <b>🚚 Trade Depot</b> ของคุณ' },
+  { title: 'ขายข้าวสาลี (2/2)', el: () => (depotPopup && depotPopup.rows.wheat ? depotPopup.rows.wheat.btn : null),
+    done: () => tutTrip() || tutSold(),
+    text: `กดปุ่ม <b>ส่ง ${SHIPMENT} ชิ้น</b> ที่แถว<b>ข้าวสาลี</b> (แถวบนสุด)<br>💡 ติ๊ก "auto" ไว้ได้ ครบเมื่อไหร่รถจะส่งให้เอง` },
+  { title: 'รถกำลังออกไปขาย 🚚', tiles: () => { const p = tutFind('tradedepot'); return p ? [p] : []; },
+    done: () => tutSold(),
+    enter: () => closeDepotPopup(),
+    text: 'รถใช้เวลาไปกลับประมาณ 10 วินาที ได้เงินและดาวตอนรถกลับมาถึง' },
+  { title: '🎉 ขายได้ครั้งแรกแล้ว!', end: true,
+    text: 'ได้ทั้ง 💰 เงินและ ⭐ ดาว นี่คือวงจรหลักของเกม: <b>ผลิต → เก็บ → ขาย</b><br>ขั้นต่อไป ลองทำของที่แพงขึ้น เช่น อาหารสัตว์ → ไข่ หรือข้าวสาลี → แป้ง ดูว่าต้องสร้างอะไรได้ที่หน้า <b>🧭 สายการผลิต</b> (แท็บเครื่องมือ)<br>พร้อมแล้วไปแข่งกับ AI หรือชวนเพื่อนแข่งออนไลน์ได้เลย!' },
+];
+(function tutStyle() {
+  const st = document.createElement('style');
+  st.textContent = '.tutGlow{outline:3px solid #ffd166 !important;outline-offset:2px;animation:tutPulse 1s ease-in-out infinite;position:relative;z-index:3;}'
+    + '@keyframes tutPulse{50%{outline-color:#ff8a00;box-shadow:0 0 14px 5px rgba(255,190,60,.85);}}'
+    + '#tutBubble b{color:#ffd166;}';
+  document.head.appendChild(st);
+})();
+function startTutorial() {
+  try { localStorage.setItem(TUT_KEY, '1'); } catch (e) { /* ignore */ }
+  startMatch({ vs: false, terrain: tutTerrain(), tutorial: true });
+  tut = { i: -1, timer: null, glowEl: null, min: false };
+  const bubble = document.createElement('div');
+  bubble.id = 'tutBubble';
+  bubble.style.cssText = 'position:fixed;right:8px;top:96px;z-index:120;width:min(340px,calc(100vw - 16px));background:rgba(18,38,24,0.95);color:#fff;border:2px solid #ffd166;border-radius:12px;padding:10px 12px;box-shadow:0 4px 14px rgba(0,0,0,0.5);font-family:sans-serif;font-size:14px;line-height:1.5;box-sizing:border-box;';
+  document.body.appendChild(bubble);
+  tut.bubble = bubble;
+  tutGo(0);
+  tut.timer = setInterval(tutTick, 300);
+}
+function tutClearGlow() { if (tut && tut.glowEl) { tut.glowEl.classList.remove('tutGlow'); tut.glowEl = null; } }
+function tutGo(i) {
+  if (!tut) return;
+  tut.i = i;
+  const st = TUT_STEPS[i];
+  if (st.enter) st.enter();
+  tutRender();
+}
+function tutRender() {
+  const st = TUT_STEPS[tut.i], b = tut.bubble;
+  const mk = (t, primary, fn) => { const x = document.createElement('button'); x.textContent = t; x.style.cssText = `padding:6px 12px;font-size:14px;cursor:pointer;border:1px solid #2d4a2d;border-radius:8px;background:${primary ? '#ffd166' : '#f4f1e6'};color:#1d2a1d;`; x.addEventListener('click', fn); return x; };
+  b.replaceChildren();
+  const head = document.createElement('div');
+  head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:bold;font-size:15px;cursor:pointer;';
+  head.innerHTML = `<span>🎓 ${st.title}</span><span style="font-size:12px;opacity:.7;white-space:nowrap">${tut.i + 1}/${TUT_STEPS.length} ${tut.min ? '▾' : '▴'}</span>`;
+  head.addEventListener('click', () => { tut.min = !tut.min; tutRender(); });
+  b.appendChild(head);
+  if (tut.min) return;
+  const body = document.createElement('div');
+  body.style.cssText = 'margin-top:6px;';
+  body.innerHTML = st.text;
+  const prog = document.createElement('div');
+  prog.style.cssText = 'margin-top:6px;font-weight:bold;color:#9fe39a;';
+  tut.prog = prog;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;justify-content:flex-end;';
+  if (st.end) {
+    row.append(
+      mk('🧭 สายการผลิต', false, () => openProdChain()),
+      mk('🏠 เมนู', false, () => { endTutorial(); location.reload(); }),
+      mk('🏡 เล่นเมืองนี้ต่อ', true, () => endTutorial()),
+    );
+  } else {
+    row.append(mk('ข้ามบทเรียน', false, () => { if (confirmSkip()) { endTutorial(); location.reload(); } }));
+    if (st.next) row.append(mk('ต่อไป ▶', true, () => tutGo(tut.i + 1)));
+  }
+  b.append(body, prog, row);
+  tutTick();
+}
+function confirmSkip() { return true; } // กดข้ามได้ทันที (ไม่ใช้ confirm ของเบราว์เซอร์)
+function tutTick() {
+  if (!tut) return;
+  const st = TUT_STEPS[tut.i];
+  // ไฮไลต์ปุ่ม/แท็บที่ต้องกด
+  const el = st.el ? st.el() : null;
+  if (el !== tut.glowEl) { tutClearGlow(); if (el) { el.classList.add('tutGlow'); tut.glowEl = el; } }
+  if (tut.prog) tut.prog.textContent = st.progress ? st.progress() : '';
+  if (st.done && matchActive && st.done()) {
+    SFX.sell && playSfx('sell');
+    tutGo(Math.min(TUT_STEPS.length - 1, tut.i + 1));
+  }
+}
+function endTutorial() {
+  if (!tut) return;
+  clearInterval(tut.timer);
+  tutClearGlow();
+  if (tut.bubble) tut.bubble.remove();
+  tut = null;
+  tutorialMode = false;
+  timeScale = 1;
+  saveGame();
+}
+// กรอบกะพริบบนช่องที่ต้องแตะ (วาดบนกระดานฝั่งผู้เล่น)
+function drawTutorialTiles() {
+  if (!tut) return;
+  const st = TUT_STEPS[tut.i];
+  const tiles = st.tiles ? st.tiles() : [];
+  if (!tiles.length) return;
+  const a = 0.75 + 0.25 * Math.sin(performance.now() / 180);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = `rgba(255,209,102,${a.toFixed(2)})`;
+  ctx.fillStyle = `rgba(255,209,102,${(a * 0.4).toFixed(2)})`;
+  for (const [x, y] of tiles) {
+    const pts = [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([gx, gy]) => gridToScreen(gx, gy));
+    ctx.beginPath();
+    pts.forEach(([px, py], k) => (k ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 // ==================== v237: โหมดแข่งออนไลน์กับเพื่อน (Supabase Realtime: broadcast + presence ไม่ใช้ตาราง) ====================
 // ทำงานเฉพาะหน้าเว็บที่ตั้ง window.TOWN_ONLINE = { url, key } และโหลด supabase-js แล้ว (เวอร์ชัน GitHub Pages)
 // หรือเปิดด้วย ?net=local (ทดสอบหลายแท็บในเบราว์เซอร์เดียว ผ่าน BroadcastChannel)
