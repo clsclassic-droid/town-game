@@ -9429,11 +9429,14 @@ function fitCanvasToWindow() {
   try { const a0 = tileCenterScreen(0, 0)[1], a1 = tileCenterScreen(0, 1)[1]; gy0 = Math.max(0, a0 - Math.abs(a1 - a0) / 2); } catch (e) { gy0 = 0; }
   let sc = Math.min(W / cw, AH / ch);
   if (gy0 < ch) sc = Math.min(sc, (AH - MINI_REAL) / (ch - gy0));
+  // v250: จอแนวตั้ง (มือถือ) วางกระดานชิดแถบปุ่มด้านล่าง ทั้งผืน (รวมขอบแผนที่ด้านบน) อยู่ใต้แผงสรุป ไม่บังทะเล/ขอบ
+  const portrait = H > W;
+  if (portrait) sc = Math.min(sc, (AH - MINI_REAL) / ch);
   const vw = Math.floor(cw * sc), vh = Math.floor(ch * sc);
   stage.style.width = vw + 'px';
   stage.style.height = vh + 'px';
   stage.style.left = Math.floor((W - vw) / 2) + 'px';
-  stage.style.top = Math.max(Math.floor((AH - vh) / 2), Math.ceil(MINI_REAL - gy0 * sc)) + 'px';
+  stage.style.top = (portrait ? Math.max(MINI_REAL, AH - vh) : Math.max(Math.floor((AH - vh) / 2), Math.ceil(MINI_REAL - gy0 * sc))) + 'px';
   canvas.style.width = (focus ? vw * 2 : vw) + 'px';
   canvas.style.height = vh + 'px';
 }
