@@ -318,13 +318,16 @@ function scaled(ms) {
 const GAME_SPEEDS = [1, 2, 4, 8, 16];
 let gameSpeed = 1;
 let clockVirt = Date.now(), clockReal = Date.now(), clockFixed = null;
+let clockPaused = false; // v241: พักเกม (ปุ่ม ⏸ หรือเปิดคู่มือ/เมนู) นาฬิกาเกมหยุด ทุกฝั่งหยุดพร้อมกัน
 function gameNow() {
   if (clockFixed !== null) return clockFixed; // ระหว่างคำนวณแต่ละช่วงย่อยของเฟรม
+  if (clockPaused) return clockVirt;
   return clockVirt + (Date.now() - clockReal) * gameSpeed;
 }
 // เลื่อนนาฬิกาเกมตามเวลาจริงที่ผ่านไป คืนช่วง [จาก, ถึง] (เร่งอยู่: เฟรมห่างเกิน 0.25 วิ เช่นสลับแท็บ ไม่นับส่วนเกิน)
 function advanceClock() {
   const r = Date.now();
+  if (clockPaused) { clockReal = r; return [clockVirt, clockVirt]; } // v241
   let dt = Math.max(0, r - clockReal);
   clockReal = r;
   if (gameSpeed > 1) dt = Math.min(dt, 250);
@@ -1129,6 +1132,20 @@ function updateDepots(now) {
   });
 }
 
+// v241: หัวหน้าต่างติดด้านบนตลอด (เลื่อนดูรายการยาวๆ แล้วปุ่มปิดยังอยู่) + ปุ่ม ✕ ปิด
+function stickyHead(title, onClose) {
+  const head = document.createElement('div');
+  head.style.cssText = 'position:sticky;top:-14px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-14px -16px 6px;padding:12px 12px 8px 16px;background:#fff;border-bottom:1px solid #e5e5e5;border-radius:10px 10px 0 0;';
+  title.style.marginBottom = '0';
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.textContent = '✕ ปิด';
+  x.setAttribute('aria-label', 'ปิด');
+  x.style.cssText = 'flex:none;padding:6px 12px;font-size:14px;cursor:pointer;border:1px solid #bbb;border-radius:8px;background:#f4f1e6;color:#222;';
+  x.addEventListener('click', onClose);
+  head.append(title, x);
+  return head;
+}
 // ---------- ปุ่มยืนยันสองครั้ง (กันกดขายโดยไม่ตั้งใจ) ----------
 function twoTapButton(label, confirmLabel, onConfirm) {
   const b = document.createElement('button');
@@ -1164,7 +1181,7 @@ function openDepotPopup(cell, x, y) {
   const title = document.createElement('div');
   title.style.cssText = 'font-weight:bold;font-size:17px;margin-bottom:4px;';
   title.textContent = 'Trade Depot';
-  panel.appendChild(title);
+  panel.appendChild(stickyHead(title, closeDepotPopup)); // v241
 
   const rows = {};
   for (const kind of DEPOT_KINDS) {
@@ -2475,7 +2492,7 @@ function openSellPopup(cell, x, y) {
   const title = document.createElement('div');
   title.style.cssText = 'font-weight:bold;font-size:17px;margin-bottom:6px;';
   title.textContent = LABEL[cell.type];
-  panel.appendChild(title);
+  panel.appendChild(stickyHead(title, closeSellPopup)); // v241
 
   const lines = [];
   let wmDivs = null, statusDiv = null, rancherDiv = null, animalDiv = null, prodDiv = null;
@@ -2819,6 +2836,40 @@ hudSpeedPill.title = 'เร่งความเร็วเกม (ทั้�
 function refreshSpeedPill() {
   hudSpeed.textContent = 'x' + gameSpeed;
   hudSpeedPill.style.background = gameSpeed > 1 ? 'rgba(230,120,20,0.92)' : 'rgba(20,40,25,0.8)';
+}
+// v241: ปุ่มพักเกม (ใต้ปุ่มความเร็ว) · โหมดออนไลน์พักไม่ได้
+let manualPause = false;
+const hudPause = hudPill('⏸');
+const hudPausePill = hudPause.parentElement;
+hudPausePill.style.pointerEvents = 'auto';
+hudPausePill.style.cursor = 'pointer';
+hudPausePill.style.userSelect = 'none';
+hudPausePill.title = 'พักเกม / เล่นต่อ';
+hudPause.textContent = 'พัก';
+hudPausePill.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (onlineMode) { showMessage('โหมดออนไลน์พักเกมไม่ได้ (เพื่อนยังเล่นอยู่)'); return; }
+  manualPause = !manualPause;
+});
+const pauseBanner = document.createElement('div');
+pauseBanner.style.cssText = 'display:none;position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:65;padding:12px 22px;border-radius:14px;background:rgba(15,25,18,0.88);color:#fff;font:bold 20px sans-serif;text-align:center;box-shadow:0 3px 12px rgba(0,0,0,0.45);cursor:pointer;';
+pauseBanner.innerHTML = '⏸ พักเกมอยู่<div style="font-size:14px;font-weight:normal;margin-top:4px;opacity:.85">แตะเพื่อเล่นต่อ</div>';
+pauseBanner.addEventListener('click', () => { manualPause = false; });
+document.body.appendChild(pauseBanner);
+// เรียกทุกเฟรมก่อนเลื่อนนาฬิกา: พักเมื่อกดปุ่ม หรือเปิดคู่มือ (สายการผลิต) / หน้าเมนู-ตารางอาคารระหว่างเล่น
+function updatePauseState() {
+  const guide = (typeof prodOverlay !== 'undefined' && !!prodOverlay) || setupOverlay.style.display !== 'none';
+  const want = matchActive && !onlineMode && (manualPause || guide);
+  if (want !== clockPaused) {
+    if (want) { clockVirt = gameNow(); clockReal = Date.now(); clockPaused = true; }
+    else { clockReal = Date.now(); clockPaused = false; }
+  }
+  if (onlineMode) manualPause = false;
+  hudPausePill.style.display = onlineMode || !matchActive ? 'none' : 'flex';
+  hudPause.textContent = manualPause ? 'เล่นต่อ' : 'พัก';
+  hudPausePill.style.background = manualPause ? 'rgba(230,120,20,0.92)' : 'rgba(20,40,25,0.8)';
+  hudPause.previousSibling.textContent = manualPause ? '▶' : '⏸';
+  pauseBanner.style.display = manualPause && matchActive && !onlineMode ? 'block' : 'none';
 }
 hudSpeedPill.addEventListener('click', (e) => {
   e.stopPropagation();
@@ -3233,6 +3284,13 @@ lockViewBtn.addEventListener('click', () => {
   panDrag = null;
 });
 utilRow.appendChild(lockViewBtn);
+// v241: อัปเดตข้อความปุ่มมุมมอง/ล็อกกล้องให้ตรงกับค่าปัจจุบัน (ใช้ตอนโหลดเซฟ)
+function syncViewButtons() {
+  topViewBtn.textContent = topView ? '🗺 มุมมองจากด้านบน: เปิด' : '🗺 มุมมองจากด้านบน: ปิด';
+  topViewBtn.style.background = topView ? '#ffd166' : '';
+  lockViewBtn.textContent = viewLocked ? '🔒 ล็อกมุมมอง: เปิด' : '🔓 ล็อกมุมมอง: ปิด';
+  lockViewBtn.style.background = viewLocked ? '#ffd166' : '';
+}
 
 window.addEventListener('keydown', (event) => {
   const tag = event.target && event.target.tagName;
@@ -8158,6 +8216,7 @@ function loop() {
   // ครอบด้วย try/catch: error ครั้งเดียวจะไม่ทำให้เกมค้างทั้งเกม และยังขอเฟรมถัดไปเสมอ
   try {
     clockFixed = null;
+    updatePauseState(); // v241
     const [from, now] = advanceClock();
     if (matchActive) {
       // v196: แบ่งเวลาเกมของเฟรมนี้เป็นช่วงย่อยเท่ากับ 1 เฟรมที่ 60 fps (x1 = 1 ช่วงเหมือนเดิม)
@@ -8851,6 +8910,7 @@ function saveGame() {
       v: 1, savedAt: gameNow(), vsMode, matchGoal, matchLimitMs,
       matchStartAt, roundStartAt, human: humanSide, ai: vsMode ? aiSide : null,
       online: onlineMode ? onlineSaveInfo() : null, bots: onlineMode ? onlineBots : null, // v237
+      view: { topView, viewLocked, gameSpeed }, // v241: มุมมอง ล็อกกล้อง ความเร็ว
     };
     for (const s of [humanSide, aiSide, ...onlineBots]) if (s && s.board) for (const row of s.board) for (const c of row) if (c) delete c.reasonAt;
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -8936,11 +8996,20 @@ function resumeSavedGame() {
   aiSide = vsMode ? d.ai : null;
   activeSide = humanSide;
   loadSide(humanSide);
+  if (d.view) { // v241: คืนค่ามุมมอง/ล็อกกล้อง/ความเร็ว ตามตอนบันทึก
+    topView = d.view.topView !== false;
+    viewLocked = d.view.viewLocked !== false;
+    if (!onlineMode && GAME_SPEEDS.includes(d.view.gameSpeed)) { setGameSpeed(d.view.gameSpeed); refreshSpeedPill(); }
+    syncViewButtons();
+  }
   canvas.width = vsMode ? VIEW_W * 2 : VIEW_W;
   canvas.height = vsMode ? VS_CANVAS_H : soloCanvasH();
   ctx.imageSmoothingEnabled = false;
   applyStageView();
   applyViewMode();
+  if (d.view && !vsMode && !viewLocked && Number.isFinite(d.human.viewZoom)) { // หมุน/ซูม/เลื่อนไว้: คืนตำแหน่งกล้องเดิม
+    viewAngle = d.human.viewAngle || 0; viewZoom = d.human.viewZoom; viewOX = d.human.viewOX; viewOY = d.human.viewOY;
+  }
   gameOver = false;
   matchActive = true;
   setupOverlay.style.display = 'none';
@@ -9229,6 +9298,10 @@ function tutTick() {
   const el = st.el ? st.el() : null;
   if (el !== tut.glowEl) { tutClearGlow(); if (el) { el.classList.add('tutGlow'); tut.glowEl = el; } }
   if (tut.prog) tut.prog.textContent = st.progress ? st.progress() : '';
+  // v241: เปิดหน้าต่างขายอยู่ = ย้ายกล่องบทเรียนลงล่าง ไม่บังแถวข้าวสาลี (แถวบนสุด)
+  const low = !!depotPopup;
+  tut.bubble.style.top = low ? 'auto' : '96px';
+  tut.bubble.style.bottom = low ? 'calc(8px + env(safe-area-inset-bottom, 0px))' : 'auto';
   if (st.done && matchActive && st.done()) {
     SFX.sell && playSfx('sell');
     tutGo(Math.min(TUT_STEPS.length - 1, tut.i + 1));
