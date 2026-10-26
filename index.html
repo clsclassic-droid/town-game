@@ -2952,7 +2952,7 @@ let itemsLineHtml = '', goalLineHtml = '';
 infoPanel.append(infoHead, quickBar, statusEl, infoBody);
 document.body.appendChild(infoPanel);
 { const st = document.createElement('style');
-  st.textContent = '#status { font-size: 14px !important; } .infoMini #vsBar, .infoMini #viewSwitch { display: none !important; } @media (max-width: 600px) { #quickBar .qbBar, #quickBar .qbLab { display: none !important; } } .infoMini #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(580px, calc(100vw - 170px)); }';
+  st.textContent = 'button { background-color: #fbf3df; border: 1px solid #a07a4e; border-radius: 8px; color: #3a2814; font-family: inherit; } button:active { filter: brightness(0.94); } button:disabled { opacity: 0.55; } #status { font-size: 14px !important; } .infoMini #vsBar, .infoMini #viewSwitch { display: none !important; } @media (max-width: 600px) { #quickBar .qbBar, #quickBar .qbLab { display: none !important; } } .infoMini #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(580px, calc(100vw - 170px)); }';
   document.head.appendChild(st); }
 
 // ---------- แผงสรุปคลัง (แสดงตลอด ไม่ถูกข้อความแจ้งเตือนทับ) ----------
@@ -2999,7 +2999,7 @@ function refreshSummary() {
   summaryHint.style.display = hintText ? 'block' : 'none';
 }
 
-const btnStyle = 'padding:6px 10px;font-size:13px;cursor:pointer;border:1px solid #2d4a2d;border-radius:8px;background:#f4f1e6;color:#1d2a1d;box-shadow:0 1px 3px rgba(0,0,0,0.3);';
+const btnStyle = 'padding:6px 10px;font-size:13px;cursor:pointer;border:1px solid #8a6238;border-radius:8px;background:#fbf3df;color:#3a2814;box-shadow:0 1px 3px rgba(0,0,0,0.3);';
 const toolButtons = {};
 // ไอคอนของปุ่มสร้าง (ใช้อิโมจิแทนภาพต้นฉบับ)
 const BUILD_ICON = {
@@ -3047,11 +3047,12 @@ const TOOL_GROUPS = [
   { name: 'ไฟฟ้า', icon: 'power', types: ['windturbine', 'oilpump', 'fuelstorage', 'workerhouse', 'powerplant'] },
   { name: 'ขนส่ง', icon: 'trade', types: ['road', 'tradedepot'] }, // ถนน + อัปเกรดถนนลาดยาง + Trade Depot
 ];
-const TAB_DARK = '#2d5a1e';
+const TAB_DARK = '#3b7a2a'; // v243: แท็บที่เลือก = เขียว
+const TAB_BG = '#fbf3df', TAB_BROWN = '#7a5230'; // v243: พื้นครีม ขอบน้ำตาล
 const groupRows = {};
 // แถบหมวด (แท็บไอคอน) อยู่บนสุด กดแล้วแสดงเฉพาะปุ่มของหมวดนั้น
 const tabRow = document.createElement('div');
-tabRow.style.cssText = `display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;width:100%;max-width:760px;box-sizing:border-box;padding:5px 3px 3px;background:#e4e4e4;border-top:6px solid ${TAB_DARK};border-radius:6px;`;
+tabRow.style.cssText = `display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;width:100%;max-width:760px;box-sizing:border-box;padding:5px 3px 3px;background:#efe0bd;border:2px solid ${TAB_BROWN};border-top:6px solid ${TAB_BROWN};border-radius:8px;`;
 const panelEl = document.createElement('div');
 panelEl.style.cssText = 'display:flex;justify-content:center;width:100%;pointer-events:none;';
 tabRow.style.pointerEvents = 'auto';
@@ -3059,9 +3060,9 @@ tabRow.style.boxShadow = '0 3px 10px rgba(0,0,0,0.45)';
 toolbar.append(panelEl, tabRow);
 const tabList = [];
 function paintTab(tab, on) {
-  tab.style.background = on ? TAB_DARK : '#efefef';
-  tab.style.color = on ? '#fff' : '#555';
-  tab.style.setProperty('--tabbg', on ? TAB_DARK : '#efefef'); // รายละเอียดในไอคอนใช้สีพื้นแท็บ (เห็นได้ทั้งตอนเลือก/ไม่เลือก)
+  tab.style.background = on ? TAB_DARK : TAB_BG;
+  tab.style.color = on ? '#fff' : '#5a3f22';
+  tab.style.setProperty('--tabbg', on ? TAB_DARK : TAB_BG); // รายละเอียดในไอคอนใช้สีพื้นแท็บ (เห็นได้ทั้งตอนเลือก/ไม่เลือก)
 }
 let openRow = null; // v218: หมวดที่เปิดอยู่ (null = ปิดหมด กระดานไม่ถูกบัง)
 function showGroup(row, tab) {
@@ -3074,7 +3075,7 @@ function showGroup(row, tab) {
 }
 function makeGroup(name, icon) {
   const row = document.createElement('div');
-  row.style.cssText = 'display:none;gap:6px;flex-wrap:wrap;justify-content:center;pointer-events:auto;background:rgba(244,241,230,0.97);border-radius:10px;padding:8px;box-shadow:0 3px 10px rgba(0,0,0,0.4);max-height:calc(100vh - 150px);overflow:auto;box-sizing:border-box;max-width:100%;';
+  row.style.cssText = 'display:none;gap:6px;flex-wrap:wrap;justify-content:center;pointer-events:auto;background:rgba(251,243,223,0.98);border:2px solid #7a5230;border-radius:10px;padding:8px;box-shadow:0 3px 10px rgba(0,0,0,0.4);max-height:calc(100vh - 150px);overflow:auto;box-sizing:border-box;max-width:100%;';
   panelEl.appendChild(row);
   const tab = document.createElement('button');
   tab.type = 'button';
@@ -3390,9 +3391,10 @@ canvas.addEventListener('wheel', (e) => {
 
 function refreshToolbar() {
   for (const type in toolButtons) {
-    toolButtons[type].style.background = buildType === type ? '#ffd166' : '';
+    toolButtons[type].style.background = buildType === type ? '#bfe3a0' : ''; // v243: ที่เลือก = เขียวอ่อน
+    toolButtons[type].style.borderColor = buildType === type ? '#3b7a2a' : '';
   }
-  upgradeRoadBtn.style.background = upgradeMode ? '#ffd166' : '';
+  upgradeRoadBtn.style.background = upgradeMode ? '#bfe3a0' : '';
 }
 
 // ---------- ภาพความละเอียดสูง 128x128 (ชั้นที่ทับภาพ 16x16 เดิม) ----------
@@ -3574,6 +3576,8 @@ function hdWorker(shirt, shirtDark) {
 // '.' = โปร่งใส
 const PIX = {
   '1': '#4a7c59', '2': '#3e6b4c', '3': '#5b9469', '4': '#6fae7c',   // หญ้า
+  'ก': '#4b7d59', 'ข': '#47775a', 'ค': '#528a60', 'ฆ': '#3c6a49', 'ง': '#6aa877', // v243: หญ้าเรียบ (ต่างกันน้อย) + กอหญ้า
+  'บ': '#1f4a22', 'ป': '#3f8f38', 'พ': '#58a646', 'ฟ': '#86cc63', 'ภ': '#2e6e2b', 'ม': 'rgba(20, 45, 20, 0.30)', 'ย': '#d64545', // v243: พุ่มไม้
   '5': '#b89b72', '6': '#a0844f', '7': '#cdb08a',                     // ถนน
   X: '#2b1a0e', D: '#5d3a1a', G: '#8ecae6', g: '#4a8fb0',             // เส้นขอบ ประตู หน้าต่าง
   R: '#c0392b', r: '#8e2a20', W: '#f3e5ab', w: '#d9c48a',             // หลังคาแดง ผนังครีม
@@ -3646,15 +3650,25 @@ function renderGrid(g, scale = 2) {
   return c;
 }
 
-function grassGrid(seed) {
+// v243: หญ้าเรียบขึ้น (สีใกล้กัน ลายไม่แย่งสายตา) + ช่องรายละเอียด (กอหญ้า ดอกไม้) เฉพาะบางช่อง
+function grassGrid(seed, detail) {
   const r = rng(seed * 977 + 13);
-  return grid(16, 16, () => {
+  const g = grid(16, 16, () => {
     const v = r();
-    if (v < 0.04) return '4';
-    if (v < 0.12) return '3';
-    if (v < 0.30) return '2';
-    return '1';
+    if (v < 0.05) return 'ค';
+    if (v < 0.17) return 'ข';
+    return 'ก';
   });
+  if (detail) {
+    const tufts = detail === 1 ? [[3, 4], [11, 10]] : [[9, 3], [4, 12]];
+    for (const [tx, ty] of tufts) { // กอหญ้า: ใบเข้ม ปลายอ่อน
+      gp(g, tx, ty + 1, 1, 2, 'ฆ'); gp(g, tx + 2, ty + 1, 1, 2, 'ฆ'); gp(g, tx + 1, ty, 1, 3, 'ฆ');
+      gp(g, tx + 1, ty - 1, 1, 1, 'ง'); gp(g, tx, ty, 1, 1, 'ง'); gp(g, tx + 2, ty, 1, 1, 'ง');
+    }
+    const fl = detail === 1 ? [[8, 6, 'y'], [13, 3, 'W']] : [[13, 9, 'W'], [2, 6, 'y']];
+    for (const [fx, fy, ch] of fl) gp(g, fx, fy, 1, 1, ch);
+  }
+  return g;
 }
 function roadGrid() {
   const r = rng(7);
@@ -3675,9 +3689,42 @@ function workerGrid(shirt) {
   return g;
 }
 
+// v243: พุ่มไม้แบบพิกเซล (ก้อนใบหลายก้อน ขอบเข้ม แสงด้านบนซ้าย เงาใต้พุ่ม) แทนวงกลมเรียบ 3 วง
+const BUSH_SHAPES = [
+  [[5, 10, 3.6], [10.5, 9.5, 4], [8, 6, 3.6], [12, 12, 2.8]],
+  [[5.5, 9, 3.4], [10, 8, 4.2], [7.5, 12, 3]],
+  [[4.5, 11, 3], [8, 8, 4.2], [12, 10.5, 3.2], [9.5, 12.5, 2.6]],
+];
+function bushGrid(v) {
+  const blobs = BUSH_SHAPES[v];
+  const inside = (x, y) => blobs.some(([cx, cy, r]) => (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r);
+  const g = grid(16, 16, (x, y) => {
+    if (inside(x, y)) return '?';
+    const ex = (x + 0.5 - 8.5) / 6.5, ey = (y + 0.5 - 14) / 1.8; // เงาวงรีใต้พุ่ม
+    return ex * ex + ey * ey <= 1 ? 'ม' : '.';
+  });
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    if (g[y][x] !== '?') continue;
+    const edge = !inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1);
+    if (edge) { g[y][x] = 'บ'; continue; }
+    // ก้อนที่อยู่ใกล้สุด: ด้านบนซ้ายสว่าง ด้านล่างขวาเข้ม
+    let best = null, bd = 1e9;
+    for (const b of blobs) { const d = Math.hypot(x + 0.5 - b[0], y + 0.5 - b[1]) - b[2]; if (d < bd) { bd = d; best = b; } }
+    const lx = (x + 0.5 - best[0]) / best[2], ly = (y + 0.5 - best[1]) / best[2];
+    const lit = -(lx * 0.6 + ly * 0.8);
+    g[y][x] = lit > 0.45 ? 'ฟ' : lit > 0.05 ? 'พ' : lit > -0.45 ? 'ป' : 'ภ';
+  }
+  if (v === 1) { gp(g, 9, 7, 1, 1, 'ย'); gp(g, 6, 11, 1, 1, 'ย'); } // ผลเบอร์รี่เล็กๆ บางพุ่ม
+  return g;
+}
 const SPRITE_BUILDERS = {
   grass_a: () => grassGrid(1),
   grass_b: () => grassGrid(2),
+  grass_c: () => grassGrid(3, 1),
+  grass_d: () => grassGrid(4, 2),
+  bush_0: () => bushGrid(0),
+  bush_1: () => bushGrid(1),
+  bush_2: () => bushGrid(2),
   road: roadGrid,
 
   farmhouse: () => {
@@ -5461,22 +5508,22 @@ function withOutline(fn) {
   ctx.restore();
 }
 // ช่องว่างบางช่องมีพุ่มไม้ประดับ (กระจายแบบคงที่ ไม่กระทบทางเดิน)
+// v243: ช่องว่างส่วนใหญ่เป็นหญ้าเรียบ บางช่อง (ไม่ใช่ช่องพุ่มไม้) มีกอหญ้า/ดอกไม้
+function grassKey(x, y) {
+  const h = (((x + 3) * 73856093) ^ ((y + 7) * 19349663)) >>> 0;
+  if (!isBushSpot(x, y) && h % 13 === 3) return 'grass_c';
+  if (!isBushSpot(x, y) && h % 13 === 9) return 'grass_d';
+  return (x + y) % 2 === 0 ? 'grass_a' : 'grass_b';
+}
 function isBushSpot(x, y) {
   return (x * 7 + y * 13 + x * y) % 9 === 0 && (x + y) % 3 !== 0;
 }
 // วาดพุ่มไม้ 3 ก้อนในพิกัดช่อง 0..32
 function drawBush(x, y) {
   const ox = ((x * 5) % 7) - 3, oy = ((y * 3) % 5) - 2;
-  const parts = [[11 + ox, 19 + oy, 5], [21 + ox, 18 + oy, 6], [16 + ox, 12 + oy, 5]];
-  for (const [bx, by, r] of parts) {
-    ctx.beginPath();
-    ctx.arc(bx, by, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#3f8f38';
-    ctx.fill();
-    ctx.strokeStyle = '#1d4a1b';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  drawSpr('bush_' + ((x * 2 + y) % 3), Math.round(ox), Math.round(oy)); // v243: พุ่มไม้แบบพิกเซล
+  ctx.restore();
 }
 // ค่าขยาย perspective ที่จุดกริด (gx,gy): ด้านหน้าใหญ่กว่า 1 ด้านหลังเล็กกว่า 1 (มุมมองจากด้านบนไม่ใช้)
 function perspAt(gx, gy) {
@@ -5724,6 +5771,26 @@ function drawStopMark(c, x, y, now) {
   }
   ctx.restore();
 }
+// v243: ไอคอนเล็กเหนือบ้านคนตัดไม้ที่ยังไม่ทำงาน (แทนป้ายข้อความ) เฉพาะฝั่งผู้เล่น
+// รอต้นไม้โต = เรื่องปกติ (ขอบเทา) · ไม่มีคลังไม้ว่าง = ส้ม · เดินไปไม่ได้ = แดง
+const LUMBER_MARK = { 'รอต้นไม้โต': ['🌱', '#9e9e9e'], 'ไม่มีคลังไม้ว่าง': ['📦', '#fb8c00'], 'ออกจากบ้านไปไม่ได้': ['⛔', '#e53935'], 'หาทางไปต้นไม้ไม่เจอ': ['⛔', '#e53935'] };
+function drawLumberMark(c, x, y, reason, now) {
+  const m = LUMBER_MARK[reason];
+  if (!m || !activeSide || !activeSide.isHuman) return;
+  if (c.lumberSince == null || c.lumberSince > now) c.lumberSince = now;
+  if (now - c.lumberSince < 4000) return;
+  const [cx, cy] = tileCenterScreen(x, y);
+  const r = Math.max(8, 9.5 * viewZoom), top = cy - 32 * viewZoom;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.beginPath(); ctx.arc(cx, top, r, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+  ctx.lineWidth = Math.max(1.5, 2 * viewZoom); ctx.strokeStyle = m[1]; ctx.stroke();
+  ctx.font = `${Math.round(r * 1.15)}px sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#222';
+  ctx.fillText(m[0], cx, top + 1);
+  ctx.restore();
+}
 // v193: เครื่องหมาย ⏸ เหนืออาคารที่ปิดการทำงาน
 function drawPausedMark(x, y) {
   const [cx, cy] = tileCenterScreen(x, y);
@@ -5821,9 +5888,44 @@ function roadLinks(x, y) {
   });
   return m;
 }
+// v243: ถนนดินมีขอบเข้ม ร่องล้อจางๆ และก้อนกรวด (แต่งจากภาพถนนเดิมครั้งเดียวตอนโหลด)
+let roadArtFine = null;
+function roadArtDetailed(im) {
+  if (roadArtFine !== null) return roadArtFine || im;
+  if (!im.complete || !im.naturalWidth) return im;
+  try {
+    const W = im.naturalWidth, H = im.naturalHeight;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+    const d = g.getImageData(0, 0, W, H), p = d.data;
+    const A = (x, y) => (x < 0 || y < 0 || x >= W || y >= Math.min(H, 32)) ? 0 : p[(y * W + x) * 4 + 3];
+    const out = new Uint8ClampedArray(p);
+    for (let y = 0; y < Math.min(H, 32); y++) for (let x = 0; x < W; x++) { // แถวบน = ถนนดิน
+      const i = (y * W + x) * 4;
+      if (p[i + 3] < 200) continue;
+      let dist = 3;
+      for (let r = 1; r <= 2 && dist === 3; r++) {
+        if (A(x - r, y) < 200 || A(x + r, y) < 200 || A(x, y - r) < 200 || A(x, y + r) < 200) dist = r;
+      }
+      let k = dist === 1 ? 0.78 : dist === 2 ? 0.9 : 1;
+      const tx = x % 32, h = ((x * 73856093) ^ (y * 19349663)) >>> 0;
+      if (dist === 3 && (h % 1000) < 26) k = 1.32; // ก้อนกรวดสว่าง
+      else if (dist === 3 && (h % 1000) < 40) k = 0.72; // ก้อนกรวดเข้ม
+      out[i] = Math.min(255, p[i] * k); out[i + 1] = Math.min(255, p[i + 1] * k); out[i + 2] = Math.min(255, p[i + 2] * k);
+      if (dist === 3 && (h % 1000) < 26 && y + 1 < 32 && A(x, y + 1) >= 200) { // เงาใต้กรวด
+        const j = ((y + 1) * W + x) * 4; out[j] = p[j] * 0.7; out[j + 1] = p[j + 1] * 0.7; out[j + 2] = p[j + 2] * 0.7;
+      }
+      void tx;
+    }
+    d.data.set(out); g.putImageData(d, 0, 0);
+    roadArtFine = c;
+  } catch (e) { roadArtFine = false; }
+  return roadArtFine || im;
+}
 function drawRoadTile(cell, x, y) {
-  const im = artImg('road', ART_ROAD_SRC);
+  let im = artImg('road', ART_ROAD_SRC);
   if (!im) return false;
+  im = roadArtDetailed(im);
   drawSpr((x + y) % 2 === 0 ? 'grass_a' : 'grass_b', 0, 0);
   ctx.fillStyle = 'rgba(200, 242, 60, 0.26)';
   ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
@@ -5862,7 +5964,7 @@ function drawBoard(now) {
       }
       return;
     }
-    drawSpr((x + y) % 2 === 0 ? 'grass_a' : 'grass_b', 0, 0);
+    drawSpr(!cell ? grassKey(x, y) : (x + y) % 2 === 0 ? 'grass_a' : 'grass_b', 0, 0);
     ctx.fillStyle = 'rgba(200, 242, 60, 0.26)'; // โทนหญ้าสีเหลืองอมเขียวสดตามภาพอ้างอิง
     ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
     if (!cell) {
@@ -5885,7 +5987,9 @@ function drawBoard(now) {
         ctx.fillStyle = placementProblem(x, y) ? 'rgba(230, 50, 50, 0.45)' : 'rgba(80, 220, 110, 0.45)';
         ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
       }
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      // v243: เส้นตารางจางทั้งกระดาน เด่นเฉพาะรอบช่องที่จะวาง
+      const near = hoverCell && Math.abs(hoverCell.x - x) <= 2 && Math.abs(hoverCell.y - y) <= 2;
+      ctx.strokeStyle = near ? 'rgba(255, 255, 255, 0.30)' : 'rgba(255, 255, 255, 0.07)';
       ctx.lineWidth = 1;
       ctx.strokeRect(0, 0, TILE_SIZE, TILE_SIZE);
     });
@@ -5977,7 +6081,10 @@ function drawBoard(now) {
     }
     // ป้ายบอกเหตุผลที่คนตัดไม้ยังไม่ทำงาน
     const reason = lumberIdleReason(cell, now);
-    if (reason) {
+    const reasonFull = reason && (showStatus || (selectedTile && selectedTile.x === x && selectedTile.y === y));
+    if (reason && !reasonFull) drawLumberMark(cell, x, y, reason, now); // v243: ปกติแสดงเป็นไอคอนเล็ก แตะอาคาร/เปิดแถบสถานะ = ข้อความเต็ม
+    else if (!reason) cell.lumberSince = null;
+    if (reasonFull) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       const [cx, cy] = tileCenterScreen(x, y);
       // v204: ตัวหนังสือเริ่มที่ขอบซ้ายกล่อง +4 (ไม่พึ่ง textAlign center ซึ่งบางเครื่องตัวหนังสือไปเริ่มกลางกล่อง)
