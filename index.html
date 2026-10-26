@@ -9409,6 +9409,7 @@ function applyStageView() {
 }
 // v218: กระดานพอดีหน้าต่าง (เต็มจอแบบต้นฉบับ) ทุกโหมด คงสัดส่วนผืนผ้าใบ ส่วนที่เหลือเป็นขอบสีเข้ม
 // โหมดแข่งดูทีละฝั่ง (#stage.focus) = แสดงครึ่งผืนผ้าใบ เลื่อนด้วย transform ใน CSS
+let miniPanelBottom = 0; // v249: ขอบล่างจริงของแผงสรุปตอนย่อ (px บนจอ)
 function fitCanvasToWindow() {
   const stage = document.getElementById('stage');
   if (!stage) return;
@@ -9421,15 +9422,18 @@ function fitCanvasToWindow() {
   // v219: แถวบนสุดของกระดานต้องอยู่ใต้แผงสรุปตอนย่อ (สูง ~MINI_BOTTOM px) จอเตี้ยจึงเลื่อนกระดานลง/ย่อลงเท่าที่จำเป็น
   syncQuickBar();
   const MINI_BOTTOM = 72 + (quickBar.offsetHeight || 0); // v221: หัวแผงใหญ่ขึ้น, v225: + แถบด่วน (เป้าหมาย/ของในคลัง)
+  // v249: ใช้ความสูงจริงของแผงสรุปตอนย่อ (มือถือหัวแผงตัดเป็น 2 บรรทัด ค่าประมาณเดิมต่ำไป แผงบังแถวบนของกระดาน)
+  if (infoBody.style.display === 'none') miniPanelBottom = Math.ceil(infoPanel.getBoundingClientRect().bottom) + 4;
+  const MINI_REAL = Math.max(MINI_BOTTOM, miniPanelBottom || 0);
   let gy0 = 0; // ระยะจากบนผืนผ้าใบถึงขอบบนของแถว 0 (พิกเซลผืนผ้าใบ)
   try { const a0 = tileCenterScreen(0, 0)[1], a1 = tileCenterScreen(0, 1)[1]; gy0 = Math.max(0, a0 - Math.abs(a1 - a0) / 2); } catch (e) { gy0 = 0; }
   let sc = Math.min(W / cw, AH / ch);
-  if (gy0 < ch) sc = Math.min(sc, (AH - MINI_BOTTOM) / (ch - gy0));
+  if (gy0 < ch) sc = Math.min(sc, (AH - MINI_REAL) / (ch - gy0));
   const vw = Math.floor(cw * sc), vh = Math.floor(ch * sc);
   stage.style.width = vw + 'px';
   stage.style.height = vh + 'px';
   stage.style.left = Math.floor((W - vw) / 2) + 'px';
-  stage.style.top = Math.max(Math.floor((AH - vh) / 2), Math.ceil(MINI_BOTTOM - gy0 * sc)) + 'px';
+  stage.style.top = Math.max(Math.floor((AH - vh) / 2), Math.ceil(MINI_REAL - gy0 * sc)) + 'px';
   canvas.style.width = (focus ? vw * 2 : vw) + 'px';
   canvas.style.height = vh + 'px';
 }
@@ -9443,6 +9447,16 @@ function fitCanvasToWindow() {
     infoMini = true;
     paintInfo();
   }, 120); }
+// v249: แผงสรุปตอนย่อสูงขึ้น/ลดลง (ข้อความยาวขึ้น ตัดบรรทัด) = จัดกระดานใหม่
+if (typeof ResizeObserver !== 'undefined') {
+  let lastH = 0;
+  new ResizeObserver(() => {
+    if (infoBody.style.display !== 'none') return;
+    const h = Math.round(infoPanel.getBoundingClientRect().bottom);
+    if (Math.abs(h - lastH) < 3) return;
+    lastH = h; fitCanvasToWindow();
+  }).observe(infoPanel);
+}
 function fitSoloCanvasSize() { fitCanvasToWindow(); } // ชื่อเดิม (v215) ที่โค้ดส่วนอื่นเรียก
 window.addEventListener('resize', () => fitCanvasToWindow());
 function setupViewSwitch() {
