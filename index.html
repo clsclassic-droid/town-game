@@ -5936,21 +5936,37 @@ function roadArtDetailed(im) {
     const c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d'); g.drawImage(im, 0, 0);
     const d = g.getImageData(0, 0, W, H), p = d.data;
-    const A = (x, y) => (x < 0 || y < 0 || x >= W || y >= Math.min(H, 32)) ? 0 : p[(y * W + x) * 4 + 3];
+    // v247: ขอบช่อง 32px ถือว่าถนนต่อไปช่องข้างๆ (เดิมทำขอบเข้มที่รอยต่อทุกช่อง ถนนดูขาด) และลบจุดสีเล็กๆ ที่หลงอยู่ในภาพ
+    const A = (x, y, ox) => {
+      if (y < 0 || y >= Math.min(H, 32) || x < 0 || x >= W) return 255;
+      if (((x / 32) | 0) !== ((ox / 32) | 0)) return 255;
+      return p[(y * W + x) * 4 + 3];
+    };
+    for (let ty = 0; ty < Math.min(H, 32); ty++) for (let tx = 0; tx < W; tx++) {
+      const i = (ty * W + tx) * 4;
+      if (p[i + 3] < 200) continue;
+      let n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const xx = tx + dx, yy = ty + dy;
+        if (xx >= 0 && yy >= 0 && xx < W && yy < 32 && ((xx / 32) | 0) === ((tx / 32) | 0) && p[(yy * W + xx) * 4 + 3] >= 200) n++;
+      }
+      if (n <= 1) p[i + 3] = 0;
+    }
     const out = new Uint8ClampedArray(p);
     for (let y = 0; y < Math.min(H, 32); y++) for (let x = 0; x < W; x++) { // แถวบน = ถนนดิน
       const i = (y * W + x) * 4;
       if (p[i + 3] < 200) continue;
       let dist = 3;
       for (let r = 1; r <= 2 && dist === 3; r++) {
-        if (A(x - r, y) < 200 || A(x + r, y) < 200 || A(x, y - r) < 200 || A(x, y + r) < 200) dist = r;
+        if (A(x - r, y, x) < 200 || A(x + r, y, x) < 200 || A(x, y - r, x) < 200 || A(x, y + r, x) < 200) dist = r;
       }
       let k = dist === 1 ? 0.78 : dist === 2 ? 0.9 : 1;
       const tx = x % 32, h = ((x * 73856093) ^ (y * 19349663)) >>> 0;
       if (dist === 3 && (h % 1000) < 26) k = 1.32; // ก้อนกรวดสว่าง
       else if (dist === 3 && (h % 1000) < 40) k = 0.72; // ก้อนกรวดเข้ม
       out[i] = Math.min(255, p[i] * k); out[i + 1] = Math.min(255, p[i + 1] * k); out[i + 2] = Math.min(255, p[i + 2] * k);
-      if (dist === 3 && (h % 1000) < 26 && y + 1 < 32 && A(x, y + 1) >= 200) { // เงาใต้กรวด
+      if (dist === 3 && (h % 1000) < 26 && y + 1 < 32 && A(x, y + 1, x) >= 200) { // เงาใต้กรวด
         const j = ((y + 1) * W + x) * 4; out[j] = p[j] * 0.7; out[j + 1] = p[j + 1] * 0.7; out[j + 2] = p[j + 2] * 0.7;
       }
       void tx;
