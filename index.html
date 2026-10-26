@@ -5983,10 +5983,21 @@ function drawRoadTile(cell, x, y) {
   drawSpr((x + y) % 2 === 0 ? 'grass_a' : 'grass_b', 0, 0);
   ctx.fillStyle = 'rgba(200, 242, 60, 0.26)';
   ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+  return true; // v248: ตัวถนนวาดในรอบที่ 2 (drawRoadTop) หลังหญ้าทุกช่อง ไม่ให้ขอบหญ้าช่องข้างๆ ทับรอยต่อ
+}
+// v248: วาดถนนทับหลังพื้นหญ้าทั้งกระดาน ล้นขอบช่องเล็กน้อย (0.4) ให้ช่องติดกันซ้อนกัน ไม่เห็นเส้นรอยต่อ
+function drawRoadTop(cell, x, y) {
+  let im = artImg('road', ART_ROAD_SRC);
+  if (!im) return;
+  im = roadArtDetailed(im);
+  const m = roadLinks(x, y), o = 0.4;
+  // ล้นเฉพาะด้านที่ต่อกับถนน/ประตู (ด้านที่ไม่ต่อไม่ล้น ไม่ให้ภาพถูกยืด)
+  const l = m & 8 ? o : 0, r = m & 2 ? o : 0, t = m & 1 ? o : 0, b = m & 4 ? o : 0;
+  const sl = l / TILE_SIZE * 32, sr = r / TILE_SIZE * 32, st = t / TILE_SIZE * 32, sb = b / TILE_SIZE * 32;
   ctx.save(); ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(im, ROAD_TILE_BY_MASK[roadLinks(x, y)] * 32, cell.paved ? 32 : 0, 32, 32, 0, 0, TILE_SIZE, TILE_SIZE);
+  const sx = ROAD_TILE_BY_MASK[m] * 32, sy = cell.paved ? 32 : 0;
+  ctx.drawImage(im, sx - sl, sy - st, 32 + sl + sr, 32 + st + sb, -l, -t, TILE_SIZE + l + r, TILE_SIZE + t + b);
   ctx.restore();
-  return true;
 }
 function drawBoard(now) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -6033,6 +6044,9 @@ function drawBoard(now) {
       drawPond(0, 0, cell);
     }
   });
+
+  // v248: รอบที่ 2 ของพื้น: ตัวถนน
+  if (artImg('road', ART_ROAD_SRC)) eachCell((cell, x, y) => { if (cell && cell.type === 'road') { setTileWarp(x, y); drawRoadTop(cell, x, y); } });
 
   // เส้นตารางและช่องที่ชี้ (แสดงเฉพาะตอนเลือกเครื่องมือสร้าง) วาดบนพื้นให้อาคารทับได้
   if (buildType) {
