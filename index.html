@@ -589,6 +589,56 @@ function isDoorTile(x, y) {
   }
   return false;
 }
+// v255: โรงสัตว์ (อาคารมีประตูที่ไม่ต้องติดถนน) วางอาคารอื่นทับช่องประตูได้ ประตูย้ายไปด้านอื่นเอง
+const MOVABLE_DOOR_TYPES = DOOR_TYPES.filter((t) => !NEEDS_ROAD[t]);
+function doorOwnersAt(x, y) {
+  const out = [];
+  for (const [nx, ny] of neighbors4(x, y)) {
+    const c = cellAt(nx, ny);
+    if (c && DOOR_TYPES.includes(c.type) && c.door && c.door.x === x && c.door.y === y) out.push([c, nx, ny]);
+  }
+  return out;
+}
+// ช่องประตูใหม่ของอาคาร (cx,cy) ที่ไม่ใช่ช่อง (banX,banY): ถนนก่อน แล้วช่องที่เดินได้และไม่ใช่ประตูของอาคารอื่น
+function newDoorSpot(cx, cy, banX, banY) {
+  const ns = neighbors4(cx, cy).filter(([nx, ny]) => !(nx === banX && ny === banY));
+  return ns.find(([nx, ny]) => isRoad(nx, ny)) || ns.find(([nx, ny]) => walkable(nx, ny) && !isDoorTile(nx, ny)) || null;
+}
+function keepsDoor(type) { return type === 'road' || CROP_TYPES.includes(type); } // เดินทับได้ ประตูอยู่ที่เดิม
+// ปัญหาการวางบนช่องประตู (null = วางได้): 'door' = ประตูของอาคารที่ต้องติดถนน, 'pendoor' = โรงสัตว์ไม่เหลือด้านให้ย้ายประตู
+function doorTileProblem(x, y, type) {
+  if (!isDoorTile(x, y) || DOOR_OK_TYPES.includes(type)) return null;
+  const owners = doorOwnersAt(x, y);
+  if (owners.some(([c]) => !MOVABLE_DOOR_TYPES.includes(c.type))) return 'door';
+  if (keepsDoor(type)) return null;
+  if (owners.some(([, cx, cy]) => !newDoorSpot(cx, cy, x, y))) return 'pendoor';
+  return null;
+}
+// ย้ายประตูแล้วให้คนงานที่กำลังเดินมาอาคารนี้หาทางใหม่ (ไม่ทิ้งงาน)
+function moveDoorTo(cell, cx, cy, spot, now) {
+  cell.door = { x: spot[0], y: spot[1] };
+  clearPathCache();
+  eachCell((o) => {
+    if (!isRanch(o)) return;
+    const r = o.rancher;
+    if (r.state === 'idle') return;
+    const t = r.waitTo || (r.job ? (r.job.stage === 'toFrom' ? r.job.from : r.job.to) : { x: r.hx, y: r.hy });
+    if (t.x === cx && t.y === cy) routeRanch(r, t.x, t.y, now);
+  });
+  eachCell((o) => {
+    if (!isHouse(o)) return;
+    const f = o.farmer;
+    if (f.state !== 'walk') return;
+    const t = farmerTarget(f);
+    if (!t || t.x !== cx || t.y !== cy) return;
+    const p = pathToBuilding(f.x, f.y, cx, cy);
+    if (!p) return;
+    if (p.length === 0) { f.path = []; onArrive(f, now); return; }
+    f.path = p;
+    f.moveAt = now; f.nextAt = now + stepTime(f.x, f.y, p[0][0], p[0][1]);
+  });
+  if (isRanch(cell) && cell.rancher.state === 'idle') [cell.rancher.x, cell.rancher.y] = homeMicro(cell.door, cx, cy);
+}
 // มีเกษตรกรหรือคนตัดไม้ยืน/กำลังเดินผ่านช่องนี้หรือไม่
 function workerBlocks(x, y) {
   if (aiMemo) {
@@ -2222,7 +2272,7 @@ function sellCellInner(x, y) {
   // ถนนถูกขาย: ประตูที่หันมาทางถนนนี้จะหาย อาคารนั้นใช้งานไม่ได้จนกว่าจะมีถนนมาวางติด
   if (cell.type === 'road') {
     eachCell((c) => {
-      if (c && DOOR_TYPES.includes(c.type) && c.door && c.door.x === x && c.door.y === y) c.door = null;
+      if (c && DOOR_TYPES.includes(c.type) && !MOVABLE_DOOR_TYPES.includes(c.type) && c.door && c.door.x === x && c.door.y === y) c.door = null;
     });
   }
 
@@ -2249,6 +2299,12 @@ function sellCellInner(x, y) {
   });
 
   board[y][x] = null;
+  for (const [nx, ny] of neighbors4(x, y)) { // v255: โรงสัตว์ที่ไม่มีประตู ได้ช่องที่ว่างลงเป็นประตู
+    const c = cellAt(nx, ny);
+    if (!c || !MOVABLE_DOOR_TYPES.includes(c.type) || c.door || isDoorTile(x, y)) continue;
+    c.door = { x, y };
+    if (isRanch(c) && c.rancher.state === 'idle') [c.rancher.x, c.rancher.y] = homeMicro(c.door, nx, ny);
+  }
   coins += refund;
   updateStatus();
   if (!quietSell) showMessage(`ขาย${LABEL[cell.type]}แล้ว ได้เงิน $${refund}`);
@@ -4041,7 +4097,8 @@ function rotateView(dir) {
 function placementProblem(x, y, type = buildType) {
   if (!type) return null;
   if (board[y][x]) return 'occupied';
-  if (isDoorTile(x, y) && !DOOR_OK_TYPES.includes(type)) return 'door'; // พืชเดินทับได้ จึงวางบนช่องประตูได้
+  const doorProb = doorTileProblem(x, y, type); // v255: พืชเดินทับได้ / ประตูโรงสัตว์ย้ายได้
+  if (doorProb) return doorProb;
   const blocksWalk = !['road', 'field', 'cotton', 'sugarcane', 'saltfield', 'tree', 'oaktree'].includes(type);
   // v238: วางทับช่องที่มีคนงานได้แล้ว (คนงานถูกขยับไปขอบช่อง ดู nudgeWorkersOff)
   if (NEEDS_ROAD[type] && !neighbors4(x, y).some(([nx, ny]) => isRoad(nx, ny))) return 'road';
@@ -6332,7 +6389,9 @@ function placeBuilding(x, y, type) {
 }
 function placeBuildingInner(x, y, type) {
   if (board[y][x]) return 'ช่องนี้มีสิ่งก่อสร้างอยู่แล้ว';
-  if (isDoorTile(x, y) && !DOOR_OK_TYPES.includes(type)) return 'ช่องนี้เป็นประตูของอาคาร';
+  const doorProb = doorTileProblem(x, y, type); // v255
+  if (doorProb === 'door') return 'ช่องนี้เป็นประตูของอาคาร';
+  if (doorProb === 'pendoor') return 'ต้องเว้นที่ให้ประตูโรงสัตว์อย่างน้อย 1 ด้าน';
   // สิ่งก่อสร้างที่เดินทับไม่ได้ ห้ามวางทับคนงานหรือเส้นทางที่คนงานกำลังเดิน
   const blocksWalk = !['road', 'field', 'cotton', 'sugarcane', 'saltfield', 'tree', 'oaktree'].includes(type);
   // v238: บอสให้วางได้แม้มีคนงานเดินผ่าน (เดิมห้าม) คนงานที่ยืนกลางช่องจะถูกขยับไปขอบช่องหลังวาง
@@ -6352,6 +6411,14 @@ function placeBuildingInner(x, y, type) {
   if (BUILDINGS[type].lumberCost) takeKind('lumber', BUILDINGS[type].lumberCost);
   if (BUILDINGS[type].energyCost) consumeEnergy(BUILDINGS[type].energyCost);
   // สระไม่ตัดน้ำจากคลังทันที คนเกษตรต้องขนน้ำมาส่งทีละถัง (ดู siteNeedsWater)
+  // v255: วางทับประตูโรงสัตว์ → ย้ายประตูโรงสัตว์ไปด้านอื่นก่อน (ตรวจแล้วว่ามีที่ย้าย)
+  if (!keepsDoor(type)) {
+    const now0 = gameNow();
+    for (const [oc, ocx, ocy] of doorOwnersAt(x, y)) {
+      const spot = newDoorSpot(ocx, ocy, x, y);
+      if (spot) moveDoorTo(oc, ocx, ocy, spot, now0);
+    }
+  }
   // ไม่ต้องติดถนน: ถ้าไม่มีถนนติดอยู่ ใช้ช่องว่างข้างๆ เป็นประตูแทน
   const roadSide = neighbors4(x, y).find(([nx, ny]) => isRoad(nx, ny));
   const doorCell = roadSide || (DOOR_TYPES.includes(type) && !NEEDS_ROAD[type]
