@@ -1493,7 +1493,7 @@ function finishFetch(f, now) {
   const pondPrio = 0.15;
   eachCell((c, x, y) => {
     if (!needsWaterDelivery(c)) return;
-    const p = pathToBuilding(f.x, f.y, x, y, c.type === 'pond'); // สระ: เดินขึ้นไปยืนบนช่องสระเลย
+    const p = pathToBuilding(f.x, f.y, x, y, true); // v260: เดินขึ้นไปยืนบนช่องที่จะรดน้ำ (พืช ต้นไม้ และจุดสร้างสระ)
     if (!p) return;
     const len = p.length * (c.type === 'pond' ? pondPrio : 1);
     if (!best || len < best.len) best = { x, y, path: p, len };
@@ -1596,7 +1596,7 @@ function updateFarmers(now) {
       }
     } else if (f.state === 'wait') {
       if (now >= f.nextAt) {
-        const p = pathToBuilding(f.x, f.y, f.waitTo.x, f.waitTo.y);
+        const p = pathToBuilding(f.x, f.y, f.waitTo.x, f.waitTo.y, f.mode === 'toWaterField'); // v260
         if (p) startWalk(f, p, now);
         else f.nextAt = now + IDLE_CHECK_MS;
       }
@@ -6125,6 +6125,26 @@ function drawRoadTile(cell, x, y) {
   return true; // v248: ตัวถนนวาดในรอบที่ 2 (drawRoadTop) หลังหญ้าทุกช่อง ไม่ให้ขอบหญ้าช่องข้างๆ ทับรอยต่อ
 }
 // v248: วาดถนนทับหลังพื้นหญ้าทั้งกระดาน ล้นขอบช่องเล็กน้อย (0.4) ให้ช่องติดกันซ้อนกัน ไม่เห็นเส้นรอยต่อ
+// v260: แผ่นถนนแต่ละช่องขยายขอบตัวเองออก 1 พิกเซล (ช่องละ 34) ตอนวาดล้นขอบจะได้สีของช่องตัวเอง ไม่ดึงพิกเซลของแผ่นข้างๆ ในชีต (เดิมเป็นเส้นน้ำตาลบางในหญ้าที่รอยต่อ)
+const roadExtrudeCache = new WeakMap();
+function roadArtExtruded(im) {
+  let c = roadExtrudeCache.get(im);
+  if (c) return c;
+  const W = im.naturalWidth || im.width, H = im.naturalHeight || im.height;
+  const cols = Math.floor(W / 32), rows = Math.floor(H / 32);
+  c = document.createElement('canvas'); c.width = cols * 34; c.height = rows * 34;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) {
+    const sx = k * 32, sy = r * 32, dx = k * 34 + 1, dy = r * 34 + 1;
+    g.drawImage(im, sx, sy, 32, 32, dx, dy, 32, 32);
+    g.drawImage(im, sx, sy, 1, 32, dx - 1, dy, 1, 32);
+    g.drawImage(im, sx + 31, sy, 1, 32, dx + 32, dy, 1, 32);
+    g.drawImage(im, sx, sy, 32, 1, dx, dy - 1, 32, 1);
+    g.drawImage(im, sx, sy + 31, 32, 1, dx, dy + 32, 32, 1);
+  }
+  if (W && H) roadExtrudeCache.set(im, c);
+  return c;
+}
 function drawRoadTop(cell, x, y) {
   let im = artImg('road', ART_ROAD_SRC);
   if (!im) return;
@@ -6134,8 +6154,9 @@ function drawRoadTop(cell, x, y) {
   const l = m & 8 ? o : 0, r = m & 2 ? o : 0, t = m & 1 ? o : 0, b = m & 4 ? o : 0;
   const sl = l / TILE_SIZE * 32, sr = r / TILE_SIZE * 32, st = t / TILE_SIZE * 32, sb = b / TILE_SIZE * 32;
   ctx.save(); ctx.imageSmoothingEnabled = false;
-  const sx = ROAD_TILE_BY_MASK[m] * 32, sy = cell.paved ? 32 : 0;
-  ctx.drawImage(im, sx - sl, sy - st, 32 + sl + sr, 32 + st + sb, -l, -t, TILE_SIZE + l + r, TILE_SIZE + t + b);
+  const ex = roadArtExtruded(im);
+  const sx = ROAD_TILE_BY_MASK[m] * 34 + 1, sy = (cell.paved ? 34 : 0) + 1;
+  ctx.drawImage(ex, sx - sl, sy - st, 32 + sl + sr, 32 + st + sb, -l, -t, TILE_SIZE + l + r, TILE_SIZE + t + b);
   ctx.restore();
 }
 function drawBoard(now) {
