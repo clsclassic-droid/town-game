@@ -4262,24 +4262,21 @@ function drawWindpumpFx(cell, now) {
   }
   ctx.restore();
 }
-// v252: วงเวลาเติมน้ำเหนือบ่อน้ำ/กังหันลมตอนน้ำหมด (วงฟ้าค่อยๆ เต็ม + วินาทีที่เหลือ)
+// v253: แถบฟ้าบางๆ ใต้บ่อน้ำ/กังหันลมตอนน้ำหมด ค่อยๆ เต็มจนน้ำมา (ไม่มีตัวเลข ไม่ล้นไปบังช่องอื่น)
+// เวลาเป็นวินาทีดูได้ตอนแตะอาคาร หรือเปิดแถบสถานะ
 function drawRefillMark(c, x, y, now) {
   const left = sourceRefillLeft(c, now);
   if (left === null) return;
   const total = scaled(REFILL_MS[c.type]) || 1;
   const frac = Math.max(0, Math.min(1, 1 - left / total));
   const [cx, cy] = tileCenterScreen(x, y);
-  const r = Math.max(8, 9 * viewZoom), top = cy - 30 * viewZoom;
+  const z = viewZoom, w = Math.max(14, 20 * z), h = Math.max(3, 3 * z);
+  const bx = cx - w / 2, by = cy + 12 * z;
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.beginPath(); ctx.arc(cx, top, r, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fill();
-  ctx.lineWidth = Math.max(1.5, 1.8 * viewZoom); ctx.strokeStyle = '#c9d6e3'; ctx.stroke();
-  ctx.beginPath(); ctx.arc(cx, top, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-  ctx.lineWidth = Math.max(2.5, 3 * viewZoom); ctx.strokeStyle = '#2f8fe0'; ctx.stroke();
-  ctx.font = `bold ${Math.round(r * 0.95)}px sans-serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1f4f7a';
-  ctx.fillText(String(Math.ceil(left / 1000)), cx, top + 1);
+  ctx.fillStyle = 'rgba(20,35,50,0.75)'; ctx.fillRect(bx - 1, by - 1, w + 2, h + 2);
+  ctx.fillStyle = '#d9e6f2'; ctx.fillRect(bx, by, w, h);
+  ctx.fillStyle = '#2f8fe0'; ctx.fillRect(bx, by, w * frac, h);
   ctx.restore();
 }
 function drawWellFx(cell, now) {
