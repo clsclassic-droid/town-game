@@ -9683,7 +9683,14 @@ function netOpen(code, myId, h) {
   if (ONLINE_LOCAL) return netOpenLocal(name, myId, h);
   if (!netClient) netClient = window.supabase.createClient(ONLINE_CFG.url, ONLINE_CFG.key, { auth: { persistSession: false, autoRefreshToken: false } });
   const ch = netClient.channel(name, { config: { broadcast: { self: false, ack: false }, presence: { key: myId } } });
-  let meta = null, ok = false;
+  let meta = null, ok = false, lastTrack = 0, trackTimer = null;
+  // v251: ส่ง presence ไม่เกิน 1 ครั้งต่อ 1.5 วิ (กัน ClientPresenceRateLimitReached) ส่งค่าล่าสุดเสมอ
+  const TRACK_GAP = 1500;
+  const flushTrack = () => { trackTimer = null; if (!ok || !meta) return; lastTrack = Date.now(); try { ch.track(meta); } catch (e) { /* ignore */ } };
+  const queueTrack = (minWait) => {
+    if (trackTimer) return;
+    trackTimer = setTimeout(flushTrack, Math.max(minWait || 0, lastTrack + TRACK_GAP - Date.now(), 0));
+  };
   ch.on('broadcast', { event: 'm' }, (e) => { try { h.msg(e.payload); } catch (err) { console.error('[online msg]', err); } });
   ch.on('presence', { event: 'sync' }, () => {
     const st = ch.presenceState(), list = [];
@@ -9692,13 +9699,13 @@ function netOpen(code, myId, h) {
   });
   ch.subscribe((status) => {
     ok = status === 'SUBSCRIBED';
-    if (ok && meta) ch.track(meta);
+    if (ok && meta) queueTrack(600); // ต่อใหม่/กลับเข้าห้อง: หน่วงเล็กน้อยก่อนส่ง
     h.status(status);
   });
   return {
     send(p) { if (ok) ch.send({ type: 'broadcast', event: 'm', payload: p }); },
-    track(m) { meta = m; if (ok) ch.track(m); },
-    close() { try { ch.untrack(); } catch (e) { /* ignore */ } try { netClient.removeChannel(ch); } catch (e) { /* ignore */ } },
+    track(m) { meta = m; if (ok) queueTrack(0); },
+    close() { if (trackTimer) { clearTimeout(trackTimer); trackTimer = null; } ok = false; try { ch.untrack(); } catch (e) { /* ignore */ } try { netClient.removeChannel(ch); } catch (e) { /* ignore */ } },
   };
 }
 // ทดสอบในเครื่อง: หลายแท็บคุยกันผ่าน BroadcastChannel (presence จำลองด้วยการส่งซ้ำทุก 1 วิ หายเกิน 4 วิ = ออก)
@@ -9754,7 +9761,10 @@ function onlineNew(code, isHost, name) {
 }
 function onlineHostMeta() { return online && online.peers.find((m) => m.host); }
 function onlineHumans() {
-  return online.peers.filter((m) => m && m.id).sort((a, b) => (b.host ? 1 : 0) - (a.host ? 1 : 0) || a.at - b.at);
+  const list = online.peers.filter((m) => m && m.id);
+  // v251: ยังไม่ได้รับ presence (เน็ตมีปัญหา) ก็ยังนับตัวเองเสมอ
+  if (!list.some((m) => m.id === online.myId)) list.push({ id: online.myId, name: online.name, host: online.isHost, ready: online.ready, at: online.joinedAt });
+  return list.sort((a, b) => (b.host ? 1 : 0) - (a.host ? 1 : 0) || a.at - b.at);
 }
 function onlineCurLobby() { return online.isHost ? online.lobby : ((onlineHostMeta() || {}).lobby || null); }
 function onlineTrack() {
@@ -9889,8 +9899,9 @@ function showOnlineLobby() {
     const diffSel = diffPicker();
     const addBot = sBtn('🤖 เพิ่ม AI เสริม', () => {
       if (onlineHumans().length + lb.bots.length >= ONLINE_MAX) { err.textContent = 'ห้องเต็มแล้ว (สูงสุด 4)'; return; }
-      const n = lb.bots.length + 1;
-      lb.bots.push({ id: 'bot' + Date.now().toString(36) + n, name: `AI ${n} (${VS_AI_DIFF[diffSel.value].name})`, diff: diffSel.value });
+      const used = new Set(lb.bots.map((b) => b.n || Number((/^AI (\d+)/.exec(b.name) || [])[1]) || 0));
+      let n = 1; while (used.has(n)) n++; // v251: ชื่อ AI ไม่ซ้ำ
+      lb.bots.push({ n, id: 'bot' + Date.now().toString(36) + n, name: `AI ${n} (${VS_AI_DIFF[diffSel.value].name})`, diff: diffSel.value });
       onlineTrack(); renderOnlineLobby();
     }, false);
     const sync = () => {
@@ -9926,7 +9937,8 @@ function renderOnlineLobby() {
   if (online.isHost) {
     const total = humans.length + online.lobby.bots.length;
     const waiting = humans.filter((m) => !m.host && !m.ready).length;
-    startBtn.disabled = !ok || total < 2 || waiting > 0;
+    const soloBots = humans.length <= 1 && online.lobby.bots.length > 0; // v251: เจ้าห้อง+AI เริ่มได้แม้เน็ตมีปัญหา
+    startBtn.disabled = (!ok && !soloBots) || total < 2 || waiting > 0;
     startBtn.style.opacity = startBtn.disabled ? '0.5' : '1';
     startBtn.textContent = total < 2 ? '▶ เริ่มแข่ง (รอเพื่อนหรือเพิ่ม AI)' : waiting ? `▶ เริ่มแข่ง (รอ ${waiting} คนกดพร้อม)` : '▶ เริ่มแข่ง';
   } else {
