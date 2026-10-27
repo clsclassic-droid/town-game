@@ -1425,6 +1425,7 @@ function onArrive(f, now) {
   if (f.mode === 'toCrop') {
     f.state = 'harvest';
     f.nextAt = now + scaled(HARVEST_MS);
+    if (f.kind === 'lumberjack') playSfx('chop', Math.min(0.45, scaled(HARVEST_MS) / Math.max(1, gameSpeed) / 1000 * 0.5)); // v256
     return;
   }
   if (f.mode === 'toStore') {
@@ -1469,7 +1470,7 @@ function onArrive(f, now) {
 }
 
 function finishHarvest(f, now) {
-  playSfx('harvest');
+  playSfx(f.kind === 'lumberjack' ? 'timber' : 'harvest'); // v256: ตัดต้นไม้ = เสียงไม้หัก
   const crop = cellAt(f.crop.x, f.crop.y);
   crop.reserved = false;
   crop.water = 0;        // เก็บเกี่ยว/ตัดแล้วต้องรดน้ำใหม่ให้ครบ
@@ -3263,19 +3264,19 @@ utilRow.appendChild(testBtn);
 const rotLeftBtn = document.createElement('button');
 rotLeftBtn.style.cssText = btnStyle;
 rotLeftBtn.textContent = '⟲ หมุนซ้าย (Q)';
-rotLeftBtn.addEventListener('click', () => rotateView(-1));
+rotLeftBtn.addEventListener('click', () => rotateViews(-1));
 utilRow.appendChild(rotLeftBtn);
 
 const rotRightBtn = document.createElement('button');
 rotRightBtn.style.cssText = btnStyle;
 rotRightBtn.textContent = '⟳ หมุนขวา (E)';
-rotRightBtn.addEventListener('click', () => rotateView(1));
+rotRightBtn.addEventListener('click', () => rotateViews(1));
 utilRow.appendChild(rotRightBtn);
 
 const resetViewBtn = document.createElement('button');
 resetViewBtn.style.cssText = btnStyle;
 resetViewBtn.textContent = 'รีเซ็ตมุมมอง';
-resetViewBtn.addEventListener('click', resetView);
+resetViewBtn.addEventListener('click', resetViews);
 utilRow.appendChild(resetViewBtn);
 
 const topViewBtn = document.createElement('button');
@@ -3285,6 +3286,7 @@ topViewBtn.style.background = topView ? '#ffd166' : '';
 topViewBtn.addEventListener('click', () => {
   if (viewLocked) return; // ล็อกมุมมองอยู่ จึงสลับไม่ได้
   topView = !topView;
+  if (aiSide) aiSide.manualView = false; // v256: ฝั่ง AI กลับมาจัดพอดีอัตโนมัติตามมุมมองใหม่
   if (vsMode) {
     fitSpectatorView(); // โหมดแข่ง: ปรับขนาดกระดานของคุณให้เต็มตามมุมมองใหม่
   } else {
@@ -3306,11 +3308,31 @@ menuBtn.addEventListener('click', () => {
   showSetupMenu();
 });
 utilRow.appendChild(menuBtn);
-// ปุ่มซูมของกระดานผู้เล่น (ซูมเข้า/ออกรอบกลางกระดาน)
+// v256: ปุ่มมุมมอง (ซูม หมุน รีเซ็ต) ทำงานกับกระดานที่กำลังดู: ฝั่งคุณ / ฝั่ง AI / สองฝั่ง = ทั้งคู่
+// ฝั่ง AI ที่ปรับมุมมองเองแล้ว (manualView) ไม่ถูกจัดพอดีอัตโนมัติทุกเฟรม (เป็นแค่มุมมอง ไม่กระทบเกมของ AI)
+function viewTargets() {
+  if (!vsMode || !aiSide) return [humanSide];
+  const m = typeof stageMode === 'string' ? stageMode : 'both';
+  return m === 'ai' ? [aiSide] : m === 'human' ? [humanSide] : [humanSide, aiSide];
+}
+function withViewSide(s, fn) {
+  const back = activeSide;
+  useSide(s);
+  try { fn(); } finally { if (!s.isHuman) s.manualView = true; useSide(back); }
+}
+function sideAtCanvasX(x) { return vsMode && aiSide && x >= VIEW_W ? aiSide : humanSide; }
+function rotateViews(dir) {
+  if (viewLocked) return;
+  for (const s of viewTargets()) withViewSide(s, () => rotateView(dir));
+}
+function resetViews() {
+  if (viewLocked) return;
+  for (const s of viewTargets()) { withViewSide(s, applyViewMode); if (!s.isHuman) s.manualView = false; }
+}
+// ปุ่มซูม (ซูมเข้า/ออกรอบกลางกระดาน)
 function zoomHuman(f) {
   if (viewLocked) return;
-  useSide(humanSide);
-  setZoomAt(humanSide.sideX + VIEW_W / 2, canvas.height / 2, viewZoom * f);
+  for (const s of viewTargets()) withViewSide(s, () => setZoomAt(s.sideX + VIEW_W / 2, canvas.height / 2, viewZoom * f));
 }
 const zoomInBtn = document.createElement('button');
 zoomInBtn.style.cssText = btnStyle;
@@ -3360,8 +3382,8 @@ function syncViewButtons() {
 window.addEventListener('keydown', (event) => {
   const tag = event.target && event.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-  if (event.key === 'q' || event.key === 'Q') rotateView(-1);
-  else if (event.key === 'e' || event.key === 'E') rotateView(1);
+  if (event.key === 'q' || event.key === 'Q') rotateViews(-1);
+  else if (event.key === 'e' || event.key === 'E') rotateViews(1);
 });
 
 const activePointers = new Map();
@@ -3369,10 +3391,13 @@ let pinch = null;        // { startAng, baseAngle, startDist, baseZoom, midX, mi
 let rightDrag = null;    // { lastX } ตอนลากปุ่มขวาของเมาส์: หมุน
 let panDrag = null;      // { startX, startY, lastX, lastY, moved } ตอนลากปุ่มซ้ายหรือหนึ่งนิ้ว: เลื่อนมุมมอง
 let suppressClick = false;
+let ptrSide = null;      // v256: กระดานที่กำลังลาก/ซูมด้วยนิ้ว (ฝั่งคุณ หรือฝั่ง AI)
 canvas.style.touchAction = 'none';
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerdown', (e) => {
-  if (vsMode && clientToCanvas(e.clientX, e.clientY)[0] >= VIEW_W) return;
+  const downSide = sideAtCanvasX(clientToCanvas(e.clientX, e.clientY)[0]); // v256: ฝั่ง AI ลาก/ซูม/หมุนดูได้
+  if (activePointers.size === 0) ptrSide = downSide;
+  else if (downSide !== ptrSide) return;
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (viewLocked) return; // ล็อกมุมมองอยู่: ไม่เริ่มการลากหรือปรับมุม
   if (activePointers.size === 1) {
@@ -3383,8 +3408,8 @@ canvas.addEventListener('pointerdown', (e) => {
   if (activePointers.size === 2) {
     const [a, b] = [...activePointers.values()];
     pinch = {
-      startAng: Math.atan2(b.y - a.y, b.x - a.x), baseAngle: viewAngle,
-      startDist: Math.hypot(b.x - a.x, b.y - a.y), baseZoom: viewZoom,
+      startAng: Math.atan2(b.y - a.y, b.x - a.x), baseAngle: ptrSide === activeSide ? viewAngle : ptrSide.viewAngle,
+      startDist: Math.hypot(b.x - a.x, b.y - a.y), baseZoom: ptrSide === activeSide ? viewZoom : ptrSide.viewZoom,
       midX: (a.x + b.x) / 2, midY: (a.y + b.y) / 2,
     };
     rightDrag = null;
@@ -3401,6 +3426,10 @@ canvas.addEventListener('pointermove', (e) => {
   p.x = e.clientX;
   p.y = e.clientY;
   if (viewLocked) return;
+  if (!(activePointers.size === 2 && pinch) && !rightDrag && !panDrag) return;
+  withViewSide(ptrSide || humanSide, () => pointerView(e)); // v256
+});
+function pointerView(e) {
   const scale = canvas.width / canvas.getBoundingClientRect().width; // จากพิกเซลจอเป็นพิกเซล canvas
   if (activePointers.size === 2 && pinch) {
     const [a, b] = [...activePointers.values()];
@@ -3428,7 +3457,7 @@ canvas.addEventListener('pointermove', (e) => {
     panDrag.lastX = e.clientX;
     panDrag.lastY = e.clientY;
   }
-});
+}
 function endPointer(e) {
   activePointers.delete(e.pointerId);
   if (activePointers.size < 2) pinch = null;
@@ -3443,9 +3472,8 @@ canvas.addEventListener('pointerleave', () => { hoverCell = null; });
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   if (viewLocked) return;
-  if (vsMode && clientToCanvas(e.clientX, e.clientY)[0] >= VIEW_W) return;
   const [sx, sy] = clientToCanvas(e.clientX, e.clientY);
-  setZoomAt(sx, sy, viewZoom * Math.exp(-e.deltaY * 0.0015));
+  withViewSide(sideAtCanvasX(sx), () => setZoomAt(sx, sy, viewZoom * Math.exp(-e.deltaY * 0.0015))); // v256
 }, { passive: false });
 
 function refreshToolbar() {
@@ -8588,7 +8616,7 @@ function fitSpectatorView() {
 }
 function drawSide(s, now) {
   useSide(s);
-  if (!s.isHuman) fitSpectatorView();
+  if (!s.isHuman && !s.manualView) fitSpectatorView(); // v256: ปรับมุมมองฝั่ง AI เองแล้วไม่จัดพอดีทับ
   ctx.save();
   ctx.beginPath();
   ctx.rect(sideX, 0, VIEW_W, canvas.height);
@@ -9466,7 +9494,39 @@ function tone(freq, dur, type = 'square', vol = 0.12, delay = 0) {
   o.start(t0);
   o.stop(t0 + dur + 0.05);
 }
+// v256: เสียงสังเคราะห์แบบสัญญาณรบกวน (ขวานสับ / ไม้หัก)
+let noiseBuf = null;
+function noise(dur, freq, vol = 0.2, delay = 0, q = 1.2) {
+  if (!soundOn) return;
+  const ac = ensureAudio();
+  if (!ac) return;
+  if (!noiseBuf) {
+    noiseBuf = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.5), ac.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const t0 = ac.currentTime + delay;
+  const src = ac.createBufferSource(), bp = ac.createBiquadFilter(), g = ac.createGain();
+  src.buffer = noiseBuf;
+  bp.type = 'bandpass'; bp.frequency.setValueAtTime(freq, t0); bp.Q.value = q;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(bp); bp.connect(g); g.connect(masterGain);
+  src.start(t0, Math.random() * 0.3);
+  src.stop(t0 + dur + 0.05);
+}
+let chopSfxAt = 0; // กันเสียงซ้อนกันมากเกินตอนคนตัดไม้หลายคน/เร่งความเร็ว
 const SFX = {
+  // ขวานสับ "ป๊อก ป๊อก" 2 ครั้งระหว่างตัด (gap = วินาทีจริงระหว่างสองครั้ง)
+  chop: (gap = 0.45) => {
+    const t = performance.now();
+    if (t - chopSfxAt < 120) return;
+    chopSfxAt = t;
+    for (const d of [0, gap]) { noise(0.06, 1500, 0.22, d, 2); tone(170, 0.09, 'triangle', 0.16, d); }
+  },
+  // ไม้หัก/ต้นไม้ล้มสั้นๆ ตอนตัดเสร็จ
+  timber: () => { noise(0.05, 2400, 0.14, 0, 3); noise(0.22, 500, 0.16, 0.03, 0.8); tone(110, 0.2, 'sine', 0.14, 0.03); },
   build: () => { tone(330, 0.08, 'square', 0.1); tone(495, 0.12, 'square', 0.1, 0.06); },
   harvest: () => { tone(660, 0.07, 'triangle', 0.14); tone(880, 0.1, 'triangle', 0.12, 0.06); },
   sell: () => { tone(988, 0.1, 'sine', 0.14); tone(1319, 0.18, 'sine', 0.14, 0.09); },
@@ -9474,9 +9534,9 @@ const SFX = {
   lose: () => [392, 330, 262].forEach((f, i) => tone(f, 0.3, 'sawtooth', 0.1, i * 0.22)),
 };
 // เสียงเอฟเฟกต์เล่นเฉพาะเมื่อเป็นกระดานของผู้เล่น (ไม่เล่นเสียงทุกอย่างของ AI)
-function playSfx(name) {
+function playSfx(name, arg) {
   if (!activeSide || !activeSide.isHuman) return;
-  SFX[name]();
+  SFX[name](arg);
 }
 // เพลงพื้นหลังเบาๆ: โน้ตห้าเสียงสุ่มช้าๆ
 const MUSIC_NOTES = [262, 294, 330, 392, 440, 523, 587];
@@ -9511,6 +9571,7 @@ utilRow.appendChild(soundBtn); // v191: ปุ่มเสียงย้าย�
 // ---------- สลับมุมมองสองฝั่ง (ฝั่งคุณ / สองฝั่ง / ฝั่ง AI) ----------
 // จอแคบ (มือถือ) เริ่มที่ฝั่งคุณเต็มจอ จอกว้างเริ่มที่สองฝั่ง ผู้เล่นเลือกเองได้ทุกขนาดจอ
 let stageChoice = null; // null = ใช้ค่าเริ่มต้นตามขนาดจอ
+let stageMode = 'both'; // v256: ฝั่งที่กำลังดู (human / ai / both) ใช้เลือกกระดานของปุ่มมุมมอง
 function applyStageView() {
   const stage = document.getElementById('stage');
   const sw = document.getElementById('viewSwitch');
@@ -9520,6 +9581,7 @@ function applyStageView() {
   const coarse = window.matchMedia('(pointer: coarse)').matches;
   const phoneLike = coarse && (window.innerWidth < 500 || window.innerHeight > window.innerWidth);
   const mode = vsMode ? (stageChoice || (phoneLike ? 'human' : 'both')) : 'both';
+  stageMode = mode;
   stage.classList.toggle('focus', mode !== 'both');
   stage.classList.toggle('ai', mode === 'ai');
   sw.hidden = !vsMode;
