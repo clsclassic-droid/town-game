@@ -2495,7 +2495,7 @@ function openSellPopup(cell, x, y) {
   panel.appendChild(stickyHead(title, closeSellPopup)); // v241
 
   const lines = [];
-  let wmDivs = null, statusDiv = null, rancherDiv = null, animalDiv = null, prodDiv = null;
+  let wmDivs = null, waterDiv = null, statusDiv = null, rancherDiv = null, animalDiv = null, prodDiv = null;
   const prodPopup = PROD_POPUP.includes(cell.type); // v222
   if (prodPopup) {
     panel.style.width = 'min(400px, 92vw)';
@@ -2527,6 +2527,7 @@ function openSellPopup(cell, x, y) {
     lines.push('STATUS_LIVE');
     if (isRanch(cell)) lines.push('RANCHER_LIVE');
   }
+  if (SOURCE_TYPES.includes(cell.type)) lines.push('WATER_LIVE'); // v252
   if (cell.type === 'road') lines.push('อาคารที่ประตูหันมาทางถนนนี้จะใช้งานไม่ได้');
   if (cell.type === 'trough') {
     lines.push(`อาหารสัตว์ ${cell.feed} ชิ้น (จะหายไป)`);
@@ -2570,6 +2571,7 @@ function openSellPopup(cell, x, y) {
     if (text === 'WM_LIVE') { wmDivs = windmillInfoLines(cell, gameNow()).map((segs) => { const e = document.createElement('div'); e.style.cssText = 'font-size:13px;color:#333;margin:2px 0;'; renderSegs(e, segs); panel.appendChild(e); return e; }); continue; }
     if (text === 'STATUS_LIVE') { setStatusText(d, buildingStatusText(cell)); statusDiv = d; panel.appendChild(d); continue; }
     if (text === 'ANIMAL_LIVE') { renderAnimalStock(d, cell); animalDiv = d; panel.appendChild(d); continue; }
+    if (text === 'WATER_LIVE') { d.style.cssText += 'font-size:15px;font-weight:bold;color:#1f4f7a;'; d.textContent = sourceWaterText(cell, gameNow()); waterDiv = d; panel.appendChild(d); continue; }
     if (text === 'RANCHER_LIVE') { d.textContent = rancherStatusText(cell); rancherDiv = d; panel.appendChild(d); continue; }
     d.textContent = text;
     panel.appendChild(d);
@@ -2630,7 +2632,7 @@ function openSellPopup(cell, x, y) {
   overlay.appendChild(panel);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSellPopup(); });
   document.body.appendChild(overlay);
-  sellPopup = { cell, x, y, overlay, live: wmDivs, statusDiv, rancherDiv, animalDiv, prodDiv };
+  sellPopup = { cell, x, y, overlay, live: wmDivs, waterDiv, statusDiv, rancherDiv, animalDiv, prodDiv };
 }
 
 // ปิดหน้าต่างขายเมื่ออาคารนั้นหายไปแล้ว
@@ -2749,6 +2751,7 @@ function refreshSellPopup() {
   if (sellPopup && sellPopup.statusDiv) { const t = buildingStatusText(sellPopup.cell); if (sellPopup.statusDiv.dataset.t !== t) { sellPopup.statusDiv.dataset.t = t; setStatusText(sellPopup.statusDiv, t); } }
   if (sellPopup && sellPopup.rancherDiv) sellPopup.rancherDiv.textContent = rancherStatusText(sellPopup.cell);
   if (sellPopup && sellPopup.animalDiv) renderAnimalStock(sellPopup.animalDiv, sellPopup.cell);
+  if (sellPopup && sellPopup.waterDiv) { const t = sourceWaterText(sellPopup.cell, gameNow()); if (sellPopup.waterDiv.textContent !== t) sellPopup.waterDiv.textContent = t; } // v252
   if (sellPopup && sellPopup.prodDiv) renderProd(sellPopup.prodDiv, sellPopup.cell); // v222
 }
 
@@ -4229,6 +4232,56 @@ function drawTroughFeed(cell) {
   ctx.restore();
 }
 const WELL_SPLASH_MS = 800;
+// v252: บ่อน้ำ/กังหันลม: เหลือเวลาเติมน้ำ (ms) หรือ null ถ้าน้ำเต็มแล้ว
+function sourceRefillLeft(c, now) {
+  if (!c || !SOURCE_TYPES.includes(c.type) || c.stock >= SOURCE_CAP || c.refillAt == null) return null;
+  return Math.max(0, c.refillAt - now);
+}
+function sourceWaterText(c, now) {
+  const left = sourceRefillLeft(c, now);
+  if (left === null) return `💧 มีน้ำ ${c.stock}/${SOURCE_CAP} ถัง พร้อมให้ตัก${c.reserved > 0 ? ' (มีเกษตรกรกำลังมาตัก)' : ''}`;
+  return `⏳ น้ำ ${c.stock}/${SOURCE_CAP} · เติมน้ำอีก ${Math.ceil(left / 1000)} วิ`;
+}
+// v252: กังหันลม: ถังน้ำที่ฐาน (ฟ้า+ระลอก = มีน้ำ, เทาเปล่า = แห้ง)
+function drawWindpumpFx(cell, now) {
+  // ผิวรางน้ำในภาพกังหันลม (มุมขวาล่าง): มีน้ำ = ฟ้าสด + ประกาย, แห้ง = ไม้สีเข้ม
+  const k = TILE_SIZE * ART_SCALE / 256;
+  const [cx, cy] = artPt('windpump', 204, 152); // ปากถังไม้ในภาพ 256px
+  const rw = 17 * k, rh = 4.6 * k;
+  const wet = cell.stock > 0;
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(cx, cy, rw, rh, 0, 0, Math.PI * 2);
+  ctx.fillStyle = wet ? '#38a8f5' : '#4a3422'; ctx.fill();
+  ctx.lineWidth = 0.5; ctx.strokeStyle = wet ? '#1d6fb8' : '#2c1d10'; ctx.stroke();
+  if (wet) {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillRect(cx - rw * 0.55, cy - rh * 0.45, rw * 0.38, Math.max(0.5, rh * 0.3));
+    const t = ((now || 0) % 2000) / 2000;
+    ctx.globalAlpha = 1 - t; ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 0.45;
+    ctx.beginPath(); ctx.ellipse(cx + rw * 0.15, cy, rw * (0.2 + t * 0.6), rh * (0.2 + t * 0.6), 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+// v252: วงเวลาเติมน้ำเหนือบ่อน้ำ/กังหันลมตอนน้ำหมด (วงฟ้าค่อยๆ เต็ม + วินาทีที่เหลือ)
+function drawRefillMark(c, x, y, now) {
+  const left = sourceRefillLeft(c, now);
+  if (left === null) return;
+  const total = scaled(REFILL_MS[c.type]) || 1;
+  const frac = Math.max(0, Math.min(1, 1 - left / total));
+  const [cx, cy] = tileCenterScreen(x, y);
+  const r = Math.max(8, 9 * viewZoom), top = cy - 30 * viewZoom;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.beginPath(); ctx.arc(cx, top, r, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fill();
+  ctx.lineWidth = Math.max(1.5, 1.8 * viewZoom); ctx.strokeStyle = '#c9d6e3'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, top, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+  ctx.lineWidth = Math.max(2.5, 3 * viewZoom); ctx.strokeStyle = '#2f8fe0'; ctx.stroke();
+  ctx.font = `bold ${Math.round(r * 0.95)}px sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1f4f7a';
+  ctx.fillText(String(Math.ceil(left / 1000)), cx, top + 1);
+  ctx.restore();
+}
 function drawWellFx(cell, now) {
   const k = TILE_SIZE * ART_SCALE / 256, key = artKey(cell);
   if (cell.stock > 0) {
@@ -4317,6 +4370,7 @@ function drawArtExtras(cell, now) {
   else if (cell.type === 'oilpump') drawOilBeam(cell, now);
   else if (cell.type === 'windmill') { drawWindmillSails(cell, now); drawMillMark(cell); }
   else if (cell.type === 'well') drawWellFx(cell, now);
+  else if (cell.type === 'windpump') drawWindpumpFx(cell, now); // v252
   else if (cell.type === 'trough') drawTroughFeed(cell);
   if (STORE_CAP[cell.type] !== undefined) drawCount(String(cell.stock || 0), T / 2, base - 3, 11, storeFull(cell) ? FULL_RED : null); // v205: เต็ม = ตัวเลขแดง
   if (cell.type === 'powerplant' && cell.work !== null) {
@@ -5107,6 +5161,12 @@ function missingFor(c) {
 // ข้อมูลที่จะแสดงบนแถบ: ความคืบหน้า 0-1, ข้อความ, สี, และว่าจะวาดแถบล่างหรือไม่
 function statusInfo(c, now) {
   if (storeFull(c)) return { frac: 0, text: 'เต็ม', color: FULL_RED, bar: false }; // v205: อาคารเก็บของเต็ม
+  if (c && SOURCE_TYPES.includes(c.type)) { // v252: บ่อน้ำ/กังหันลม
+    const left = sourceRefillLeft(c, now);
+    if (left === null) return { frac: 1, text: `น้ำ ${c.stock}/${SOURCE_CAP}`, color: '#4da6ff', bar: false };
+    const total = scaled(REFILL_MS[c.type]) || 1;
+    return { frac: 1 - left / total, text: `${Math.ceil(left / 1000)}s`, color: '#4da6ff', bar: false };
+  }
   if (isCrop(c)) {
     if (c.growStart === null) {
       const have = fieldWaterTotal(c);
@@ -6134,6 +6194,7 @@ function drawBoard(now) {
   eachCell((cell, x, y) => {
     if (!cell) return;
     if (isPaused(cell)) drawPausedMark(x, y); // v193: อาคารที่ปิดการทำงานอยู่
+    else if (!showStatus && SOURCE_TYPES.includes(cell.type)) drawRefillMark(cell, x, y, now); // v252: เวลาเติมน้ำ (ทุกฝั่ง)
     else if (!showStatus && activeSide && activeSide.isHuman) drawStopMark(cell, x, y, now); // v242: ป้ายเตือนอาคารหยุด (ขาดวัตถุดิบ/เต็ม/ไม่มีถนน)
     // v194: ถนนชุดใหม่มีทางแยกเข้าประตูอยู่แล้ว ไม่ต้องวาดแถบประตูทับหลังคา (วาดเฉพาะเมื่อภาพถนนยังไม่โหลด)
     if (cell.door && !(artImg('road', ART_ROAD_SRC) && inBounds(cell.door.x, cell.door.y) && board[cell.door.y][cell.door.x] && board[cell.door.y][cell.door.x].type === 'road')) {
