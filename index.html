@@ -2927,14 +2927,14 @@ function updateStatus() {
 const toastEl = document.createElement('div');
 toastEl.id = 'toast';
 toastEl.style.whiteSpace = 'pre-line'; // v242: ข้อความภารกิจ 2 บรรทัด
-toastEl.style.cssText = 'position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);z-index:70;max-width:min(520px, calc(100vw - 32px));padding:10px 18px;border-radius:12px;background:rgba(15,25,18,0.9);color:#fff;font-size:16px;font-weight:bold;line-height:1.4;text-align:center;box-shadow:0 3px 10px rgba(0,0,0,0.4);pointer-events:none;opacity:0;transition:opacity 0.25s;box-sizing:border-box;';
+toastEl.style.cssText = 'white-space:pre-line;position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);z-index:70;max-width:min(520px, calc(100vw - 32px));padding:10px 18px;border-radius:12px;background:rgba(15,25,18,0.9);color:#fff;font-size:16px;font-weight:bold;line-height:1.4;text-align:center;box-shadow:0 3px 10px rgba(0,0,0,0.4);pointer-events:none;opacity:0;transition:opacity 0.25s;box-sizing:border-box;';
 document.body.appendChild(toastEl);
-function showMessage(text) {
+function showMessage(text, ms = 2000) {
   if (activeSide && !activeSide.isHuman) return; // ข้อความของฝั่ง AI ไม่แสดง
   toastEl.textContent = text;
   toastEl.style.opacity = '1';
   clearTimeout(messageTimer);
-  messageTimer = setTimeout(() => { toastEl.style.opacity = '0'; }, 2000);
+  messageTimer = setTimeout(() => { toastEl.style.opacity = '0'; }, ms);
 }
 
 // ---------- HUD มุมขวาบน: เหรียญ ดาว และนาฬิกาของรอบ (แบบเดียวกับต้นฉบับ) ----------
@@ -8133,6 +8133,47 @@ function aiThinkInner(s, now) {
   }
 }
 
+// v263: ข้อความเด้งเมื่อคลังชนิดหนึ่งเต็มทุกหลัง (บอสเลือก ก.) เฉพาะฝั่งผู้เล่น ไม่เปลี่ยนกติกา
+// เด้งครั้งเดียวตอนเปลี่ยนจาก "ยังว่าง" เป็น "เต็มทุกหลัง" ของต้องลดลงก่อนจึงเด้งได้อีก · ตรวจครั้งแรกของรอบเก็บสถานะเงียบๆ
+const FULL_WARN_GROUPS = [
+  { key: 'silo', types: ['silo'], label: 'ไซโล', build: 'ไซโล' },
+  { key: 'wood', types: WOOD_STORES, label: 'คลังไม้', build: 'คลังไม้' },
+  { key: 'storehouse', types: ['storehouse'], label: 'คลังสินค้า', build: 'คลังสินค้า' },
+  { key: 'warehouse', types: ['warehouse'], label: 'โกดัง', build: 'โกดัง' },
+  { key: 'fuelstorage', types: ['fuelstorage'], label: 'คลังเชื้อเพลิง', build: 'คลังเชื้อเพลิง' },
+];
+function fullWarnContents(cells) {
+  const tot = {};
+  const add = (k, n) => { if (n > 0) tot[k] = (tot[k] || 0) + n; };
+  for (const c of cells) {
+    if (WOOD_STORES.includes(c.type)) { add('wood', woodOf(c)); add('lumber', c.lumber || 0); add('oakwood', c.oak || 0); }
+    else if (c.goods) for (const k in c.goods) add(k, c.goods[k] || 0);
+  }
+  return Object.entries(tot).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${KIND_LABEL[k] || k} ${n}`).join(' · ');
+}
+function updateFullWarn(s) {
+  if (!s || !s.isHuman) return;
+  const first = !s.fullWarn;
+  if (first) s.fullWarn = {};
+  const newly = [];
+  for (const g of FULL_WARN_GROUPS) {
+    const cells = [];
+    eachCell((c) => { if (c && g.types.includes(c.type) && isUsable(c)) cells.push(c); });
+    const full = cells.length > 0 && cells.every(storeFull);
+    if (full && !s.fullWarn[g.key] && !first) newly.push({ g, cells });
+    s.fullWarn[g.key] = full;
+  }
+  if (!newly.length) return;
+  if (newly.length === 1) {
+    const { g, cells } = newly[0];
+    const stock = cells.reduce((a, c) => a + (c.stock || 0), 0), cap = cells.reduce((a, c) => a + STORE_CAP[c.type], 0);
+    const what = fullWarnContents(cells);
+    showMessage(`📦 ${g.label}เต็มทุกหลัง (${stock}/${cap})${what ? '\n' + what : ''}\nสร้าง${g.build}เพิ่ม หรือส่งขายที่ Trade Depot`, 3500);
+  } else {
+    showMessage(`📦 คลังเต็ม: ${newly.map((n) => n.g.label).join(', ')}\nสร้างคลังเพิ่ม หรือส่งขายที่ Trade Depot`, 3500);
+  }
+}
+
 // ---------- ลูปแต่ละฝั่ง / เงื่อนไขชนะ ----------
 function tickSide(s, now) {
   useSide(s);
@@ -8145,6 +8186,7 @@ function tickSide(s, now) {
   updateRanchers(now);
   updateProduction(now);
   updateDepots(now);
+  updateFullWarn(s); // v263
   if (s.ai) aiThink(s, now);
   if (coins <= 0) {
     if (onlineMode) { onlineBankrupt(s); return; } // v237: ออนไลน์ เงินหมด = ออกจากการแข่ง คนอื่นแข่งต่อ
