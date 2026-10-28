@@ -6823,6 +6823,17 @@ const AI_CHAIN_DEFAULT = [['farmhouse', 3], ['field', 9], ['waterpump', 3], ['si
 // ทุ่งหลักของสินค้าแต่ละชนิด
 const AI_PUMP_MIN_COINS = 500000; // เงินเริ่มต้นตั้งแต่ค่านี้ขึ้นไป AI ใช้ปั๊มน้ำ ต่ำกว่านี้ใช้บ่อน้ำ
 const AI_CROP = { wheat: 'field', cotton: 'cotton', sugarcane: 'sugarcane', sugar: 'sugarcane', wood: 'tree', lumber: 'tree', brine: 'saltfield', salt: 'saltfield' };
+// v264: ถึงเวลาเก็บไม้ไว้สร้าง Trade Depot หลังแรกหรือยัง
+// เป้าเป็นสินค้า: นับเฉพาะสินค้าเป้าหมาย (เดิมนับทุกชนิด ข้าวสาลีในไซโลทำให้เก็บไม้เร็วเกิน เป้าไข่/นม/เกลือ ไม้ไม่พอสร้างบ่อ) · เป้าอื่น: ของชนิดใดเต็มไซโล (20)
+const AI_DEPOT_FIRST_GOALS = ['wheat', 'cotton', 'sugarcane', 'wood'];
+function aiNeedsDepotWood() {
+  const g = aiGoalKind();
+  if (AI_DEPOT_FIRST_GOALS.includes(g)) return true; // เป้าพืช/ไม้ขายตรง: Trade Depot คือทางหลัก เก็บไม้ตั้งแต่เริ่ม
+  if (g && DEPOT_KINDS.includes(g)) return kindStock(g) >= SHIPMENT;
+  let best = 0;
+  for (const k of DEPOT_KINDS) if (k !== 'wood' && k !== 'oakwood' && k !== 'lumber') best = Math.max(best, kindStock(k));
+  return best >= SILO_CAP;
+}
 function aiCount(t) {
   let n = 0;
   eachCell((c) => { if (c && c.type === t) n++; });
@@ -6965,6 +6976,8 @@ function aiSpotDeficit(type, x, y) { return Math.max(0, (BUILDINGS[type].water |
 function aiPlace(x, y, type) {
   if (type === 'road' && aiCount('road') >= AI_ROAD_CAP) return 'roadcap';
   if (aiButterLate(type)) return 'butterlate'; // v197
+  // v264: ยังไม่มี Trade Depot และสินค้าเป้าหมายรอขายครบ 1 รถ (10) = เก็บไม้ไว้สร้าง Trade Depot ก่อน (เดิมไม้หมดไปกับบ่อน้ำ/บ้าน Trade Depot หลังแรกมาช้า ~9-11 นาที ไซโลเต็มค้าง) เฉพาะการตัดสินใจของ AI
+  if (type !== 'tradedepot' && (WOOD_COST[type] || 0) > 0 && aiCount('tradedepot') === 0 && aiNeedsDepotWood() && woodStock() - WOOD_COST[type] < WOOD_COST.tradedepot) return 'depotwood';
   // v197: สระไม่เกินที่ถนนขยายตาม (สระเร็วขึ้นแล้วเคยวางตาข่ายเต็มกระดานตอนถนนยังมี 17 ช่อง ล้อมปลายถนนจนต่อถนนไม่ได้ทั้งเกม) ยกเว้นสระของแผนโรงไฟฟ้า
   if (type === 'pond' && aiCount('pond') >= aiPondCap()) { const pw0 = activeSide.ai && activeSide.ai.power; if (!(pw0 && pw0.X && pw0.X[0] === x && pw0.X[1] === y)) return 'pondcap'; }
   // v192: รางและเครื่องบดตามจำนวนโรงสัตว์ (เดิมขยายส่วนเกินสร้างรางถึง 26-40 อัน กินไม้จนไม่ได้สร้างโรงไก่/โรงวัว)
