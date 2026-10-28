@@ -1221,6 +1221,7 @@ function closeDepotPopup() {
   depotPopup = null;
 }
 
+let depotShowAll = false; // v262
 function openDepotPopup(cell, x, y) {
   closeDepotPopup();
   closeSellPopup();
@@ -1262,7 +1263,7 @@ function openDepotPopup(cell, x, y) {
     btnRow.append(btn, checkLabel);
     row.append(name, info, btnRow);
     panel.appendChild(row);
-    rows[kind] = { info, btn, check, thr };
+    rows[kind] = { info, btn, check, thr, row };
 
     btn.addEventListener('click', () => {
       if (cell.trip || kindStock(kind) < SHIPMENT) return;
@@ -1281,6 +1282,16 @@ function openDepotPopup(cell, x, y) {
       thr.value = v;
     });
   }
+
+  // v262: แสดงเฉพาะสินค้าที่มีในคลังหรือเปิดขายอัตโนมัติ กดดูทั้งหมดได้
+  const emptyNote = document.createElement('div');
+  emptyNote.style.cssText = 'font-size:13px;color:#777;border-top:1px solid #ddd;padding:10px 0;';
+  emptyNote.textContent = 'ยังไม่มีสินค้าในคลัง';
+  panel.appendChild(emptyNote);
+  const allBtn = document.createElement('button');
+  allBtn.style.cssText = 'padding:6px 10px;font-size:13px;cursor:pointer;width:100%;margin-bottom:8px;';
+  allBtn.addEventListener('click', () => { depotShowAll = !depotShowAll; refreshDepotPopup(); });
+  panel.appendChild(allBtn);
 
   const status = document.createElement('div');
   status.style.cssText = 'font-size:13px;color:#333;border-top:1px solid #ddd;padding-top:10px;margin-top:2px;';
@@ -1303,7 +1314,7 @@ function openDepotPopup(cell, x, y) {
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeDepotPopup(); });
   document.body.appendChild(overlay);
 
-  depotPopup = { cell, x, y, overlay, rows, status, sellBtn };
+  depotPopup = { cell, x, y, overlay, rows, status, sellBtn, emptyNote, allBtn };
   refreshDepotPopup();
 }
 
@@ -1320,6 +1331,16 @@ function refreshDepotPopup() {
     r.btn.style.opacity = r.btn.disabled ? '0.4' : '1';
     r.check.checked = !!cell.auto[kind];
     if (document.activeElement !== r.thr) r.thr.value = Math.max(cell.threshold[kind] || SHIPMENT, SHIPMENT); // v261
+    const vis = depotShowAll || have > 0 || !!cell.auto[kind]; // v262
+    if (r.row.hidden === vis) r.row.hidden = !vis;
+  }
+  { // v262
+    const hiddenN = DEPOT_KINDS.filter((k) => rows[k].row.hidden).length;
+    const shownN = DEPOT_KINDS.length - hiddenN;
+    depotPopup.emptyNote.hidden = shownN > 0;
+    const t = depotShowAll ? 'แสดงเฉพาะสินค้าที่มีในคลัง' : `แสดงสินค้าทั้งหมด (อีก ${hiddenN} ชนิด)`;
+    if (depotPopup.allBtn.textContent !== t) depotPopup.allBtn.textContent = t;
+    depotPopup.allBtn.hidden = !depotShowAll && hiddenN === 0;
   }
   sellBtn.disabled = !!cell.trip;
   sellBtn.style.opacity = cell.trip ? '0.4' : '1';
@@ -2761,7 +2782,49 @@ function buildingStatusText(cell) {
     const m = WM_MODES[cell.mode] || WM_MODES.flour;
     if (cell[cell.mode] >= m.outCap) full = `${KIND_LABEL[cell.mode]} ${cell[cell.mode]}/${m.outCap} รอขนไปคลัง`;
   }
-  return full ? `สถานะ: เต็ม (${full})` : 'สถานะ: ใช้งานได้'; // v205: คำว่า เต็ม แสดงตัวหนาสีแดง (setStatusText)
+  if (full) return `สถานะ: เต็ม (${full})`;
+  const why = idleWhyText(cell); // v262: ไม่ได้ทำงานเพราะอะไร + วิธีแก้
+  return why ? `สถานะ: ${why}` : 'สถานะ: ใช้งานได้'; // v205: คำว่า เต็ม แสดงตัวหนาสีแดง (setStatusText)
+}
+// v262: เหตุผลที่อาคารยังไม่ทำงาน พร้อมวิธีแก้สั้นๆ (null = ทำงานอยู่/ปกติ)
+const LUMBER_FIX = {
+  'รอต้นไม้โต': 'ว่าง · รอต้นไม้โต → ปลูกต้นไม้เพิ่ม และให้มีน้ำ',
+  'ไม่มีคลังไม้ว่าง': 'หยุด · คลังไม้เต็ม → ใช้ไม้สร้างอาคาร หรือส่งขายที่ Trade Depot',
+  'ออกจากบ้านไปไม่ได้': 'หยุด · ออกจากบ้านไม่ได้ → เปิดทางเดินรอบบ้าน',
+  'หาทางไปต้นไม้ไม่เจอ': 'หยุด · เดินไปต้นไม้ไม่ได้ → เปิดทางเดินไปต้นไม้',
+};
+function idleWhyText(cell) {
+  const now = gameNow();
+  if (cell.paused) return 'ปิดการทำงานอยู่ → กดเปิดในหน้าต่างนี้';
+  if (cell.type === 'lumberjack') { const r = lumberIdleReason(cell, now); return r ? (LUMBER_FIX[r] || `ว่าง · ${r}`) : null; }
+  if (cell.type === 'farmhouse') return farmIdleWhy(cell, now);
+  const info = statusInfo(cell, now);
+  if (info && info.text.startsWith('ขาด ')) {
+    const labels = info.text.slice(4).split(',');
+    const src = labels.map((l) => prodSourceEmpty(STOP_LABEL_KIND[l] || l)).filter(Boolean);
+    return `หยุด · ${info.text} → ${src.length ? src.join(', ') : 'รอคนงานขนมาส่ง'}`;
+  }
+  return null;
+}
+function farmIdleWhy(cell, now) {
+  if (!isUsable(cell)) return null;
+  const f = cell.farmer;
+  if (f.state !== 'idle' && f.state !== 'wait') return null;
+  let crops = 0, ripe = 0, thirsty = 0, siloRoom = false;
+  eachCell((c) => {
+    if (c && ['field', 'cotton', 'sugarcane', 'saltfield'].includes(c.type)) {
+      crops++;
+      if (fieldRipe(c, now)) ripe++;
+      if (fieldNeedsWater(c)) thirsty++;
+    }
+    if (c && c.type === 'silo' && isUsable(c) && storeHasRoom(c)) siloRoom = true;
+  });
+  if (!crops) return 'ว่าง · ไม่มีแปลงพืช → ปลูกข้าวสาลี/ฝ้าย/อ้อย';
+  if (ripe && !siloRoom) return 'หยุด · ไซโลเต็ม → ส่งขายที่ Trade Depot หรือสร้างไซโลเพิ่ม';
+  if (thirsty && waterStock() === 0) return 'ว่าง · รอน้ำ → บ่อน้ำกำลังเติม หรือสร้างบ่อน้ำเพิ่ม';
+  if (f.state === 'wait') return 'หยุด · เดินไปไม่ได้ → เปิดทางเดิน';
+  if (!ripe && !thirsty) return 'ว่าง · รอพืชโต';
+  return null;
 }
 // สถานะคนงานของบ้านฟาร์มสัตว์/โรงโม่ (ว่าง เดิน รอ) และงานที่กำลังทำ ไว้ดูว่าติดตรงไหน
 const JOB_ITEM_LABEL = { butter: 'เนย', crude: 'น้ำมันดิบ', lumber: 'ไม้แปรรูป', energy: 'ไฟฟ้า', waterdrum: 'ถังน้ำ', brine: 'น้ำเกลือ', salt: 'เกลือ', water: 'น้ำ', wood: 'ไม้', feed: 'อาหารสัตว์', wheat: 'ข้าวสาลี', sugarcane: 'อ้อย', flour: 'แป้ง', sugar: 'น้ำตาล', eggs: 'ไข่', milk: 'นม', wool: 'ขนแกะ' };
@@ -8390,6 +8453,8 @@ function showMatchSummary(title, reason, recInfo, ms) {
 // ---------- v242: ภารกิจโหมดเล่นคนเดียว (ทำทีละข้อ ได้เงินรางวัล) ----------
 // t: sold = ยอดขาย (produced), made = ผลิตได้ (made), stars = ดาว · ใช้เฉพาะเล่นคนเดียว (ไม่ใช่แข่ง/ออนไลน์/บทเรียน)
 const SOLO_MISSIONS = [
+  { t: 'made', k: 'wheat', n: 1, reward: 2000, label: 'เก็บข้าวสาลีครั้งแรก' }, // v262: รางวัลย่อยช่วงต้น
+  { t: 'sold', k: 'wheat', n: 10, reward: 3000, label: 'ส่งขายข้าวสาลีครั้งแรก (10 ชิ้น)' }, // v262
   { t: 'sold', k: 'wheat', n: 20, reward: 5000 },
   { t: 'made', k: 'wood', n: 10, reward: 5000 },
   { t: 'made', k: 'feed', n: 5, reward: 10000 },
@@ -8411,6 +8476,7 @@ function missionValue(s, m) {
   return s.stars || 0;
 }
 function missionLabel(m) {
+  if (m.label) return m.label; // v262
   if (m.t === 'stars') return `เก็บดาว ${m.n.toLocaleString('en-US')}`;
   return `${m.t === 'sold' ? 'ขาย' : 'ผลิต'}${KIND_LABEL[m.k]} ${m.n}`;
 }
@@ -8420,7 +8486,7 @@ function soloMissionActive() { return matchActive && !vsMode && !onlineMode && !
 function missionCheck() {
   if (!soloMissionActive()) return;
   const s = humanSide;
-  if (s.mission == null) s.mission = 0;
+  if (s.mission == null) { s.mission = 0; s.missionV = 2; } // v262: missionV 2 = มีภารกิจย่อย 2 ข้อแรกแล้ว
   const m = SOLO_MISSIONS[s.mission];
   if (!m) return;
   captureSide(activeSide);
@@ -8767,6 +8833,7 @@ function terrainSummary(t) {
   const extra = sides.map(([s, k]) => `${BORDER_KINDS[k].label}ด้าน${name[s]}`).join(', ');
   return `พื้นที่${BIOMES[t.biome] || 'ที่ราบ'}${extra ? ' | ' + extra : ''}`;
 }
+const START_WOOD = 6;
 function setupStart() {
   const now = gameNow();
   // ถนนต่อไปทางขวา 4 ช่อง เพื่อให้คนงานเดินออกจากประตูได้
@@ -8778,7 +8845,7 @@ function setupStart() {
   board[9][7] = makeCell('lumberjack', now, 7, 9, { x: 7, y: 8 });
   board[7][8] = makeCell('silo', now, 8, 7, { x: 8, y: 8 });
   board[9][9] = makeCell('woodshed', now, 9, 9, { x: 9, y: 8 });
-  board[9][9].stock = STORE_CAP.woodshed; // v175: เริ่มเกมมีไม้ 10 (อาคารเกือบทุกอย่างต้องใช้ไม้ตามต้นฉบับ)
+  board[9][9].stock = START_WOOD; // v262: เริ่มไม้ 6 (เดิมเต็ม 10 คนตัดไม้หยุดตั้งแต่เริ่ม) ทั้งผู้เล่นและ AI // v175: เริ่มเกมมีไม้ 10 (อาคารเกือบทุกอย่างต้องใช้ไม้ตามต้นฉบับ)
   board[10][10] = makeCell('tree', now);
   board[10][4] = makeCell('field', now);
   board[9][4] = makeCell('well', now);
@@ -9391,6 +9458,7 @@ function readSavedGame() {
 }
 // เซฟเก่าก่อนมีทุ่งเกลือ: เติมช่องของสินค้าชนิดใหม่ให้เป็น 0 ไม่ให้ตัวเลขกลายเป็น NaN
 function migrateSide(s) {
+  if (s.mission != null && s.missionV !== 2) { s.mission += 2; s.missionV = 2; } // v262: เซฟเก่า เลื่อนเลขภารกิจตามข้อใหม่ 2 ข้อที่แทรกหน้า
   if (!s) return;
   if (!s.hist) s.hist = []; if (!s.wagesPaid) s.wagesPaid = 0; if (!s.revenue) s.revenue = {}; // v235
   if (s.isHuman && s.mission == null && s.produced) s.mission = missionFirstOpen(s); // v242: เซฟเก่า เริ่มภารกิจข้อที่ยังไม่ครบ (ไม่ให้รางวัลย้อนหลัง)
