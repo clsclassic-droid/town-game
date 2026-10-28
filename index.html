@@ -1255,10 +1255,10 @@ function openDepotPopup(cell, x, y) {
     check.type = 'checkbox';
     const thr = document.createElement('input');
     thr.type = 'number';
-    thr.min = '1';
+    thr.min = String(SHIPMENT); // v261: รถส่งครั้งละ 10 จึงตั้งต่ำกว่า 10 ไม่ได้
     thr.step = '1';
     thr.style.cssText = 'width:56px;font-size:13px;padding:2px 4px;';
-    checkLabel.append(check, 'auto เมื่อถึง', thr, 'ชิ้น');
+    checkLabel.append(check, 'auto เมื่อถึง', thr, `ชิ้น (ส่งครั้งละ ${SHIPMENT})`);
     btnRow.append(btn, checkLabel);
     row.append(name, info, btnRow);
     panel.appendChild(row);
@@ -1276,7 +1276,7 @@ function openDepotPopup(cell, x, y) {
     });
     thr.addEventListener('change', () => {
       const n = Math.floor(Number(thr.value));
-      const v = n >= 1 ? n : SHIPMENT;
+      const v = n >= SHIPMENT ? n : SHIPMENT; // v261
       eachDepot((o) => { o.threshold[kind] = v; });
       thr.value = v;
     });
@@ -1319,7 +1319,7 @@ function refreshDepotPopup() {
     r.btn.disabled = !!cell.trip || have < SHIPMENT;
     r.btn.style.opacity = r.btn.disabled ? '0.4' : '1';
     r.check.checked = !!cell.auto[kind];
-    if (document.activeElement !== r.thr) r.thr.value = cell.threshold[kind] || SHIPMENT;
+    if (document.activeElement !== r.thr) r.thr.value = Math.max(cell.threshold[kind] || SHIPMENT, SHIPMENT); // v261
   }
   sellBtn.disabled = !!cell.trip;
   sellBtn.style.opacity = cell.trip ? '0.4' : '1';
@@ -2818,6 +2818,7 @@ function refreshSellPopup() {
 // ---------- จบเกม (เงินหมด) ----------
 function endGame() {
   gameOver = true;
+  endReasonText = 'เงินหมด'; matchEndAt = gameNow(); // v261
   saveGame();
   SFX.lose();
   coins = 0;
@@ -2853,7 +2854,7 @@ function endGame() {
 function updateStatus() {
   if (activeSide && !activeSide.isHuman) return; // ฝั่ง AI ไม่แสดงบนแถบสถานะ
   const hint = buildType ? ` | เลือก: ${LABEL[buildType]} แตะช่องว่างเพื่อวาง` : '';
-  const over = gameOver ? ' | เกมจบ: เงินหมด' : '';
+  const over = gameOver ? ` | เกมจบ: ${endReasonText || 'เงินหมด'}` : ''; // v261
   statusEl.textContent =
     `ค่าแรง/นาที: ${wagePerMinute()}` +
     ` | เกษตรกร: ${countType('farmhouse')} | คนตัดไม้: ${countType('lumberjack')} | คนเลี้ยงสัตว์: ${countType('ranchhouse')}${over}${hint}`;
@@ -2951,7 +2952,7 @@ function updateHud(now) {
   hudStars.textContent = String(stars);
   infoMoney.textContent = '💰 ' + hudCoins.textContent; // v221
   infoStars.textContent = '⭐ ' + hudStars.textContent;
-  const sec = Math.floor((now - roundStartAt) / 1000);
+  const sec = Math.max(0, Math.floor(((gameOver && matchEndAt ? matchEndAt : now) - roundStartAt) / 1000)); // v261: จบรอบแล้วนาฬิกาหยุด
   const pad = (n) => String(n).padStart(2, '0');
   hudTimer.textContent = `${pad(Math.floor(sec / 3600))}:${pad(Math.floor(sec / 60) % 60)}:${pad(sec % 60)}`;
 }
@@ -6402,6 +6403,7 @@ let activeSide = humanSide;
 let vsMode = false;        // โหมดแข่งกับ AI เปิดอยู่หรือไม่
 let matchActive = false;   // กำลังแข่งอยู่หรือไม่ (ยังไม่เริ่ม = อยู่หน้าตั้งค่า)
 let matchStartAt = 0;
+let endReasonText = '', matchEndAt = 0; // v261: เหตุผลจบเกมจริง (แถบสถานะ) + เวลาจบ (นาฬิกาหยุด)
 let matchGoal = null;      // { type: 'goods' | 'stars' | 'coins', kind, target }
 let matchLimitMs = 0;      // 0 = ไม่จำกัดเวลา
 let onlineMode = false, online = null, onlineBots = []; // v237: โหมดแข่งออนไลน์ (ดู online module ท้ายไฟล์)
@@ -8131,6 +8133,10 @@ function finishMatch(winner, reason) {
   useSide(humanSide);
   matchActive = false;
   gameOver = true;
+  matchEndAt = gameNow(); // v261
+  endReasonText = reason === 'หมดเวลา' ? (winner === null ? 'หมดเวลา เสมอ' : `หมดเวลา ${winner === humanSide ? 'คุณ' : 'AI'} ชนะ`)
+    : reason === 'เงินหมด' ? `${winner === humanSide ? 'AI' : 'คุณ'} เงินหมด`
+    : `${winner === humanSide ? 'คุณ' : 'AI'} ${reason}`;
   saveGame();
   if (winner === humanSide) SFX.win(); else if (winner) SFX.lose();
   closeDepotPopup();
@@ -9233,7 +9239,7 @@ function showVsSetup() {
   coinsIn.min = '100000'; coinsIn.max = '100000000'; coinsIn.step = '100000';
 
   const goalSel = document.createElement('select');
-  for (const [v, t] of [['goods', 'ผลิตสินค้าให้ครบตามจำนวน'], ['stars', 'เก็บดาวให้ถึงจำนวน'], ['coins', 'มีเงินถึงจำนวน']]) {
+  for (const [v, t] of [['goods', 'ขายสินค้าให้ครบตามจำนวน (นับเมื่อรถส่งถึง)'], ['stars', 'เก็บดาวให้ถึงจำนวน'], ['coins', 'มีเงินถึงจำนวน']]) {
     const o = document.createElement('option'); o.value = v; o.textContent = t; goalSel.appendChild(o);
   }
   const kindSel = document.createElement('select');
@@ -9334,6 +9340,7 @@ function startMatch(cfg) {
   if (onlineMode) onlineSetupBots(cfg.bots, startCoins, T, now);
   roundStartAt = now;
   matchStartAt = now;
+  matchEndAt = 0; endReasonText = ''; // v261
   matchActive = true;
   setupOverlay.style.display = 'none';
   vsBar.style.display = (vsMode || onlineMode) ? 'block' : 'none';
@@ -10337,6 +10344,10 @@ function onlineEnd(info, broadcast) {
   useSide(humanSide);
   matchActive = false;
   gameOver = true;
+  matchEndAt = gameNow(); // v261
+  { const wn = online.ended.winnerId === online.myId ? 'คุณ' : ((online.players[online.ended.winnerId] || {}).name || '');
+    const rs = online.ended.reason;
+    endReasonText = !wn ? rs : rs === 'ถึงเป้าหมายก่อน' ? `${wn} ${rs}` : `${rs} ${wn} ชนะ`; }
   saveGame(); // จบแล้วลบเซฟ
   if (online.ended.winnerId === online.myId) SFX.win(); else SFX.lose();
   closeDepotPopup();
