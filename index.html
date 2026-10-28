@@ -3021,7 +3021,8 @@ const hud = document.createElement('div');
 hud.style.cssText = 'position:fixed;top:8px;right:8px;z-index:60;display:flex;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:none;font-family:sans-serif;';
 function hudPill(icon) {
   const pill = document.createElement('div');
-  pill.style.cssText = 'display:flex;align-items:center;gap:6px;background:rgba(20,40,25,0.8);color:#fff;border-radius:14px;padding:4px 12px;font-size:18px;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,0.35);';
+  pill.style.cssText = 'display:flex;align-items:center;gap:6px;border-radius:12px;padding:4px 12px;font-size:18px;font-weight:bold;';
+  pill.className = 'hudPill'; // v270: ธีมครีมขอบไม้
   const i = document.createElement('span');
   i.textContent = icon;
   const v = document.createElement('span');
@@ -3041,7 +3042,7 @@ hudSpeedPill.style.userSelect = 'none';
 hudSpeedPill.title = 'เร่งความเร็วเกม (ทั้งสองฝั่ง)';
 function refreshSpeedPill() {
   hudSpeed.textContent = 'x' + gameSpeed;
-  hudSpeedPill.style.background = gameSpeed > 1 ? 'rgba(230,120,20,0.92)' : 'rgba(20,40,25,0.8)';
+  hudSpeedPill.classList.toggle('on', gameSpeed > 1); // v270
 }
 // v241: ปุ่มพักเกม (ใต้ปุ่มความเร็ว) · โหมดออนไลน์พักไม่ได้
 let manualPause = false;
@@ -3073,7 +3074,7 @@ function updatePauseState() {
   if (onlineMode) manualPause = false;
   hudPausePill.style.display = onlineMode || !matchActive ? 'none' : 'flex';
   hudPause.textContent = manualPause ? 'เล่นต่อ' : 'พัก';
-  hudPausePill.style.background = manualPause ? 'rgba(230,120,20,0.92)' : 'rgba(20,40,25,0.8)';
+  hudPausePill.classList.toggle('on', manualPause); // v270
   hudPause.previousSibling.textContent = manualPause ? '▶' : '⏸';
   pauseBanner.style.display = manualPause && matchActive && !onlineMode ? 'block' : 'none';
 }
@@ -3114,7 +3115,7 @@ infoTitle.textContent = '📦 สรุป';
 const infoLeft = document.createElement('span');
 infoLeft.style.cssText = 'display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;';
 const infoMoney = document.createElement('span');
-infoMoney.style.cssText = 'color:#ffd166;font-size:17px;';
+infoMoney.style.cssText = 'color:#9a5a00;font-size:17px;';
 const infoStars = document.createElement('span');
 infoStars.style.cssText = 'font-size:17px;';
 infoLeft.append(infoTitle, infoMoney, infoStars);
@@ -3146,7 +3147,7 @@ quickBar.style.cssText = 'margin:3px 0 2px;font-size:14px;line-height:1.5;';
 const goalLine = document.createElement('div');
 goalLine.style.cssText = 'display:none;height:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:bold;';
 const itemsLine = document.createElement('div');
-itemsLine.style.cssText = 'height:21px;max-width:calc(100vw - 170px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:bold;color:#e8f5e0;'; // v226: ชื่อไทย, v230: บรรทัดเดียว แผงยืดตาม
+itemsLine.style.cssText = 'height:21px;max-width:calc(100vw - 170px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:bold;color:#3a2814;'; // v226: ชื่อไทย, v230: บรรทัดเดียว แผงยืดตาม
 quickBar.append(goalLine, itemsLine);
 function syncQuickBar() {
   const solo = typeof vsMode !== 'undefined' && matchActive && !vsMode && !onlineMode && !tutorialMode; // v242: ภารกิจเล่นคนเดียว
@@ -3154,20 +3155,36 @@ function syncQuickBar() {
   goalLine.style.cursor = solo ? 'pointer' : '';
 }
 let itemsLineHtml = '', goalLineHtml = '';
+infoPanel.id = 'hudPanel'; // v270
 infoPanel.append(infoHead, quickBar, statusEl, infoBody);
 document.body.appendChild(infoPanel);
 { const st = document.createElement('style');
-  st.textContent = 'button { background-color: #fbf3df; border: 1px solid #a07a4e; border-radius: 8px; color: #3a2814; font-family: inherit; } button:active { filter: brightness(0.94); } button:disabled { opacity: 0.55; } #status { font-size: 14px !important; } .infoMini #vsBar, .infoMini #viewSwitch { display: none !important; } @media (max-width: 600px) { #quickBar .qbBar, #quickBar .qbLab { display: none !important; } } .infoMini #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(580px, calc(100vw - 170px)); }';
+  st.textContent = 'button { background-color: #fbf3df; border: 1px solid #a07a4e; border-radius: 8px; color: #3a2814; font-family: inherit; } button:active { filter: brightness(0.94); } button:disabled { opacity: 0.55; } #status { font-size: 14px !important; } .infoMini #vsBar, .infoMini #viewSwitch { display: none !important; } @media (max-width: 600px) { #quickBar .qbBar, #quickBar .qbLab { display: none !important; } } .infoMini #status { white-space: normal; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.35; height: 2.7em; max-width: min(640px, calc(100vw - 170px)); }';
   document.head.appendChild(st); }
 
+// v270: HUD ธีมครีมขอบไม้ (ตามภาพเป้าหมาย) เปลี่ยนแค่สี/กรอบ ไม่เปลี่ยนตำแหน่งหรือการทำงาน
+{ const st = document.createElement('style');
+  st.textContent = [
+    '#hudPanel{background:linear-gradient(180deg,#fffaf0 0%,#f3e2bf 100%)!important;color:#3a2814!important;border:3px solid #7a5230!important;border-radius:12px!important;box-shadow:inset 0 0 0 2px #fff6dc,0 3px 0 #5a3a1e,0 5px 12px rgba(0,0,0,.35)!important;}',
+    '#hudPanel #status{color:#5a3a1e!important;}',
+    '#hudPanel #vsBar{color:#3a2814!important;}',
+    '#hudPanel #quickBar > div{color:#3a2814!important;}',
+    '#hudPanel::-webkit-scrollbar{width:6px}#hudPanel::-webkit-scrollbar-thumb{background:#c9a46e;border-radius:3px}',
+    '#hudPanel #viewSwitch button{background:linear-gradient(180deg,#fffaf0,#f0dcb4)!important;border:2px solid #7a5230!important;color:#3a2814!important;}',
+    '#hudPanel #viewSwitch button.on{background:linear-gradient(180deg,#5aa040,#3b7a2a)!important;border-color:#2a5a1c!important;color:#fff!important;}',
+    '.hudPill{background:linear-gradient(180deg,#fffaf0,#f3e2bf);color:#3a2814;border:2px solid #7a5230;box-shadow:inset 0 0 0 1px #fff6dc,0 2px 0 #5a3a1e,0 3px 8px rgba(0,0,0,.3);}',
+    '.hudPill.on{background:linear-gradient(180deg,#5aa040,#3b7a2a);color:#fff;border-color:#2a5a1c;box-shadow:inset 0 0 0 1px #8fd070,0 2px 0 #1f4514,0 3px 8px rgba(0,0,0,.3);}',
+    '@media (max-width:600px){.hudPill{font-size:16px!important;padding:3px 9px!important;}#hudPanel{font-size:13px!important;}.infoMini #status{-webkit-line-clamp:4;height:5.4em;font-size:12px!important;}}',
+  ].join('\n');
+  document.head.appendChild(st); }
 // ---------- แผงสรุปคลัง (แสดงตลอด ไม่ถูกข้อความแจ้งเตือนทับ) ----------
 const summaryEl = document.createElement('div');
-summaryEl.style.cssText = 'margin-top:4px;color:#fff;font-size:14px;text-align:left;line-height:1.5;';
+summaryEl.style.cssText = 'margin-top:4px;color:#3a2814;font-size:14px;text-align:left;line-height:1.5;';
 const summaryTop = document.createElement('div');
 const summaryItems = document.createElement('div');
 const summaryHint = document.createElement('div');
-summaryHint.style.cssText = 'margin-top:4px;font-size:14px;color:#ffd166;';
-summaryItems.style.cssText = 'display:none;font-weight:bold;color:#fff;'; // v221: ของในคลังเด่นขึ้น, v226: ซ่อน (ย้ายไปแถบด่วนแล้ว)
+summaryHint.style.cssText = 'margin-top:4px;font-size:14px;color:#8a5a00;';
+summaryItems.style.cssText = 'display:none;font-weight:bold;color:#3a2814;'; // v221: ของในคลังเด่นขึ้น, v226: ซ่อน (ย้ายไปแถบด่วนแล้ว)
 summaryTop.style.display = 'none'; // v221: เงิน/ดาวอยู่ที่หัวแผงแล้ว
 summaryEl.append(summaryTop, summaryItems, summaryHint);
 
@@ -9223,7 +9240,7 @@ function updateMissionLine() {
   if (!soloMissionActive()) return;
   const s = humanSide, i = s.mission || 0, m = SOLO_MISSIONS[i];
   const html = m
-    ? `📜 ภารกิจ ${i + 1}/${SOLO_MISSIONS.length}: ${missionLabel(m)} <span style="color:#9fe39a">${Math.min(m.n, missionValue(s, m)).toLocaleString('en-US')}/${m.n.toLocaleString('en-US')}</span> <span style="opacity:.75;font-weight:normal">· รางวัล $${m.reward.toLocaleString('en-US')}${m.k ? ' · แตะดูวิธีทำ' : ''}</span>`
+    ? `📜 ภารกิจ ${i + 1}/${SOLO_MISSIONS.length}: ${missionLabel(m)} <span style="color:#2e7d32">${Math.min(m.n, missionValue(s, m)).toLocaleString('en-US')}/${m.n.toLocaleString('en-US')}</span> <span style="opacity:.75;font-weight:normal">· รางวัล $${m.reward.toLocaleString('en-US')}${m.k ? ' · แตะดูวิธีทำ' : ''}</span>`
     : '🏆 ทำภารกิจครบทุกข้อแล้ว! เล่นต่อได้ตามสบาย';
   if (html !== missionLineHtml) { missionLineHtml = html; goalLineHtml = ''; goalLine.innerHTML = html; }
 }
@@ -9306,9 +9323,9 @@ infoPanel.insertBefore(vsBar, statusEl);
 // v190: ตารางสรุปแบบช่องเรียงต่อกันขึ้นบรรทัดใหม่ได้ (เดิมเป็นตารางแนวนอนกว้างเกินจอ)
 // แต่ละช่อง = ชื่อ / ค่าของคุณ (ขาว) / ค่าของ AI (ฟ้า) แสดงเฉพาะสินค้าที่มีฝั่งใดผลิตได้แล้ว + เป้าหมาย ดาว เงิน
 // ตัวเลขสินค้า = ยอดผลิตจริง (made) นับตอนผลิตเสร็จ ส่วนเป้าหมายนับยอดขาย (produced) แสดงในแถบเป้าหมายด้านบน
-const VS_H_COLOR = '#ffffff', VS_A_COLOR = '#9fd3ff';
+const VS_H_COLOR = '#3a2814', VS_A_COLOR = '#1f5f9a'; // v270: ธีมครีม
 const vsStatsWrap = document.createElement('div');
-vsStatsWrap.style.cssText = 'display:none;flex-wrap:wrap;justify-content:flex-start;gap:4px;margin:6px 0 0;max-width:100%;box-sizing:border-box;padding:0;background:transparent;color:#fff;border-radius:8px;font-size:12px;line-height:1.35;';
+vsStatsWrap.style.cssText = 'display:none;flex-wrap:wrap;justify-content:flex-start;gap:4px;margin:6px 0 0;max-width:100%;box-sizing:border-box;padding:0;background:transparent;color:#3a2814;border-radius:8px;font-size:12px;line-height:1.35;';
 const vsStats = vsStatsWrap; // ชื่อเดิมที่โค้ดส่วนอื่นอ้างถึง
 infoBody.appendChild(vsStatsWrap); // v218: ตารางเทียบ AI อยู่ในแผงข้อมูลมุมซ้ายบน
 const vsCells = {}; // key -> { box, head, h, a }
@@ -9316,7 +9333,7 @@ function vsChip(head, h, a) {
   const box = document.createElement('div');
   box.style.cssText = 'display:flex;flex-direction:column;align-items:center;min-width:34px;padding:2px 6px;border-radius:6px;white-space:nowrap;';
   const mk = (t, color, bold) => { const d = document.createElement('div'); d.textContent = t; d.style.color = color; if (bold) d.style.fontWeight = 'bold'; box.appendChild(d); return d; };
-  return { box, head: mk(head, '#fff', true), h: mk(h, VS_H_COLOR), a: mk(a, VS_A_COLOR) };
+  return { box, head: mk(head, '#5a3a1e', true), h: mk(h, VS_H_COLOR), a: mk(a, VS_A_COLOR) };
 }
 (function buildVsStats() {
   // v230: ทุกช่องจองที่ไอคอนสูง 18px แถวชื่อ/คุณ/AI จึงตรงกัน
@@ -9324,7 +9341,7 @@ function vsChip(head, h, a) {
   const legend = vsChip('ผลิต', 'คุณ', 'AI');
   iconSlot(legend.box, legend.head, '');
   legend.box.style.order = '-10';
-  legend.box.style.background = 'rgba(255,255,255,0.08)';
+  legend.box.style.background = 'rgba(122,82,48,0.10)';
   vsStatsWrap.appendChild(legend.box);
   const labelOf = (k) => (k === 'stars' ? 'ดาว' : k === 'coins' ? 'เงิน' : KIND_LABEL[k]);
   for (const k of ['stars', 'coins', ...DEPOT_KINDS]) {
@@ -9371,22 +9388,22 @@ function updateGoalLine() {
   const money = matchGoal.type === 'coins';
   if (matchGoal.chain) { // v235: เป้าหลายขั้น: แสดงขั้นของแต่ละฝั่ง
     const n = matchGoal.chain.length;
-    const barC = (v, col) => `<span class="qbBar" style="display:inline-block;width:60px;height:9px;background:rgba(255,255,255,0.18);border-radius:5px;vertical-align:middle;margin:0 4px;overflow:hidden"><span style="display:block;height:100%;width:${Math.min(100, (v / n) * 100).toFixed(1)}%;background:${col}"></span></span>`;
-    const lead = hv > av ? '<span style="color:#7dff8a">🟢 คุณนำ</span>' : hv < av ? '<span style="color:#ff8a8a">🔴 AI นำ</span>' : '<span style="color:#ffd166">⚪ เสมอ</span>';
-    const html = `🎯 คุณ: ${sideProgressText(humanSide)}${barC(hv, '#7dff8a')}<span style="opacity:.6">|</span> AI ขั้น ${Math.min(n, Math.floor(av) + 1)}/${n}${barC(av, '#7ec8ff')}<span style="opacity:.6">|</span> ${lead}`;
+    const barC = (v, col) => `<span class="qbBar" style="display:inline-block;width:60px;height:9px;background:#e3cfa4;box-shadow:inset 0 1px 1px rgba(90,58,30,.35);border-radius:5px;vertical-align:middle;margin:0 4px;overflow:hidden"><span style="display:block;height:100%;width:${Math.min(100, (v / n) * 100).toFixed(1)}%;background:${col}"></span></span>`;
+    const lead = hv > av ? '<span style="color:#2e7d32">🟢 คุณนำ</span>' : hv < av ? '<span style="color:#c62828">🔴 AI นำ</span>' : '<span style="color:#8a5a00">⚪ เสมอ</span>';
+    const html = `🎯 คุณ: ${sideProgressText(humanSide)}${barC(hv, '#43a047')}<span style="opacity:.6">|</span> AI ขั้น ${Math.min(n, Math.floor(av) + 1)}/${n}${barC(av, '#3a8fd8')}<span style="opacity:.6">|</span> ${lead}`;
     if (html !== goalLineHtml) { goalLineHtml = html; goalLine.innerHTML = html; }
     return;
   }
   const fmt = (v) => money ? '$' + Math.floor(v).toLocaleString('en-US') : String(Math.floor(v));
   const bar = (v, col) => {
     const pct = Math.max(0, Math.min(100, tg > 0 ? (v / tg) * 100 : 0));
-    return `<span class="qbBar" style="display:inline-block;width:60px;height:9px;background:rgba(255,255,255,0.18);border-radius:5px;vertical-align:middle;margin:0 4px;overflow:hidden"><span style="display:block;height:100%;width:${pct.toFixed(1)}%;background:${col}"></span></span>`;
+    return `<span class="qbBar" style="display:inline-block;width:60px;height:9px;background:#e3cfa4;box-shadow:inset 0 1px 1px rgba(90,58,30,.35);border-radius:5px;vertical-align:middle;margin:0 4px;overflow:hidden"><span style="display:block;height:100%;width:${pct.toFixed(1)}%;background:${col}"></span></span>`;
   };
   const diff = hv - av;
-  const lead = diff > 0 ? `<span style="color:#7dff8a">🟢 คุณนำ ${fmt(diff)}</span>`
-    : diff < 0 ? `<span style="color:#ff8a8a">🔴 AI นำ ${fmt(-diff)}</span>`
-    : '<span style="color:#ffd166">⚪ เสมอ</span>';
-  const html = `🎯 <span class="qbLab">${goalLabel(matchGoal)} <span style="opacity:.6">|</span> </span>คุณ ${fmt(hv)}${bar(hv, '#7dff8a')}<span style="opacity:.6">|</span> AI ${fmt(av)}${bar(av, '#7ec8ff')}<span style="opacity:.6">|</span> ${lead}`;
+  const lead = diff > 0 ? `<span style="color:#2e7d32">🟢 คุณนำ ${fmt(diff)}</span>`
+    : diff < 0 ? `<span style="color:#c62828">🔴 AI นำ ${fmt(-diff)}</span>`
+    : '<span style="color:#8a5a00">⚪ เสมอ</span>';
+  const html = `🎯 <span class="qbLab">${goalLabel(matchGoal)} <span style="opacity:.6">|</span> </span>คุณ ${fmt(hv)}${bar(hv, '#43a047')}<span style="opacity:.6">|</span> AI ${fmt(av)}${bar(av, '#3a8fd8')}<span style="opacity:.6">|</span> ${lead}`;
   if (html !== goalLineHtml) { goalLineHtml = html; goalLine.innerHTML = html; }
 }
 function fmtMMSS(sec) {
@@ -11175,7 +11192,7 @@ function updateOnlineBars(now) {
     const col = ONLINE_COLORS[Math.max(0, ids.indexOf(p.id)) % ONLINE_COLORS.length];
     const me = p.id === online.myId;
     const stale = !p.bot && !me && p.seenAt && Date.now() - p.seenAt > 12000;
-    return `<span data-pid="${onlineEsc(p.id)}" style="display:inline-block;cursor:pointer;margin-right:6px;padding:1px 7px;border-radius:10px;border:2px solid ${col};background:${me ? 'rgba(255,209,102,0.25)' : 'rgba(0,0,0,0.2)'};${p.out ? 'opacity:.55;' : ''}">${medals[i] || ''}${onlineEsc(p.name)}${me ? ' (คุณ)' : ''} <b>${onlineShort(p)}</b>${p.out ? ' 💸' : ''}${stale ? ' 📵' : ''}</span>`;
+    return `<span data-pid="${onlineEsc(p.id)}" style="display:inline-block;cursor:pointer;margin-right:6px;padding:1px 7px;border-radius:10px;border:2px solid ${col};background:${me ? 'rgba(255,190,60,0.35)' : 'rgba(122,82,48,0.10)'};${p.out ? 'opacity:.55;' : ''}">${medals[i] || ''}${onlineEsc(p.name)}${me ? ' (คุณ)' : ''} <b>${onlineShort(p)}</b>${p.out ? ' 💸' : ''}${stale ? ' 📵' : ''}</span>`;
   }).join('');
   if (html !== onlineBarHtml) { onlineBarHtml = html; onlineBar.innerHTML = html; }
 }
