@@ -257,8 +257,8 @@ const TILE_SIZE = 32;
 const GROW_MS = BUILDINGS.field.growSec * 1000;          // ข้าวสาลีโตใช้เวลา 20 วินาที (นับจากมีน้ำครบ)
 const TREE_GROW_MS = BUILDINGS.tree.growSec * 1000;     // ต้นไม้ (Tree Farm) โตใช้เวลา 30 วินาที (Town Star Hub)
 const HARVEST_MS = BUILDINGS.farmhouse.harvestSec * 1000;        // เวลาเก็บเกี่ยว / ตัดไม้ 1 วินาที
-const STEP_MS = 400;            // เดินบนพื้นทั่วไป 1 ช่องใช้ 0.4 วินาที (ปรับให้ช้าลง)
-const STEP_ROAD_MS = 200;       // เดินบนถนน 1 ช่องใช้ 0.2 วินาที (ปรับให้ช้าลง)
+const STEP_MS = 800;            // v274: เดินบนพื้นทั่วไป 1 ช่องใช้ 0.8 วินาที (เดิม 0.4)
+const STEP_ROAD_MS = 400;       // v274: เดินบนถนนดิน 1 ช่องใช้ 0.4 วินาที (เดิม 0.2) ลาดยาง = ครึ่งหนึ่ง 0.2 วินาที
 const DIAG_COST = 1.4;          // เดินเฉียงใช้เวลาเพิ่มประมาณ 1.4 เท่า
 const IDLE_CHECK_MS = 500;      // ตอนว่างเช็กงานทุก 0.5 วินาที
 const SILO_CAP = BUILDINGS.silo.capacity;            // ไซโลเก็บข้าวสาลีได้ 20 หน่วย
