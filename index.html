@@ -5628,6 +5628,7 @@ function animalSprite(type, frame) {
   ANIMAL_SPRITES[key] = c;
   return c;
 }
+const ANIMAL_SIZE = 0.75; // v276: ขนาดภาพสัตว์ (1 = เดิม)
 // วาดสัตว์ที่ตำแหน่ง (cx, cy) เท้าอยู่ที่ cy+4 เหมือนคนงาน พลิกซ้ายขวาตามทิศที่เดิน
 function drawAnimalAt(cx, cy, type, w, now) {
   const a = ANIMAL_ART[type];
@@ -5639,11 +5640,11 @@ function drawAnimalAt(cx, cy, type, w, now) {
   const frame = w.state === 'walk' ? Math.floor(now / 160) % 2 : 0;
   const nu = ANIMAL_NEW[type], nim = nu && gptImg(nu.key + frame); // v244: ภาพสัตว์จาก ChatGPT (ภาพ 2 เท่า)
   const aw = nim ? nu.w : a.w, ah = nim ? nu.h : a.h;
-  const sc = (nim ? 1 : a.scale) * viewZoom;
+  const sc = (nim ? 1 : a.scale) * viewZoom * ANIMAL_SIZE; // v276: ย่อสัตว์ 25%
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = 'rgba(30, 50, 10, 0.35)';
   ctx.beginPath();
-  ctx.ellipse(cx, cy + 4, aw * sc * 0.4, 2.6 * viewZoom, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy + 4, aw * sc * 0.4, 2.6 * viewZoom * ANIMAL_SIZE, 0, 0, Math.PI * 2);
   ctx.fill();
   const sprite = nim || animalSprite(type, frame);
   ctx.save();
