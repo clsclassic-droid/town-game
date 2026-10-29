@@ -1963,7 +1963,9 @@ function abandonRanchJob(r, now) {
 }
 
 function routeRanch(r, tx, ty, now) {
-  const p = pathToBuilding(r.x, r.y, tx, ty);
+  // v275: อาคารที่ไม่มีประตู (เครื่องบด ราง บ่อน้ำ กังหันลม กังหันผลิตไฟ บ่อน้ำมัน ฯลฯ) เดินเข้าไปยืนบนขอบช่องของอาคารนั้น (เดิมหยุดช่องข้างๆ) ทั้งสองฝั่ง
+  const tc = cellAt(tx, ty);
+  const p = pathToBuilding(r.x, r.y, tx, ty, !!tc && !DOOR_TYPES.includes(tc.type));
   r.waitTo = null;
   if (!p) {
     r.state = 'wait';
