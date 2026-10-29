@@ -186,7 +186,7 @@ const BUILDINGS = {
   windmill: { label: 'โรงโม่แป้ง', cost: 2500, wage: 50, woodCost: 5, needsRoad: true, craftSec: 30, recipes: { flour: { wheat: 2, wood: 1 }, sugar: { sugarcane: 3, wood: 1 }, salt: { brine: 4, wood: 2 } }, inCap: { wheat: 2, sugarcane: 3, brine: 4, wood: 2 }, outCap: { flour: 4, sugar: 4, salt: 4 }, shade: { 1: -3, 2: -2, 3: -1 } },
   storehouse: { label: 'คลังสินค้า', cost: 15000, woodCost: 5, needsRoad: true, capacity: 20, shade: { 1: -1 } },
   chickencoop: { label: 'โรงไก่', cost: 15000, woodCost: 3, craftSec: 30, recipe: { feed: 3, water: 1, wood: 1 }, out: 'eggs', outCap: 2 },
-  milkbarn: { label: 'โรงวัว', cost: 30000, woodCost: 10, craftSec: 30, recipe: { feed: 8, water: 3, wood: 1 }, out: 'milk', outCap: 2, shade: { 1: -2, 2: -1 } },
+  milkbarn: { label: 'โรงวัว', cost: 30000, woodCost: 10, craftSec: 90, /* v277: ต้นฉบับ 30 */ recipe: { feed: 8, water: 3, wood: 1 }, out: 'milk', outCap: 2, shade: { 1: -2, 2: -1 } },
   sheeppen: { label: 'คอกแกะ', cost: 10000, woodCost: 3, craftSec: 60, recipe: { feed: 8, water: 5, wood: 1 }, out: 'wool', outCap: 2 },
   // v173: Water Facility ตามต้นฉบับ (ต้นฉบับใช้ไม้ 2 + ไม้โอ๊ก 1 เกมเรายังไม่มีไม้โอ๊ก)
   // v174: Warehouse ต้นฉบับ (Industrial) เก็บสินค้าประเภท Produced เช่น ถังน้ำ ไม้ 3 เงาระยะ 2 (ความจุต้นฉบับไม่มีข้อมูล ใช้ 20 เท่าคลังสินค้า)
@@ -230,9 +230,9 @@ const GOODS = {
   oakwood: { price: 300, stars: 1 }, // v229: ไม้โอ๊ก (Oak_Wood ต้นฉบับ CityPrice 300 CityPoints 1) เก็บในคลังไม้/Lumber Yard
   feed: { price: 610, stars: 2 },
   flour: { price: 2000, stars: 12 },
-  eggs: { price: 2100, stars: 12 },
-  milk: { price: 4000, stars: 28 },
-  wool: { price: 3750, stars: 28 },
+  eggs: { price: 2400, stars: 14 }, // v277: บาลานซ์ใหม่ (ต้นฉบับ 2100/12)
+  milk: { price: 9000, stars: 60 }, // v277: บาลานซ์ใหม่ (ต้นฉบับ 4000/28)
+  wool: { price: 6000, stars: 40 }, // v277: บาลานซ์ใหม่ (ต้นฉบับ 3750/28)
   sugar: { price: 2300, stars: 21 },
   brine: { price: 300, stars: 1 },
   salt: { price: 2250, stars: 16 },
@@ -240,7 +240,7 @@ const GOODS = {
   lumber: { price: 1350, stars: 8 }, // v185: ไม้แปรรูป (Lumber ต้นฉบับ) เก็บในคลังไม้/Lumber Yard
   energy: { price: 150, stars: 1 }, // v187: ไฟฟ้า (Energy ต้นฉบับ ประเภท Produced) เก็บในโกดัง
   crude: { price: 50, stars: 1 }, // v187: น้ำมันดิบ (Crude_Oil ต้นฉบับ ประเภท Fuel) เก็บในคลังเชื้อเพลิง
-  butter: { price: 20000, stars: 153 }, // v188: เนย (Butter ต้นฉบับ ประเภท Crafted) เก็บในคลังสินค้า
+  butter: { price: 30000, stars: 153 }, // v277: ราคาใหม่ (ต้นฉบับ 20000) // v188: เนย (Butter ต้นฉบับ ประเภท Crafted) เก็บในคลังสินค้า
 };
 // ลำดับการสร้างของ AI (วนซ้ำ)
 const AI_ORDER = ['road', 'field', 'farmhouse', 'field', 'silo', 'tradedepot', 'road', 'lumberjack', 'woodshed',
@@ -439,6 +439,12 @@ function neighbors4(x, y) {
 }
 function isNear8(ax, ay, bx, by) {
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by)) === 1;
+}
+// v277: สัตว์เดินช้ากว่าคนงาน (คูณเวลาต่อก้าว) ไก่ 1 = เท่าคน, แกะ 1.25, วัว 1.5 (ใช้ทั้งสองฝั่ง)
+const ANIMAL_WALK = { chickencoop: 1, sheeppen: 1.25, milkbarn: 1.5 };
+function ranchStepTime(r, fx, fy, tx, ty) {
+  const h = inBounds(r.hx, r.hy) ? cellAt(r.hx, r.hy) : null;
+  return stepTime(fx, fy, tx, ty) * ((h && ANIMAL_WALK[h.type]) || 1);
 }
 function stepTime(fx, fy, tx, ty) {
   const rc = cellAt(tx >> 2, ty >> 2);
@@ -1982,7 +1988,7 @@ function routeRanch(r, tx, ty, now) {
   r.path = p;
   r.state = 'walk';
   const [nx, ny] = p[0];
-  r.moveAt = now; r.nextAt = now + stepTime(r.x, r.y, nx, ny);
+  r.moveAt = now; r.nextAt = now + ranchStepTime(r, r.x, r.y, nx, ny);
 }
 
 function ranchArrive(r, now) {
@@ -2051,7 +2057,7 @@ function updateRanchers(now) {
           ranchArrive(r, now);
         } else {
           const [nx, ny] = r.path[0];
-          r.moveAt = now; r.nextAt = now + stepTime(r.x, r.y, nx, ny);
+          r.moveAt = now; r.nextAt = now + ranchStepTime(r, r.x, r.y, nx, ny);
         }
       }
     }
@@ -5628,7 +5634,7 @@ function animalSprite(type, frame) {
   ANIMAL_SPRITES[key] = c;
   return c;
 }
-const ANIMAL_SIZE = 0.75; // v276: ขนาดภาพสัตว์ (1 = เดิม)
+const ANIMAL_SIZE = { chickencoop: 0.6, sheeppen: 0.7, milkbarn: 0.8 }; // v277: ขนาดภาพสัตว์แยกชนิด (1 = ขนาดเดิมก่อน v276)
 // วาดสัตว์ที่ตำแหน่ง (cx, cy) เท้าอยู่ที่ cy+4 เหมือนคนงาน พลิกซ้ายขวาตามทิศที่เดิน
 function drawAnimalAt(cx, cy, type, w, now) {
   const a = ANIMAL_ART[type];
@@ -5637,14 +5643,14 @@ function drawAnimalAt(cx, cy, type, w, now) {
   if (dir.includes('east')) w.animalRight = true;
   else if (dir.includes('west')) w.animalRight = false;
   const right = w.animalRight !== false;
-  const frame = w.state === 'walk' ? Math.floor(now / 160) % 2 : 0;
+  const frame = w.state === 'walk' ? Math.floor(now / (160 * (ANIMAL_WALK[type] || 1))) % 2 : 0; // v277: ก้าวช้าตามความเร็วเดิน
   const nu = ANIMAL_NEW[type], nim = nu && gptImg(nu.key + frame); // v244: ภาพสัตว์จาก ChatGPT (ภาพ 2 เท่า)
   const aw = nim ? nu.w : a.w, ah = nim ? nu.h : a.h;
-  const sc = (nim ? 1 : a.scale) * viewZoom * ANIMAL_SIZE; // v276: ย่อสัตว์ 25%
+  const sc = (nim ? 1 : a.scale) * viewZoom * (ANIMAL_SIZE[type] || 1); // v277: ขนาดแยกชนิด
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = 'rgba(30, 50, 10, 0.35)';
   ctx.beginPath();
-  ctx.ellipse(cx, cy + 4, aw * sc * 0.4, 2.6 * viewZoom * ANIMAL_SIZE, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy + 4, aw * sc * 0.4, 2.6 * viewZoom * (ANIMAL_SIZE[type] || 1), 0, 0, Math.PI * 2);
   ctx.fill();
   const sprite = nim || animalSprite(type, frame);
   ctx.save();
