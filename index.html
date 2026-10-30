@@ -2596,6 +2596,8 @@ function openSellPopup(cell, x, y) {
     const info = document.createElement('div');
     info.style.cssText = 'margin-top:10px;font-size:12px;color:#888;line-height:1.5;';
     info.textContent = `${prodInfoLine(cell)} · ขายได้ $${sellPrice(cell).toLocaleString('en-US')} (ของในอาคารจะหายไป)`;
+    const rateLine = prodCellRateText(cell); // v279
+    if (rateLine) { const rd = document.createElement('div'); rd.style.cssText = 'margin-top:8px;font-size:13px;color:#1f4f7a;line-height:1.5;'; rd.textContent = rateLine; panel.appendChild(rd); }
     panel.appendChild(info);
     if (DESC[cell.type]) {
       const det = document.createElement('details');
@@ -2652,6 +2654,7 @@ function openSellPopup(cell, x, y) {
   } else if (ANIMALS[cell.type]) {
     lines.push('ANIMAL_LIVE');
   }
+  { const rl = prodCellRateText(cell); if (rl) lines.push(rl); } // v279
   lines.push(`ขายได้ $${sellPrice(cell)} (${SELL_REFUND * 100}% ของเงินที่ลงทุน)`);
   } // v222: !prodPopup
   for (const text of lines) {
@@ -6919,14 +6922,30 @@ const AI_SCALE = {
   lumber: () => [['tree', 4], ['lumberjack', 1.5], ['woodshed', 0.5], ['lumberyard', 0.5], ['waterpump', 1], ['windturbine', 1], ['waterfacility', 0.5], ['warehouse', 0.25], ['lumbermill', 0.25], ['tradedepot', 0.5]],
   // เครื่องบดอาหารสัตว์ 1 เครื่องรองรับโรงสัตว์ราว 12 โรง และรางเก็บอาหารรวมได้มาก จึงลดจำนวนลงตามความจริง
   feed: (c) => [['waterpump', 2], [c, 7], ...AI_SCALE_BASE, ['feedmill', 0.25], ['trough', 0.5], ['ranchhouse', 1], ...AI_SCALE_WOOD],
-  eggs: (c) => [['waterpump', 2], [c, 7], ...AI_SCALE_BASE, ['feedmill', 1], ['trough', 0.5], ['ranchhouse', 1.5], ['chickencoop', 1], ['storehouse', 0.5], ...AI_SCALE_WOOD],
-  milk: (c) => [['waterpump', 2], [c, 7], ...AI_SCALE_BASE, ['feedmill', 2.5], ['trough', 0.5], ['ranchhouse', 2], ['milkbarn', 1], ['storehouse', 0.5], ...AI_SCALE_WOOD],
-  wool: (c) => [['waterpump', 2], [c, 7], ...AI_SCALE_BASE, ['feedmill', 1.3], ['trough', 0.5], ['ranchhouse', 1.5], ['sheeppen', 1], ['storehouse', 0.5], ...AI_SCALE_WOOD],
+  // v279: เครื่องบดและบ้านฟาร์มสัตว์ต่อโรงสัตว์ 1 หลัง คำนวณจากตาราง BUILDINGS (aiAnimalFeedmillPer / aiAnimalRanchPer) เปลี่ยนเวลาผลิต/วัตถุดิบแล้ว AI ปรับตามเอง
+  eggs: (c) => [['waterpump', 2], [c, 7], ...AI_SCALE_BASE, ['feedmill', aiAnimalFeedmillPer('chickencoop')], ['trough', 0.5], ['ranchhouse', aiAnimalRanchPer('chickencoop')], ['chickencoop', 1], ['storehouse', 0.5], ...AI_SCALE_WOOD],
+  milk: (c) => [['waterpump', 2], [c, 7], ...AI_SCALE_BASE, ['feedmill', aiAnimalFeedmillPer('milkbarn')], ['trough', 0.5], ['ranchhouse', aiAnimalRanchPer('milkbarn')], ['milkbarn', 1], ['storehouse', 0.5], ...AI_SCALE_WOOD],
+  wool: (c) => [['waterpump', 2], [c, 7], ...AI_SCALE_BASE, ['feedmill', aiAnimalFeedmillPer('sheeppen')], ['trough', 0.5], ['ranchhouse', aiAnimalRanchPer('sheeppen')], ['sheeppen', 1], ['storehouse', 0.5], ...AI_SCALE_WOOD],
   // v189: เนย: ต่อระดับ โรงวัว 1 (นม 2 ต่อเนย) ทุ่งเกลือ 3 อ้อย 2 โรงโม่ 1 (เกลือ:น้ำตาล = 2:1) เครื่องบด 0.5 (โรงวัวกินอาหารสัตว์ 8)
   butter: (c) => [['waterpump', 1], [c, 4], ['sugarcane', 2], ['saltfield', 3], ...AI_SCALE_BASE, ['feedmill', 0.5], ['trough', 0.5], ['ranchhouse', 0.5], ['milkbarn', 1], ['windmill', 1], ['storehouse', 0.5], ...AI_SCALE_WOOD],
 };
 // v192: ไข่/นม/ขนแกะ เครื่องบดและบ้านฟาร์มสัตว์ต่อระดับตามอาหารที่โรงสัตว์กินจริง (เดิม 0.25/0.5 อาหารไม่พอ)
 const AI_MAX_LEVEL = 12;
+// v279: เครื่องบดต่อโรงสัตว์ = อาหารสัตว์ที่สัตว์กินต่อนาที ÷ อาหารสัตว์ที่เครื่องบดทำได้ต่อนาที (ปัดขึ้นทีละ 0.1)
+// ค่าเดิมที่ปรับมือ (ไข่ 1, นม 2.5 ตอนวัว 30 วิ, ขนแกะ 1.3) ตรงกับสูตรนี้
+function aiAnimalFeedmillPer(t) {
+  const a = prodRates(prodRecipe(t)).inMin.feed || 0, f = prodRates(prodRecipe('feedmill')).perMin;
+  return Math.max(0.1, Math.ceil(a / f * 10 - 1e-9) / 10);
+}
+// v279: บ้านฟาร์มสัตว์ต่อโรงสัตว์: ค่าที่ปรับมือไว้ (ตอนเวลา/วัตถุดิบตามค่าเดิม) คูณสัดส่วนงานขนต่อนาทีตอนนี้ ÷ ตอนปรับ
+// งานขน = น้ำ + ไม้ + ผลผลิต (+ อาหารสัตว์ x0.25 เพราะส่วนใหญ่สัตว์เดินไปกินเอง คนขนแค่ข้าวสาลี/อาหารเข้าราง) ต่อนาที
+const AI_RANCH_TUNED = { chickencoop: { per: 1.5, sec: 30, feed: 3, water: 1, wood: 1 }, milkbarn: { per: 2, sec: 30, feed: 8, water: 3, wood: 1 }, sheeppen: { per: 1.5, sec: 60, feed: 8, water: 5, wood: 1 } };
+function aiRanchLoad(sec, r) { return ((r.water || 0) + (r.wood || 0) + 1 + (r.feed || 0) * 0.25) * 60 / sec; }
+function aiAnimalRanchPer(t) {
+  const T = AI_RANCH_TUNED[t], B = BUILDINGS[t];
+  if (!T) return 1;
+  return Math.max(0.5, Math.round(T.per * aiRanchLoad(B.craftSec, B.recipe) / aiRanchLoad(T.sec, T) * 10) / 10);
+}
 // v188: ต้นไม้ตอนเงินเหลือ: คิดจากจำนวนทุ่ง (เดิมคิดจากบ้านเกษตรกร x4 ทำให้วนลูป: ต้นไม้เพิ่ม -> ต้องการน้ำ -> บ้านเกษตรกรเพิ่ม -> ต้นไม้เพิ่ม)
 const AI_TREE_RICH_CAP = 24;
 const AI_RICH = 300000; // เงินเกินค่านี้ AI ข้ามเงื่อนไขที่ติดไม้/ที่ว่าง แล้วขยายต่อจากเงินส่วนเกิน
@@ -9134,6 +9153,7 @@ function openProdChain(kind) {
     if (k !== 'wood' && [...need].some((t) => WOOD_COST[t])) { need.add('tree'); need.add('lumberjack'); need.add('woodshed'); }
     const builds = PROD_ORDER.filter((t) => need.has(t));
     body.innerHTML = `<div style="margin:10px 0 4px;padding:6px 10px;background:#fff6d6;border-radius:8px">${prodIcon(k, 24)}<b>${KIND_LABEL[k]}</b> ขายได้ $${SELL_PRICE[k].toLocaleString('en-US')} · ⭐${STAR_PER_ITEM[k]} ต่อชิ้น</div>`
+      + prodMatchHtml(k)
       + `<div style="font-weight:bold;margin-top:8px">🌳 ทำมาจากอะไร</div><ul style="border-left:none;margin-left:0;padding-left:0">${tree}</ul>`
       + `<details open><summary>🏗 ต้องสร้างอะไรบ้าง (${builds.length})</summary><div style="font-size:12px;color:#666;margin:2px 0 4px">ติ๊กไว้ดูเองว่าสร้างแล้ว (ไม่มีผลกับเกม)</div>${builds.map(prodBuildRow).join('')}</details>`;
   };
@@ -9303,6 +9323,109 @@ function buildInfoTable(cols, rows, stickyFirst) {
   wrap.appendChild(table);
   return wrap;
 }
+// ==================== v279: อัตราผลิตต่อนาที (คำนวณจากตาราง BUILDINGS ทุกครั้ง เปลี่ยนค่าในตารางแล้วตัวเลขเปลี่ยนตามเอง) ====================
+// 1 รอบได้ 1 ชิ้น · ไม่รวมเวลาเดินของคนงาน · ใช้ทั้งหน้าข้อมูลของผู้เล่นและการคำนวณสัดส่วนของ AI
+const PROD_SOURCE = { wheat: 'field', cotton: 'cotton', sugarcane: 'sugarcane', brine: 'saltfield', wood: 'tree', oakwood: 'oaktree', water: 'well',
+  feed: 'feedmill', flour: 'windmill', sugar: 'windmill', salt: 'windmill', eggs: 'chickencoop', milk: 'milkbarn', wool: 'sheeppen',
+  waterdrum: 'waterfacility', energy: 'windturbine', crude: 'oilpump', lumber: 'lumbermill', butter: 'bakery' };
+// สูตรผลิตของอาคาร (kind = สินค้าที่เลือก สำหรับโรงโม่) คืน { type, out, sec, in: {ชนิด: จำนวนต่อชิ้น} } หรือ null
+function prodRecipe(type, kind) {
+  const B = BUILDINGS[type];
+  if (!B) return null;
+  if (CROP_TYPES.includes(type)) return { type, out: B.out, sec: type === 'saltfield' ? B.saltySec[0] : B.growSec, in: { water: B.water || 0 } };
+  if (SOURCE_TYPES.includes(type)) return { type, out: 'water', sec: B.refillSec, in: {} };
+  if (type === 'windmill') { const k = kind && B.recipes[kind] ? kind : 'flour'; return { type, out: k, sec: B.craftSec, in: { ...B.recipes[k] } }; }
+  if (type === 'lumbermill') return { type, out: 'lumber', sec: B.recipes.lumber.sec, in: { ...B.recipes.lumber.in } };
+  if (type === 'feedmill') return { type, out: 'feed', sec: B.craftSec, in: { ...B.recipe } };
+  if (B.craftSec && B.out) return { type, out: B.out, sec: B.craftSec, in: { ...(B.recipe || {}) } };
+  return null;
+}
+// สูตรทั้งหมด (โรงโม่ 3 สูตร) ตามลำดับในตาราง BUILDINGS
+function prodRecipeList() {
+  const out = [];
+  for (const t of Object.keys(BUILDINGS)) {
+    if (t === 'windmill') { for (const k of Object.keys(BUILDINGS.windmill.recipes)) out.push(prodRecipe(t, k)); continue; }
+    const r = prodRecipe(t);
+    if (r) out.push(r);
+  }
+  return out;
+}
+const prodFmt = (n) => (n >= 100 ? Math.round(n).toLocaleString('en-US') : n >= 10 ? (Math.round(n * 10) / 10).toString() : (Math.round(n * 100) / 100).toString());
+const prodKL = (k) => KIND_LABEL[k] || k;
+const prodUnit = (t) => (t === 'tree' || t === 'oaktree' ? 'ต้น' : CROP_TYPES.includes(t) ? 'แปลง' : SOURCE_TYPES.includes(t) ? 'บ่อ' : 'หลัง');
+// อัตราต่อนาที (speed = ตัวคูณความเร็ว: 1 = ไม่มีโทษ, 0.5 = โทษ 1 ระดับ)
+function prodRates(r, speed = 1) {
+  const perMin = 60 / r.sec * speed;
+  const inMin = Object.fromEntries(Object.entries(r.in).filter(([, n]) => n > 0).map(([k, n]) => [k, n * perMin]));
+  const val = (GOODS[r.out] ? GOODS[r.out].price : 0) * perMin;
+  const inVal = Object.entries(inMin).reduce((s, [k, n]) => s + (GOODS[k] ? GOODS[k].price * n : 0), 0);
+  return { perMin, inMin, val, inVal, stars: (GOODS[r.out] ? GOODS[r.out].stars : 0) * perMin };
+}
+// ก. ตารางอัตราผลิตในเมนูข้อมูลอาคาร
+function prodRateTable() {
+  const money = (n) => `$${Math.round(n).toLocaleString('en-US')}`;
+  const cols = ['อาคาร', 'ผลิต', 'เวลา/ชิ้น', 'ผลิต/นาที', 'ใช้วัตถุดิบ/นาที', 'มูลค่าขาย/นาที', 'มูลค่าวัตถุดิบ/นาที', 'ส่วนต่าง/นาที', 'ดาว/นาที', 'ค่าแรง/นาที'];
+  const rows = prodRecipeList().map((r) => {
+    const x = prodRates(r), B = BUILDINGS[r.type];
+    const ins = Object.entries(x.inMin).map(([k, n]) => `${prodKL(k)} ${prodFmt(n)}`).join(' + ') || '—';
+    return [B.label, prodKL(r.out), `${r.sec} วิ`, prodFmt(x.perMin), ins,
+      x.val ? money(x.val) : '—', x.inVal ? money(x.inVal) : '—', x.val ? money(x.val - x.inVal) : '—',
+      x.stars ? prodFmt(x.stars) : '—', B.wage ? `${B.wage}` : '—'];
+  });
+  return { cols, rows };
+}
+// ข. ต้องใช้อาคารต้นทางกี่หลังต่ออาคารหลัก 1 หลัง (คิดต่อเนื่องทุกชั้น) acc = { ชนิดอาคาร: จำนวน }
+function prodSupportCount(kind, perMin, acc, depth = 0) {
+  const t = PROD_SOURCE[kind];
+  const r = t && prodRecipe(t, kind);
+  if (!r || depth > 6) return;
+  const n = perMin / prodRates(r).perMin;
+  const key = t === 'windmill' ? `windmill:${kind}` : t;
+  acc[key] = (acc[key] || 0) + n;
+  for (const [k, q] of Object.entries(r.in)) if (q > 0) prodSupportCount(k, q * perMin, acc, depth + 1);
+}
+function prodMatchHtml(kind) {
+  const t = PROD_SOURCE[kind];
+  const r = t && prodRecipe(t, kind);
+  if (!r) return '';
+  const x = prodRates(r);
+  const acc = {};
+  for (const [k, q] of Object.entries(r.in)) if (q > 0) prodSupportCount(k, q * x.perMin, acc);
+  const name = (key) => { const [bt, k] = key.split(':'); return LABEL[bt] + (k ? ` (${prodKL(k)})` : ''); };
+  const lines = Object.entries(acc).map(([key, n]) => {
+    const bt = key.split(':')[0];
+    if (bt === 'well') return `<li>น้ำรวม ~<b>${prodFmt(n * prodRates(prodRecipe('well')).perMin)}</b> ถัง/นาที <span style="color:#888">(= บ่อน้ำ ~${prodFmt(n)} บ่อ ถ้าไม่ได้น้ำจากสระ/แม่น้ำ)</span></li>`;
+    return `<li>${name(key)} ~<b>${prodFmt(n)}</b> ${prodUnit(bt)}</li>`;
+  });
+  // อาคารต้นทางชั้นแรก 1 หลัง ป้อนอาคารหลักได้กี่หลัง
+  const direct = Object.entries(r.in).filter(([, q]) => q > 0).map(([k, q]) => {
+    const st = PROD_SOURCE[k], sr = st && prodRecipe(st, k);
+    if (!sr) return '';
+    const sp = prodRates(sr).perMin;
+    return `<li>${LABEL[st]} 1 ${prodUnit(st)} (${prodKL(k)} ${prodFmt(sp)}/นาที) พอสำหรับ ${LABEL[t]} ~<b>${prodFmt(sp / (q * x.perMin))}</b> ${prodUnit(t)}</li>`;
+  }).filter(Boolean);
+  return `<details open><summary>⚖️ อัตราผลิตและการจับคู่</summary>`
+    + `<div style="margin:4px 0">${LABEL[t]} 1 ${prodUnit(t)}: ${prodKL(r.out)} <b>${prodFmt(x.perMin)}</b>/นาที (${r.sec} วิ/ชิ้น)`
+    + (Object.keys(x.inMin).length ? ` · ใช้ ${Object.entries(x.inMin).map(([k, n]) => `${prodKL(k)} ${prodFmt(n)}`).join(' + ')} ต่อนาที` : '')
+    + (x.val ? ` · ขายได้ ~$${Math.round(x.val).toLocaleString('en-US')}/นาที ⭐${prodFmt(x.stars)}/นาที` : '') + '</div>'
+    + (lines.length ? `<div style="font-weight:bold;margin-top:6px">ให้ ${LABEL[t]} 1 ${prodUnit(t)} ทำงานเต็มที่ ต้องมี:</div><ul>${lines.join('')}</ul>` : '')
+    + (direct.length ? `<div style="font-weight:bold;margin-top:6px">จับคู่:</div><ul>${direct.join('')}</ul>` : '')
+    + `<div style="font-size:12px;color:#666;margin-top:4px">ตัวเลขคิดตอนไม่มีโทษ (เงา/สกปรก/เค็ม) และไม่รวมเวลาเดินของคนงาน · คนงาน 1 คนขนของได้ราว ${AI_FARMER_FLOW} เที่ยวต่อนาที (ค่าประมาณ ขึ้นกับระยะทาง)</div></details>`;
+}
+// ค. อัตราของอาคารหลังนี้ตอนนี้ (คิดโทษจริงแล้ว)
+function prodCellRateText(c) {
+  const r = prodRecipe(c.type, c.type === 'windmill' ? c.mode : undefined);
+  if (!r) return '';
+  let sec = r.sec, why = '';
+  if (isCrop(c)) {
+    sec = cropGrowMs(c) / 1000;
+    if (c.type === 'saltfield') why = ` · เค็ม ${c.salty || 0}`;
+    else if (c.pen) why = ` · โทษ ${c.pen} ระดับ (ช้าลง x${1 / shadeSpeed(c)})`;
+  } else if (penaltyTarget(c) && c.pen) { sec = r.sec / shadeSpeed(c); why = ` · โทษ ${c.pen} ระดับ (ช้าลง x${1 / shadeSpeed(c)})`; }
+  const x = prodRates({ ...r, sec });
+  const ins = Object.entries(x.inMin).map(([k, n]) => `${prodKL(k)} ${prodFmt(n)}`).join(' + ');
+  return `⏱ อัตราตอนนี้: ${prodKL(r.out)} ${prodFmt(x.perMin)}/นาที (${prodFmt(sec)} วิ/ชิ้น${why})${ins ? ` · ใช้ ${ins}/นาที` : ''}${x.val ? ` · ~$${Math.round(x.val).toLocaleString('en-US')}/นาที` : ''} (ไม่รวมเวลารอวัตถุดิบ/คนงาน)`;
+}
 function showBuildInfo() {
   const money = (n) => `$${n.toLocaleString('en-US')}`;
   const bCols = ['อาคาร', 'ประเภท', 'ราคาสร้าง', 'ไม้ที่ใช้สร้าง', 'ขายคืนได้', 'ค่าแรง/นาที', 'ต้องติดถนน', 'ความจุ', 'ผลิต (เวลา)', 'วัตถุดิบที่ใช้', 'ให้ผลกระทบ', 'ระยะผลกระทบ', 'ได้รับผลกระทบจาก', 'คนงาน/ผู้ทำงาน'];
@@ -9360,9 +9483,11 @@ function showBuildInfo() {
     sTitle('ตารางข้อมูลอาคาร'),
     sNote('ตารางที่ 1: อาคาร (ค่าจริงในเกม เลื่อนซ้ายขวาเพื่อดูทุกคอลัมน์)'),
     buildInfoTable(bCols, bRows, true),
-    sNote('ตารางที่ 2: สินค้า'),
+    sNote('ตารางที่ 2: อัตราผลิตต่อนาที (1 หลัง ไม่มีโทษ ไม่รวมเวลาเดินของคนงาน · ทุ่งเกลือคิดตอนไม่เค็ม · โรงโม่ทีละสูตร)'),
+    (() => { const t = prodRateTable(); return buildInfoTable(t.cols, t.rows, true); })(),
+    sNote('ตารางที่ 3: สินค้า'),
     buildInfoTable(sCols, sRows, true),
-    sNote('ตารางที่ 3: เทียบกับเกมต้นฉบับ Town Star (learntownstar.com ข้อมูลปี 2020-2022) ใช้ดูเท่านั้น ไม่มีผลกับเกม'),
+    sNote('ตารางที่ 4: เทียบกับเกมต้นฉบับ Town Star (learntownstar.com ข้อมูลปี 2020-2022) ใช้ดูเท่านั้น ไม่มีผลกับเกม'),
     buildInfoTable(cCols, cRows, true),
     sBtn('← กลับ', showSetupMenu, false),
   );
