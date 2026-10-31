@@ -6723,6 +6723,7 @@ function aiLayoutScore(type, x, y, anchor) {
 }
 function aiFindSpot(type) {
   let best = null, bestScore = Infinity;
+  if (type === 'windmill') { const zs = aiMillZoneSpot(); if (zs !== undefined) return zs; } // v280
   // ถนนที่ล้อมด้วยทุ่งและต้นไม้จนต่อไม่ได้ จะทำให้บ้านเกษตรกรวางไม่ได้ จึงเก็บช่องต่อถนนไว้อย่างน้อย 4 ช่อง
   const frontier = type === 'road' ? null : aiRoadFrontier();
   // v187: อาคารที่ต้องติดถนนใช้ช่องติดถนนได้เสมอ (เดิมห้ามทุกชนิด ทำให้โรงเลื่อย/กังหันหาที่ไม่ได้เมื่อช่องติดถนนเหลือ ≤ 4)
@@ -6743,6 +6744,7 @@ function aiFindSpot(type) {
       if (pw && [pw.P, pw.Q, pw.X].some((c) => c && c[0] === x && c[1] === y)) continue;
       if ((keepFrontier || keepFrontierFiller) && frontier.has(y * GRID_SIZE + x)) continue;
       if (keepGates && keepGates.has(y * GRID_SIZE + x)) continue;
+      if (aiMillZoneBlock(type, x, y)) continue; // v280
       if (type === 'tree' && !waterNear(x, y)) continue; // ต้นไม้ต้องอยู่ในระยะน้ำ
       // v189: โหมดสระ: พืชไม่ใช้จุดตาข่ายสระ และชอบช่องที่น้ำ passive ครบ (คะแนนด้านล่าง)
       if (pondMode && aiOnLattice(x, y)) continue; // จุดตาข่ายเก็บไว้ให้สระ
@@ -6880,8 +6882,13 @@ function aiRequirements(water) {
   const grow = [[cropT, 12], ['farmhouse', aiLayout ? Math.max(4, Math.ceil(crops / 4.5)) : Math.max(4, aiFarmNeed())], ['waterpump', Math.max(3, Math.ceil(crops / 3))], ['tradedepot', 3]];
   const levels = goal ? aiLevelRequirements(goal, cropT).map(([t, n, L]) => [t, n, true, L]) : [];
   // เงินเหลือมาก: เพิ่มคนตัดไม้และต้นไม้ตามจำนวนทุ่ง ไม่ให้ไม้เป็นคอขวดของการขยาย
-  const richWood = coins >= AI_RICH ? [['lumberjack', Math.ceil(crops / 8)], ['tree', Math.min(AI_TREE_RICH_CAP, Math.max(12, Math.ceil(crops / 2.5)))], ['woodshed', Math.ceil(crops / 20)], ...(aiCount('lumberjack') >= 6 && woodStock() >= 8 ? AI_LUMBER_SIDE : [])] : [];
-  return [...base, ['farmhouse', farmNeed], ...chain, ...grow, ...richWood, ...levels].map(([t, n, lv, L]) => [aiType(t, water), n, lv, L]);
+  const richWood = coins >= AI_RICH ? [['lumberjack', Math.ceil(crops / 8)], ['tree', Math.min(AI_TREE_RICH_CAP, Math.max(12, Math.ceil(crops / 2.5)))], ['woodshed', Math.ceil(crops / 20)], ...(aiCount('lumberjack') >= 6 && woodStock() >= 8 && goal !== 'butter' ? AI_LUMBER_SIDE : [])] : []; // v280: เป้าเนยไม่ทำไม้แปรรูปขาย (ขาดทุน กินเงิน 50,000/หลัง และไม้)
+  let chainX = goal === 'butter' ? chain.map(([t, n]) => t === 'saltfield' ? [t, Math.max(n, aiButterSaltNeed())] : [t, n]) : chain; // v280
+  if (goal === 'butter' && aiCount('bakery') > 0) { // v280: มีเบเกอรี่แล้ว เพิ่มโรงวัวตามเป้า + เครื่องบด/บ้านฟาร์มสัตว์ตามสูตร v279
+    const T = aiButterBarnTarget();
+    chainX = [...chainX, ['milkbarn', T], ['feedmill', Math.ceil(aiAnimalFeedmillPer('milkbarn') * T - 1e-9)], ['trough', Math.ceil(T / 2)], ['ranchhouse', Math.ceil(aiAnimalRanchPer('milkbarn') * T - 1e-9) + 1]];
+  }
+  return [...base, ['farmhouse', farmNeed], ...chainX, ...grow, ...richWood, ...levels].map(([t, n, lv, L]) => [aiType(t, water), n, lv, L]);
 }
 // v209: อาคารสนับสนุนขยายระดับ L ได้เมื่ออาคารหลักของเป้าถึงระดับ L-1 แล้ว (เดิมเงินเกิน AI_RICH แต่โรงไก่ติดไม้
 // บ้านฟาร์มสัตว์ไม้ 1 ถูกสร้างล่วงหน้าถึงระดับ 12 ก่อนมีโรงไก่สักหลัง = 16 หลังที่ 9 นาที กินที่และไม้)
@@ -6955,6 +6962,24 @@ const AI_KEEP_EMPTY = 20; // v183: ช่องว่างขั้นต่ำ
 // v197 (บอสเลือก ข.): เป้าเนย ยังไม่มีเบเกอรี่ เลื่อนโรงวัว/เครื่องบด/รางไปสร้างหลังเก็บไม้แปรรูปครบ 10
 // (เดิมโรงวัวไม้ 10 + เครื่องบด + ราง แย่งไม้กับโรงเลื่อย ไม้แปรรูปเลยช้า เบเกอรี่ช้า)
 const AI_BUTTER_LATE = ['milkbarn', 'feedmill', 'trough'];
+// v280: คอขวดของเนยคือเกลือ (เนย 1 = เกลือ 2 = น้ำเกลือ 8 · ทุ่งเกลือในแผ่นดิน 180 วิ/น้ำเกลือ 1) ไม่ใช่นม
+// ทุ่งเกลือที่ต้องมี = น้ำเกลือที่ต้องใช้ต่อนาที (ให้ทันนมจากโรงวัว 1 หลัง) ÷ น้ำเกลือที่ทุ่ง 1 แปลงทำได้ต่อนาที
+// ความเร็วของทุ่งคิดจากความเค็มของทุ่งที่มีอยู่ (ยังไม่มี = ช่องว่างที่เค็มที่สุด) ริมทะเลจึงใช้น้อยแปลงกว่า
+const AI_BUTTER_SALT_MAX = 14;
+// v280: โรงวัวที่ต้องการ: ยังไม่มีเบเกอรี่ 1 หลัง (ไม้ 10 ไม่แย่งโรงเลื่อย) · มีเบเกอรี่แล้ว AI_BUTTER_BARNS หลัง
+// (โรงโม่ไม่โดนเงาแล้ว นม 1 หลัง = เนย 1 ก้อน/3 นาที กลายเป็นคอขวด)
+const AI_BUTTER_BARNS = 3;
+function aiButterBarnTarget() { return aiCount('bakery') > 0 ? AI_BUTTER_BARNS : 1; }
+function aiButterSaltNeed() {
+  const BKr = BUILDINGS.bakery.recipe, salt = WM_MODES.salt;
+  const butterMin = prodRates(prodRecipe('milkbarn')).perMin * aiButterBarnTarget() / BKr.milk; // เนยต่อนาทีที่นมจากโรงวัวตามเป้ารองรับ
+  const brineMin = butterMin * BKr.salt * (BUILDINGS.windmill.recipes.salt.brine || 4);
+  let sum = 0, n = 0, best = 0;
+  eachCell((c) => { if (c && c.type === 'saltfield') { sum += 60 / BUILDINGS.saltfield.saltySec[Math.max(0, Math.min(3, c.salty || 0))]; n++; } });
+  if (!n) { for (let y = 0; y < GRID_SIZE; y++) for (let x = 0; x < GRID_SIZE; x++) if (!board[y][x]) best = Math.max(best, Math.min(3, terrainAt('salty', x, y))); }
+  const perField = n ? sum / n : 60 / BUILDINGS.saltfield.saltySec[best];
+  return Math.min(AI_BUTTER_SALT_MAX, Math.max(4, Math.ceil(brineMin / perField - 1e-9)));
+}
 function aiButterLate(t) {
   return AI_BUTTER_LATE.includes(t) && aiBakeryMissing() && kindStock('lumber') < BUILDINGS.bakery.lumberCost;
 }
@@ -7031,6 +7056,12 @@ function aiWaterSupply() { return Math.min(aiWellCap(), aiLaborCap()) + AI_WATER
 function aiSpotDeficit(type, x, y) { return Math.max(0, (BUILDINGS[type].water || 0) - aiPassiveAt(x, y) - terrainAt('water', x, y)); }
 function aiPlace(x, y, type) {
   if (type === 'road' && aiCount('road') >= AI_ROAD_CAP) return 'roadcap';
+  { const zb = aiMillZoneBlock(type, x, y); if (zb) return zb; } // v280
+  const zoneSite = type === 'windmill' && aiMillZone() && aiMillZone().sites.some(([sx, sy]) => sx === x && sy === y);
+  if (zoneSite) { const r = aiPlaceInner(x, y, type); if (r === 'reserved' || (r !== null && placementProblem(x, y, 'windmill'))) { const z = aiMillZone(); (z.bad = z.bad || []).push(y * GRID_SIZE + x); } return r; } // v280
+  return aiPlaceInner(x, y, type);
+}
+function aiPlaceInner(x, y, type) {
   if (aiButterLate(type)) return 'butterlate'; // v197
   // v278: ไซโลที่มีอยู่ยังไม่เกือบเต็ม (ของ < 80% ความจุ) ไม่สร้างไซโลเพิ่ม (เดิมเป้านมสร้างไซโล 18-31 หลังทั้งที่มีข้าวสาลีแค่ 20-50 เสียเงิน $10,000 + ไม้ 5 ต่อหลัง)
   if (type === 'silo' && aiCount('silo') > 0) {
@@ -7308,7 +7339,9 @@ const AI_POND_READY = 6;      // ช่องว่างที่ได้น�
 const AI_POND_MIN_VALUE = 2.5;  // คะแนนขั้นต่ำของจุดวางสระ (ช่วยพืชเดิม + เปิดช่องปลูกใหม่ + ต่อตาข่าย)
 function aiCellWater(x, y, plan) { return aiPassiveAt(x, y, plan) + terrainAt('water', x, y); }
 // v197: สระสร้างพร้อมกันได้ตามน้ำจากบ่อ (สระละ 10 ถัง) 1-3 แห่ง
-function aiPondCap() { return 8 + Math.floor(aiCount('road') / 3); }
+// v280: เป้าเนย สระไม่เกิน AI_BUTTER_POND_CAP (เดิม 24-29 สระ = เงิน ~270,000 ก่อนสร้างเบเกอรี่ หลังมีเบเกอรี่เงินไม่พอเพิ่มโรงวัว)
+const AI_BUTTER_POND_CAP = 15;
+function aiPondCap() { const n = 8 + Math.floor(aiCount('road') / 3); return aiGoalKind() === 'butter' ? Math.min(n, AI_BUTTER_POND_CAP) : n; }
 function aiPondsAtOnce() { return Math.max(1, Math.min(3, Math.floor(aiWellCap() / 8))); }
 function aiPondsBuilding() { let n = 0; eachCell((c) => { if (c && c.type === 'pond' && c.building) n++; }); return n; }
 function aiPowerReserved(x, y) {
@@ -7664,7 +7697,7 @@ function aiSetMillsButter() {
   mills.forEach((c, i) => { const want = i < nSalt ? 'salt' : 'sugar'; if (c.work === null && c.mode !== want) switchProduct(c, want); });
   // ของพอแล้วหยุดโรงโม่ชั่วคราว (ไม่รับไม้) เก็บไม้ไว้ทำไม้แปรรูป/สร้างเบเกอรี่ และไม่ให้คลังสินค้าเต็ม
   const has = aiCount('bakery') > 0;
-  const cap = { salt: has ? 16 : 10, sugar: has ? 10 : 6 };
+  const cap = { salt: has ? 16 : 4, sugar: has ? 10 : 2 }; // v280: ยังไม่มีเบเกอรี่ เก็บแค่พอเนย 2 ก้อน (เดิม 10/6 ใช้ไม้ 26 ตอนไม้ขาดที่สุด ไม้แปรรูปช้า)
   mills.forEach((c) => { c.paused = cap[c.mode] !== undefined && kindStock(c.mode) >= cap[c.mode]; });
 }
 // ยังไม่มีเบเกอรี่: เก็บไม้แปรรูป/ไฟฟ้า/ไม้/เงินไว้สร้าง
@@ -7681,6 +7714,8 @@ function aiBakerySave() {
   if (aiGoalKind() !== 'butter') return 0;
   return aiCount('bakery') === 0 ? COST.bakery + 100000 : 100000;
 }
+const AI_BAKERY_RESERVE = 15000; // v280: เหลือเงินหลังสร้างเบเกอรี่ (50,000 ทำให้บางรอบไม่ได้สร้าง · 0 บางรอบเงินติดลบ)
+const AI_BUTTER_KEEP = 30000; // v280
 function aiBakeryMissing() { return aiGoalKind() === 'butter' && aiCount('bakery') === 0; }
 // สร้างเบเกอรี่เมื่อมีโรงวัว โรงโม่ 2 และไม้แปรรูป 10 + ไฟฟ้า 10 + ไม้ 10 (หยุดขายไม้แปรรูป หยุดโรงเลื่อยเมื่อเก็บไม้แปรรูปครบแล้วเพื่อสะสมไฟ)
 function aiBakeryStep() {
@@ -7699,7 +7734,8 @@ function aiBakeryStep() {
     return false;
   }
   eachCell((c) => { if (c && c.type === 'lumbermill') c.paused = true; }); // เก็บไม้ไว้ 10
-  if (woodStock() < B.woodCost || coins < COST.bakery + wagePerMinute() * AI_WAGE_BUFFER_MIN) return false;
+  // v280: เหลือเงินสำรองหลังสร้างอย่างน้อย AI_BAKERY_RESERVE (เดิมเหลือค่าแรง 3 นาที บางรอบเงินติดลบ เมืองหยุด)
+  if (woodStock() < B.woodCost || coins < COST.bakery + Math.max(AI_BAKERY_RESERVE, (wagePerMinute() + B.wage) * AI_WAGE_BUFFER_MIN)) return false;
   let spot = aiFindSpot('bakery');
   if (!spot && aiCount('road') < AI_ROAD_CAP && aiRoadOnlyBlock('bakery')) { const rs = aiFindSpot('road'); if (rs && aiPlace(rs[0], rs[1], 'road') === null) return true; }
   if (!spot && aiRoadFrontier().size <= 2 && aiClearForRoad('bakery')) return true;
@@ -7725,6 +7761,100 @@ const AI_OIL_PUMPS = 2;
 const AI_POWERED_MILLS = 2; // v188: โรงเลื่อยในระยะโรงไฟฟ้า
 function aiGoalKind() { return matchGoal && matchGoal.type === 'goods' ? matchGoal.kind : null; }
 function aiFreeCell(x, y) { return inBounds(x, y) && !board[y][x] && !isDoorTile(x, y); }
+// ---------- v280: เป้าเนย โซนโรงโม่ (กันเงา) ----------
+// เดิมโรงโม่เกลือ/น้ำตาลโดนเงาเต็ม 3 ระดับ (ช้า 8 เท่า) เพราะเมืองแน่น อาคารรอบตัวให้เงาหลังละ 1-2 รวมกันเต็ม
+// วางแผนตั้งแต่ต้นเกม: จุดโรงโม่ AI_MILL_SITES จุด ห่างกันอย่างน้อย 4 ช่อง (โรงโม่ไม่บังกันเอง) + แนวถนนไปถึงทุกจุด
+// อาคารที่ให้เงาห้ามวางในระยะเงาของจุดโรงโม่ · จุดโรงโม่ใช้ได้เฉพาะโรงโม่ · แนวถนนใช้ได้เฉพาะถนน (พืช สระ ต้นไม้ วางรอบได้ตามปกติ)
+const AI_MILL_SITES = 3;
+function aiMillZoneOn() { return aiGoalKind() === 'butter' && !!(activeSide && activeSide.ai); }
+function aiMillZone() { return aiMillZoneOn() ? activeSide.ai.millZone || null : null; }
+function aiShadeReach(type) { const sh = SHADE_SOURCES[type]; return sh ? Math.max(...Object.keys(sh).map(Number)) : 0; }
+// ช่องนี้มีอาคารที่ให้เงาถึงอยู่แล้วไหม (ไม่นับโรงโม่ในโซน)
+function aiSiteShaded(x, y) {
+  let hit = false;
+  eachCell((c, cx, cy) => {
+    if (hit || !c || !SHADE_SOURCES[c.type]) return;
+    const d = Math.max(Math.abs(cx - x), Math.abs(cy - y));
+    if (d && d <= aiShadeReach(c.type)) hit = true;
+  });
+  return hit || terrainField().shady[y * GRID_SIZE + x] > 0;
+}
+function aiMillZonePlan(keep) {
+  const N = GRID_SIZE, dist = new Array(N * N).fill(-1), par = new Array(N * N).fill(-1), q = [];
+  const kept = new Set(keep.map(([x, y]) => y * N + x));
+  eachCell((c, x, y) => { if (c && c.type === 'road') { dist[y * N + x] = 0; q.push(y * N + x); } });
+  for (let i = 0; i < q.length; i++) {
+    const k = q[i], x = k % N, y = (k / N) | 0;
+    for (const [nx, ny] of neighbors4(x, y)) {
+      const nk = ny * N + nx;
+      if (dist[nk] >= 0 || !aiFreeCell(nx, ny) || kept.has(nk)) continue;
+      dist[nk] = dist[k] + 1; par[nk] = k; q.push(nk);
+    }
+  }
+  const cands = [];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (!aiFreeCell(x, y) || kept.has(y * N + x) || aiSiteShaded(x, y) || aiPowerReserved(x, y)) continue;
+    let r = null;
+    for (const [rx, ry] of neighbors4(x, y)) { const rk = ry * N + rx; if (dist[rk] >= 0 && (!r || dist[rk] < dist[r])) r = rk; }
+    if (r === null) continue;
+    let crowd = 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const c = inBounds(x + dx, y + dy) ? board[y + dy][x + dx] : null; if (c) crowd++; }
+    cands.push({ x, y, r, cost: dist[r] * 1.5 + crowd * 0.5 + Math.random() * 0.3 });
+  }
+  cands.sort((a, b) => a.cost - b.cost);
+  const sites = keep.slice(), road = [];
+  const used = new Set(kept);
+  for (const c of cands) {
+    if (sites.length >= AI_MILL_SITES) break;
+    if (sites.some(([sx, sy]) => Math.max(Math.abs(sx - c.x), Math.abs(sy - c.y)) < 4)) continue;
+    const path = []; let k = c.r;
+    while (k >= 0 && dist[k] > 0) { path.push(k); k = par[k]; }
+    if (path.some((pk) => used.has(pk))) continue;
+    sites.push([c.x, c.y]); used.add(c.y * N + c.x);
+    for (const pk of path.reverse()) { road.push([pk % N, (pk / N) | 0]); used.add(pk); }
+  }
+  return { sites, road };
+}
+// ตรวจโซนทุกรอบ: จุดที่ถูกใช้ไปหรือโดนเงาแล้ว (ยังไม่มีโรงโม่) ตัดออก แล้ววางแผนเติมให้ครบ
+function aiMillZoneStep(ai) {
+  if (!aiMillZoneOn()) return false;
+  let z = ai.millZone;
+  if (z) {
+    // จุดที่ถูกจองโรงไฟฟ้าทับ หรือวางโรงโม่ไม่ได้ด้วยเหตุอื่น (aiPlace ปฏิเสธ) ก็ตัดออก ไม่งั้น AI พยายามวางซ้ำจนห่วงโซ่ค้าง
+    const ok = z.sites.filter(([x, y]) => { const c = board[y][x]; return c ? c.type === 'windmill' : aiFreeCell(x, y) && !aiSiteShaded(x, y) && !aiPowerReserved(x, y) && !(z.bad && z.bad.includes(y * GRID_SIZE + x)); });
+    z.road = z.road.filter(([x, y]) => isRoad(x, y) || aiFreeCell(x, y));
+    if (ok.length !== z.sites.length) z = null; else z.sites = ok;
+    if (!z) ai.millZone = null;
+  }
+  if (!ai.millZone) ai.millZone = aiMillZonePlan((z ? z.sites : []).filter(([x, y]) => board[y][x] && board[y][x].type === 'windmill'));
+  z = ai.millZone;
+  // ต่อถนนตามแนวทีละช่อง (ช่องที่ติดถนนแล้ว) ก่อนต้องใช้โรงโม่
+  if (aiCount('road') >= AI_ROAD_CAP || coins < COST.road + wagePerMinute() * AI_WAGE_BUFFER_MIN) return false;
+  for (const [x, y] of z.road) {
+    if (isRoad(x, y) || !neighbors4(x, y).some(([nx, ny]) => isRoad(nx, ny))) continue;
+    return aiPlace(x, y, 'road') === null;
+  }
+  return false;
+}
+// เหตุผลที่ห้ามวาง type ที่ (x,y) เพราะโซนโรงโม่ (null = วางได้)
+function aiMillZoneBlock(type, x, y) {
+  const z = aiMillZone();
+  if (!z) return null;
+  if (z.sites.some(([sx, sy]) => sx === x && sy === y)) return type === 'windmill' ? null : 'millsite';
+  if (type !== 'road' && z.road.some(([rx, ry]) => rx === x && ry === y)) return 'millroad';
+  const reach = aiShadeReach(type);
+  if (reach && z.sites.some(([sx, sy]) => { const d = Math.max(Math.abs(sx - x), Math.abs(sy - y)); return d > 0 && d <= reach; })) return 'millshade';
+  return null;
+}
+// โรงโม่: ใช้จุดในโซนที่ถนนไปถึงแล้วก่อน · ทุกจุดมีโรงโม่แล้วค่อยหาที่ตามปกติ · ถนนยังไม่ถึง = รอ (null)
+function aiMillZoneSpot() {
+  const z = aiMillZone();
+  if (!z) return undefined;
+  const free = z.sites.filter(([x, y]) => !board[y][x]);
+  if (!free.length) return undefined;
+  const ready = free.find(([x, y]) => !placementProblem(x, y, 'windmill') && !aiPowerReserved(x, y));
+  return ready || null;
+}
 function aiNearestDist(x, y, type) {
   let best = Infinity;
   eachCell((c, cx, cy) => { if (c && c.type === type) best = Math.min(best, Math.max(Math.abs(cx - x), Math.abs(cy - y))); });
@@ -8058,7 +8188,8 @@ function aiClearForRoad(type) {
 // v193: โรงเลื่อยของ AI: เป้าหมายอื่นที่ไม่ใช่ไม้แปรรูป ไม้ในคลังเหลือน้อยกว่า 8 (เป้าเนยตอนจะสร้างเบเกอรี่ 12) ให้ AI กดปิดโรงเลื่อยชั่วคราว
 // (ใช้ปุ่มเปิด/ปิดเดียวกับผู้เล่น เดิมใช้ minWood ที่ผู้เล่นไม่มี)
 function aiLumberWoodHold() {
-  if (aiBakeryMissing() && aiCount('lumbermill') > 0 && kindStock('lumber') >= BUILDINGS.bakery.lumberCost) return true; // v197: ไม้แปรรูปครบ 10 แล้ว ให้ไม้ไปโรงวัว/เครื่องบด/ราง/เบเกอรี่
+  if (aiBakeryMissing() && aiCount('lumbermill') > 0 && kindStock('lumber') >= BUILDINGS.bakery.lumberCost) return true;
+  if (aiGoalKind() === 'butter' && aiCount('bakery') > 0 && kindStock('lumber') >= BUILDINGS.bakery.lumberCost) return true; // v280: มีเบเกอรี่แล้ว ไม้แปรรูปไม่ได้ใช้ทำเนย (ขายขาดทุน) เก็บไว้ 10 พอ ไม้ไปโรงโม่/โรงวัว // v197: ไม้แปรรูปครบ 10 แล้ว ให้ไม้ไปโรงวัว/เครื่องบด/ราง/เบเกอรี่
   const minWood = aiGoalKind() === 'lumber' ? 0 : (aiBakeryHold() && aiBakeryChainReady() ? 12 : 8);
   return woodStock() < minWood;
 }
@@ -8123,6 +8254,7 @@ function aiThinkInner(s, now) {
   if (aiWorkerHouseStep()) return; // v212: บ้านคนงานเก็บน้ำมันดิบ/ไฟฟ้าที่เต็ม
   if (aiPowerStep(ai)) return; // v187: เงินเหลือมาก ทำโรงไฟฟ้า
   if (aiBakeryStep()) return; // v189: เป้าเนย สร้างเบเกอรี่
+  if (aiMillZoneStep(ai)) return; // v280: เป้าเนย ต่อถนนไปโซนโรงโม่
   // v187: ช่องติดถนนเหลือน้อย ต่อถนนก่อน ไม่งั้นถูกพืช/อาคารล้อมจนวางอาคารที่ต้องติดถนนไม่ได้อีก
   if (aiRoadFrontier().size <= 3 && aiRoadGateways().length > 0 && aiCount('road') < AI_ROAD_CAP && // v208: ต่อถนนเฉพาะช่องที่ต่อไปได้อีก (เดิมวางถนนตันกินช่องสุดท้าย)
       coins >= COST.road + wagePerMinute() * AI_WAGE_BUFFER_MIN && aiEmptyCells() > AI_KEEP_EMPTY) {
@@ -8131,7 +8263,8 @@ function aiThinkInner(s, now) {
   }
   // 1) สร้างตามรายการความต้องการ ถ้าเงินยังไม่พอก็รอ
   // กันเงินไว้จ่ายค่าแรงล่วงหน้า AI_WAGE_BUFFER_MIN นาที ไม่งั้นสร้างจนเงินหมดแล้วค่าแรงทำให้ติดลบ
-  const wageBuf = wagePerMinute() * AI_WAGE_BUFFER_MIN;
+  // v280: เป้าเนยมีเบเกอรี่แล้ว เก็บเงินสำรอง AI_BUTTER_KEEP (ค่าแรงรวม ~1,750/นาที เงินเข้าเฉพาะตอนส่งเนยครบรถ เคยติดลบจนเมืองหยุด)
+  const wageBuf = wagePerMinute() * AI_WAGE_BUFFER_MIN + (aiGoalKind() === 'butter' && aiCount('bakery') > 0 ? AI_BUTTER_KEEP : 0);
   let built = 0;
   const maxBuild = !aiLayout ? 1 : (coins > 300000 ? 5 : (coins > 100000 ? 3 : 1)); // เงินเหลือมากสร้างหลายหลังต่อรอบ
   let unmet = false; // มีรายการที่ยังสร้างไม่ได้ (ไม้ไม่พอ/ไม่มีที่) ห้ามเอาเงินไปขยายอย่างอื่นจนกว่าจะครบ
