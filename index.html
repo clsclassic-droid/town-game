@@ -2944,6 +2944,7 @@ document.body.appendChild(toastEl);
 function showMessage(text, ms = 2000) {
   if (activeSide && !activeSide.isHuman) return; // ข้อความของฝั่ง AI ไม่แสดง
   toastEl.textContent = text;
+  imgifyEmoji(toastEl); // v284
   toastEl.style.opacity = '1';
   clearTimeout(messageTimer);
   messageTimer = setTimeout(() => { toastEl.style.opacity = '0'; }, ms);
@@ -2963,6 +2964,48 @@ const UI_ICON_SRC = {
 function uiIcon(name, size = 20) {
   return `<img src="${UI_ICON_SRC[name]}" alt="" draggable="false" style="width:${size}px;height:${size}px;vertical-align:middle;display:inline-block;margin-top:-3px">`;
 }
+// v284: อีโมจิที่มีภาพของเกมแล้ว (ไอคอน UI + สินค้า pixel art) แปลงเป็นภาพในข้อความ HTML อัตโนมัติ
+// ใช้ watchEmoji(el) กับกล่องที่ข้อความเปลี่ยนบ่อย (เมนู แผงอาคาร หน้าสรุปออนไลน์)
+const EMOJI_UI = { '⭐': 'star', '💰': 'coins', '🎯': 'target', '⏱': 'timer', '⏳': 'timer', '📦': 'crate', '⏸': 'pause' };
+const EMOJI_ITEM = Object.fromEntries(Object.entries(KIND_ICON).filter(([k]) => ITEM_IMG[k]).map(([k, e]) => [e, k]));
+const EMOJI_IMG_RE = new RegExp('(' + [...Object.keys(EMOJI_UI), ...Object.keys(EMOJI_ITEM)].join('|') + ')\\uFE0F?', 'gu');
+function emojiImgSrc(e) { return EMOJI_UI[e] ? UI_ICON_SRC[EMOJI_UI[e]] : ITEM_IMG[EMOJI_ITEM[e]]; }
+function imgifyEmoji(root) {
+  if (!root) return root;
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [];
+  while (tw.nextNode()) {
+    const n = tw.currentNode, pt = n.parentNode && n.parentNode.nodeName;
+    if (pt === 'OPTION' || pt === 'TEXTAREA' || pt === 'SCRIPT' || pt === 'STYLE') continue;
+    EMOJI_IMG_RE.lastIndex = 0;
+    if (EMOJI_IMG_RE.test(n.nodeValue)) nodes.push(n);
+  }
+  for (const n of nodes) {
+    const t = n.nodeValue, frag = document.createDocumentFragment();
+    let last = 0, m;
+    EMOJI_IMG_RE.lastIndex = 0;
+    while ((m = EMOJI_IMG_RE.exec(t))) {
+      if (m.index > last) frag.append(t.slice(last, m.index));
+      const im = document.createElement('img');
+      im.src = emojiImgSrc(m[1]); im.alt = m[1]; im.draggable = false;
+      im.style.cssText = 'width:1.2em;height:1.2em;vertical-align:-0.25em;display:inline-block;';
+      frag.append(im);
+      last = m.index + m[0].length;
+    }
+    if (last < t.length) frag.append(t.slice(last));
+    n.replaceWith(frag);
+  }
+  return root;
+}
+function watchEmoji(el) {
+  if (!el || el.__emojiWatch) return el;
+  el.__emojiWatch = true;
+  imgifyEmoji(el);
+  let queued = false;
+  new MutationObserver(() => { if (queued) return; queued = true; queueMicrotask(() => { queued = false; imgifyEmoji(el); }); }).observe(el, { childList: true, subtree: true, characterData: true });
+  return el;
+}
+// ภาพ UI สำหรับวาดบนแคนวาส (ป้ายเหนืออาคาร ตัวเลขลอย)
+function uiArt(name) { return artImg('ui_' + name, UI_ICON_SRC[name]); }
 // ---------- HUD มุมขวาบน: เหรียญ ดาว และนาฬิกาของรอบ (แบบเดียวกับต้นฉบับ) ----------
 let roundStartAt = gameNow();
 const hud = document.createElement('div');
@@ -3055,6 +3098,7 @@ document.body.appendChild(toolbar);
 // v218: แผงข้อมูลลอยมุมซ้ายบน: ข้อความสถานะ (แสดงตลอด) + สรุปคลัง/ตารางเทียบ AI (กดย่อได้)
 const infoPanel = document.createElement('div');
 infoPanel.style.cssText = 'position:fixed;top:8px;left:8px;z-index:58;max-width:min(600px, calc(100vw - 150px));max-height:calc(100vh - 120px);overflow:auto;background:rgba(20,40,25,0.88);color:#fff;border-radius:10px;padding:6px 10px;box-shadow:0 2px 6px rgba(0,0,0,0.35);font-size:14px;line-height:1.45;text-align:left;box-sizing:border-box;';
+watchEmoji(infoPanel); // v284: สถานะอาคาร (เต็ม/รอ/ปิด) อีโมจิเป็นภาพ
 const infoHead = document.createElement('div');
 infoHead.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:bold;font-size:15px;cursor:pointer;user-select:none;';
 const infoTitle = document.createElement('span');
@@ -6031,7 +6075,7 @@ function drawStopMark(c, x, y, now) {
   ctx.lineWidth = Math.max(2, 2.5 * viewZoom);
   ctx.strokeStyle = r0.color;
   ctx.stroke();
-  const icon = r0.kind && ITEM_IMG[r0.kind] ? artImg('item_' + r0.kind, ITEM_IMG[r0.kind]) : null;
+  const icon = r0.kind && ITEM_IMG[r0.kind] ? artImg('item_' + r0.kind, ITEM_IMG[r0.kind]) : (EMOJI_UI[r0.icon] ? uiArt(EMOJI_UI[r0.icon]) : null); // v284: ป้ายเต็ม = ภาพลัง
   if (icon) ctx.drawImage(icon, cx - r * 0.75, top - r * 0.75, r * 1.5, r * 1.5);
   else {
     ctx.font = `${Math.round(r * 1.2)}px sans-serif`;
@@ -6056,9 +6100,13 @@ function drawLumberMark(c, x, y, reason, now) {
   ctx.beginPath(); ctx.arc(cx, top, r, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
   ctx.lineWidth = Math.max(1.5, 2 * viewZoom); ctx.strokeStyle = m[1]; ctx.stroke();
-  ctx.font = `${Math.round(r * 1.15)}px sans-serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#222';
-  ctx.fillText(m[0], cx, top + 1);
+  const lim = EMOJI_UI[m[0]] ? uiArt(EMOJI_UI[m[0]]) : null; // v284: ไม่มีคลังไม้ว่าง = ภาพลัง
+  if (lim) ctx.drawImage(lim, cx - r * 0.75, top - r * 0.75, r * 1.5, r * 1.5);
+  else {
+    ctx.font = `${Math.round(r * 1.15)}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#222';
+    ctx.fillText(m[0], cx, top + 1);
+  }
   ctx.restore();
 }
 // v193: เครื่องหมาย ⏸ เหนืออาคารที่ปิดการทำงาน
@@ -7169,7 +7217,7 @@ function aiLevelRequirements(goal, cropT) {
   if (!table) return [];
   const unit = table(cropT === 'tree' ? 'field' : cropT);
   const out = [];
-  for (let L = 2; L <= AI_MAX_LEVEL; L++) for (const [t, per] of unit) out.push([t, Math.ceil(per * L), L]);
+  for (let L = 2; L <= AI_MAX_LEVEL; L++) for (const [t, per] of unit) out.push([t, goal === 'butter' && t === 'saltfield' ? Math.min(AI_BUTTER_SALT_MAX, Math.ceil(per * L)) : Math.ceil(per * L), L]); // v284: ทุ่งเกลือเป้าเนยไม่เกินเพดานตอนขยายระดับด้วย
   return out;
 }
 // ประเภทอาคารที่เกี่ยวกับเป้าหมาย ใช้กรองการขยายส่วนเกิน ไม่ให้ AI สร้างของที่ไม่เกี่ยว (เช่นสัตว์ตอนแข่งผลิตแป้ง)
@@ -8146,7 +8194,7 @@ function aiClearForRoad(type) {
   const fitsAfterSell = (x, y) => { // ขายช่องนี้แล้ววาง type ลงไปได้ไหม (ลองบนกระดานชั่วคราว)
     if (!type) return false;
     const memo = aiMemo; aiMemo = null; const saved = board[y][x]; board[y][x] = null;
-    try { return placementProblem(x, y, type) === null; } finally { board[y][x] = saved; aiMemo = memo; }
+    try { return placementProblem(x, y, type) === null && !aiMillZoneBlock(type, x, y); } finally { board[y][x] = saved; aiMemo = memo; } // v284: เช็คโซนโรงโม่ด้วย (เดิมขายพืชในเงาโรงโม่แล้ววางไม่ได้ซ้ำทุก 15 วิ AI ค้างทั้งเกมบนแผนที่ป่า)
   };
   let best = null, bestScore = -1;
   // v192: ไม่ขายบ้านคนตัดไม้/คลังไม้ที่รายการของ AI ยังต้องการ (เดิมขายเปิดทางแล้วสร้างคืน วนขายคนตัดไม้ 23 คลังไม้ 16-47 ครั้งในเกมเดียว)
@@ -8598,8 +8646,11 @@ function drawFloatFx() {
     ctx.strokeText(f.a, x0 + iw + wa / 2, yy);
     ctx.fillStyle = '#ffd166'; ctx.fillText(f.a, x0 + iw + wa / 2, yy);
     ctx.font = `bold ${Math.round(13 * pop)}px sans-serif`;
-    ctx.strokeText(f.b, cx, yy + 16 * pop);
-    ctx.fillStyle = '#ffffff'; ctx.fillText(f.b, cx, yy + 16 * pop);
+    const star = f.b.startsWith('⭐') ? uiArt('star') : null; // v284: ดาวเป็นภาพ
+    const tb = star ? f.b.slice(1) : f.b, wb = ctx.measureText(tb).width, sw = star ? 14 * pop : 0, xb = cx - (wb + sw) / 2;
+    if (star) ctx.drawImage(star, xb, yy + 16 * pop - sw / 2 - 1, sw, sw);
+    ctx.strokeText(tb, xb + sw + wb / 2, yy + 16 * pop);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(tb, xb + sw + wb / 2, yy + 16 * pop);
   }
   ctx.restore();
 }
@@ -8676,6 +8727,7 @@ function showMatchSummary(title, reason, recInfo, ms) {
   const overlay = document.createElement('div');
   overlay.id = 'matchSummary';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:260;font-family:sans-serif;';
+  watchEmoji(overlay); // v284: อีโมจิที่มีภาพแล้วเป็นภาพ (หน้าสรุปจบเกม)
   const panel = document.createElement('div');
   panel.style.cssText = 'background:#fcfcfb;color:#222;border-radius:12px;padding:16px 18px;width:min(540px,94vw);max-height:92vh;overflow:auto;text-align:center;box-sizing:border-box;';
   const h = document.createElement('div');
@@ -8778,7 +8830,7 @@ function updateMissionLine() {
   const html = m
     ? `📜 ภารกิจ ${i + 1}/${SOLO_MISSIONS.length}: ${missionLabel(m)} <span style="color:#9fe39a">${Math.min(m.n, missionValue(s, m)).toLocaleString('en-US')}/${m.n.toLocaleString('en-US')}</span> <span style="opacity:.75;font-weight:normal">· รางวัล $${m.reward.toLocaleString('en-US')}${m.k ? ' · แตะดูวิธีทำ' : ''}</span>`
     : '🏆 ทำภารกิจครบทุกข้อแล้ว! เล่นต่อได้ตามสบาย';
-  if (html !== missionLineHtml) { missionLineHtml = html; goalLineHtml = ''; goalLine.innerHTML = html; }
+  if (html !== missionLineHtml) { missionLineHtml = html; goalLineHtml = ''; goalLine.innerHTML = html; imgifyEmoji(goalLine); } // v284
 }
 goalLine.addEventListener('click', () => {
   if (!soloMissionActive()) return;
@@ -9138,6 +9190,7 @@ setupOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,20,14,0.
 const setupPanel = document.createElement('div');
 setupPanel.style.cssText = 'background:#f4f1e6;color:#1d2a1d;border-radius:12px;padding:18px 20px;width:min(380px,92vw);max-height:92vh;overflow:auto;box-sizing:border-box;box-shadow:0 6px 20px rgba(0,0,0,0.5);text-align:center;';
 setupOverlay.appendChild(setupPanel);
+watchEmoji(setupPanel); // v284: เมนู/สถิติ/เหรียญตรา อีโมจิที่มีภาพแล้วเป็นภาพ
 document.body.appendChild(setupOverlay);
 function sTitle(text) {
   const h = document.createElement('div');
@@ -10124,9 +10177,12 @@ function fanfare() {
   [[523, 0], [659, 0.1], [784, 0.2], [1047, 0.32], [784, 0.46], [1047, 0.56]].forEach(([f, d]) => tone(f, 0.22, 'square', 0.09, d));
   tone(1568, 0.5, 'triangle', 0.08, 0.66);
 }
+// v284: พลุหลายชุดเล่นซ้อนกันได้ในลูปเดียว (เดิมแต่ละชุดล้างจอเอง ชุดที่จบก่อนปิดชุดที่ยังเล่นอยู่)
+const confettiBursts = [];
+let confettiLoop = false;
 function runConfetti(ms = 2200) {
-  const W = confettiCv.width = window.innerWidth, H = confettiCv.height = window.innerHeight;
-  const g = confettiCv.getContext('2d');
+  const W = window.innerWidth, H = window.innerHeight;
+  if (confettiCv.width !== W || confettiCv.height !== H) { confettiCv.width = W; confettiCv.height = H; }
   const cols = ['#ff5252', '#ffd166', '#7dff8a', '#4fc3f7', '#ba68c8', '#ff9800'];
   const ps = [];
   for (let i = 0; i < 140; i++) {
@@ -10134,17 +10190,24 @@ function runConfetti(ms = 2200) {
     ps.push({ x: fromLeft ? 0 : W, y: H * 0.75, vx: (fromLeft ? 1 : -1) * (4 + Math.random() * 9), vy: -(9 + Math.random() * 10),
       r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, w: 6 + Math.random() * 6, h: 4 + Math.random() * 4, c: cols[i % cols.length] });
   }
+  confettiBursts.push({ ps, t0: performance.now(), ms });
   confettiCv.style.display = 'block';
-  const t0 = performance.now();
+  if (confettiLoop) return;
+  confettiLoop = true;
+  const g = confettiCv.getContext('2d');
   const step = (t) => {
-    const k = (t - t0) / ms;
-    g.clearRect(0, 0, W, H);
-    if (k >= 1) { confettiCv.style.display = 'none'; return; }
-    g.globalAlpha = k > 0.75 ? (1 - k) / 0.25 : 1;
-    for (const p of ps) {
-      p.vy += 0.35; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
-      g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c; g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); g.restore();
+    g.clearRect(0, 0, confettiCv.width, confettiCv.height);
+    for (let b = confettiBursts.length - 1; b >= 0; b--) if ((t - confettiBursts[b].t0) / confettiBursts[b].ms >= 1) confettiBursts.splice(b, 1);
+    if (!confettiBursts.length) { confettiCv.style.display = 'none'; confettiLoop = false; return; }
+    for (const bu of confettiBursts) {
+      const k = Math.max(0, (t - bu.t0) / bu.ms);
+      g.globalAlpha = k > 0.75 ? (1 - k) / 0.25 : 1;
+      for (const p of bu.ps) {
+        p.vy += 0.35; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c; g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); g.restore();
+      }
     }
+    g.globalAlpha = 1;
     requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -10159,6 +10222,7 @@ function nextCelebrate() {
   if (!c) { celebrateBusy = false; return; }
   celebrateBusy = true;
   celebrateBox.innerHTML = `🎉 ${c.title}${c.sub ? `<div style="font-size:15px;font-weight:normal;margin-top:4px">${c.sub}</div>` : ''}`;
+  imgifyEmoji(celebrateBox); // v284
   celebrateBox.style.opacity = '1';
   celebrateBox.style.transform = 'translate(-50%,-50%) scale(1)';
   runConfetti();
@@ -11183,6 +11247,7 @@ function openMiniBoard(pid) {
   head.style.cssText = 'font-weight:bold;font-size:17px;margin-bottom:4px;';
   const sub = document.createElement('div');
   sub.style.cssText = 'font-size:13px;color:#555;margin-bottom:6px;';
+  watchEmoji(sub); // v284
   const cv = document.createElement('canvas');
   cv.width = GRID_SIZE * 24; cv.height = GRID_SIZE * 24;
   cv.style.cssText = 'width:100%;max-width:none;height:auto;display:block;border:2px solid #4a6a3a;border-radius:6px;image-rendering:pixelated;background:#6fae55;cursor:default;';
@@ -11256,6 +11321,7 @@ function showOnlineSummary() {
   const overlay = document.createElement('div');
   overlay.id = 'matchSummary';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:260;font-family:sans-serif;';
+  watchEmoji(overlay); // v284: อีโมจิที่มีภาพแล้วเป็นภาพ (หน้าสรุปจบเกม)
   const panel = document.createElement('div');
   panel.style.cssText = 'background:#fcfcfb;color:#222;border-radius:12px;padding:16px 18px;width:min(540px,94vw);max-height:92vh;overflow:auto;text-align:center;box-sizing:border-box;';
   const body = document.createElement('div');
