@@ -4392,7 +4392,7 @@ function artImg(key, src) {
   if (!im) { im = new Image(); im.src = src; ART_IMG[key] = im; }
   return im.complete && im.naturalWidth ? im : null;
 }
-const ART_SCALE = 1.25; // ภาพ 256px กว้างเท่ากับ 1.25 ช่อง (ทุกหลังใช้สเกลเดียวกัน ขนาดเทียบกันตามภาพจริง)
+const ART_SCALE = 1.5; // v287: ขยายจาก 1.25 (บอส "1 แก้เลย") ภาพ 256px กว้างเท่ากับ 1.5 ช่อง (ทุกหลังใช้สเกลเดียวกัน ขนาดเทียบกันตามภาพจริง)
 function artFoot() { return topView ? 11 : 0; } // มุมมองจากด้านบน ฐานอาคารอยู่ใต้กลางช่องลงมา (แบบบ้านเกษตรกรเดิม)
 function artKey(cell) {
   if (cell.type === 'well') return cell.stock > 0 ? 'well_wet' : 'well_dry';
