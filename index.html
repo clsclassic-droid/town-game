@@ -9820,6 +9820,21 @@ function prodMatchHtml(kind) {
     + `<div style="font-size:12px;color:#666;margin-top:4px">ตัวเลขคิดตอนไม่มีโทษ (เงา/สกปรก/เค็ม) และไม่รวมเวลาเดินของคนงาน · คนงาน 1 คนขนของได้ราว ${AI_FARMER_FLOW} เที่ยวต่อนาที (ค่าประมาณ ขึ้นกับระยะทาง)</div></details>`;
 }
 // ค. อัตราของอาคารหลังนี้ตอนนี้ (คิดโทษจริงแล้ว)
+// v304: บอกสาเหตุที่ผลิตช้า เช่น "ผลิตได้ช้าลง x8 เพราะติดเงา 3 ระดับ"
+function penaltyWhy304(c) {
+  const parts = [];
+  if (isCrop(c)) {
+    let pos = null;
+    for (let y = 0; y < board.length && !pos; y++) for (let x = 0; x < board[y].length; x++) if (board[y][x] === c) { pos = [x, y]; break; }
+    const sh = Math.max(0, Math.min(3, -(c.shade || 0))), dr = c.dirty || 0;
+    const sa = pos ? (terrainField().salty[pos[1] * GRID_SIZE + pos[0]] || 0) : 0;
+    if (sh) parts.push(`เงา ${sh} ระดับ`);
+    if (dr) parts.push(`ความสกปรก ${dr} ระดับ`);
+    if (sa) parts.push(`ความเค็ม ${sa} ระดับ`);
+  } else if (c.type === 'windmill') parts.push(`เงา ${c.pen} ระดับ`);
+  else parts.push(`ความสกปรก ${c.pen} ระดับ`);
+  return ` · ผลิตได้ช้าลง x${1 / shadeSpeed(c)} เพราะติด${parts.join(' + ') || `โทษ ${c.pen} ระดับ`}`;
+}
 function prodCellRateText(c) {
   const r = prodRecipe(c.type, c.type === 'windmill' ? c.mode : undefined);
   if (!r) return '';
@@ -9827,8 +9842,8 @@ function prodCellRateText(c) {
   if (isCrop(c)) {
     sec = cropGrowMs(c) / 1000;
     if (c.type === 'saltfield') why = ` · เค็ม ${c.salty || 0}`;
-    else if (c.pen) why = ` · โทษ ${c.pen} ระดับ (ช้าลง x${1 / shadeSpeed(c)})`;
-  } else if (penaltyTarget(c) && c.pen) { sec = r.sec / shadeSpeed(c); why = ` · โทษ ${c.pen} ระดับ (ช้าลง x${1 / shadeSpeed(c)})`; }
+    else if (c.pen) why = penaltyWhy304(c);
+  } else if (penaltyTarget(c) && c.pen) { sec = r.sec / shadeSpeed(c); why = penaltyWhy304(c); }
   const x = prodRates({ ...r, sec });
   const ins = Object.entries(x.inMin).map(([k, n]) => `${prodKL(k)} ${prodFmt(n)}`).join(' + ');
   return `⏱ อัตราตอนนี้: ${prodKL(r.out)} ${prodFmt(x.perMin)}/นาที (${prodFmt(sec)} วิ/ชิ้น${why})${ins ? ` · ใช้ ${ins}/นาที` : ''}${x.val ? ` · ~$${Math.round(x.val).toLocaleString('en-US')}/นาที` : ''} (ไม่รวมเวลารอวัตถุดิบ/คนงาน)`;
