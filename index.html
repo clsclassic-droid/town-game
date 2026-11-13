@@ -2648,7 +2648,7 @@ function openSellPopup(cell, x, y) {
     if (isRanch(cell)) lines.push('RANCHER_LIVE');
   }
   if (SOURCE_TYPES.includes(cell.type)) lines.push('WATER_LIVE'); // v252
-  if (cell.type === 'road') lines.push('อาคารที่ประตูหันมาทางถนนนี้จะใช้งานไม่ได้');
+  // v303: ลบบรรทัดถนนเก่า (ขัดกับกติกาทางเข้า v301)
   if (cell.type === 'trough') {
     lines.push(`อาหารสัตว์ ${cell.feed} ชิ้น (จะหายไป)`);
   } else if (cell.type === 'feedmill') {
