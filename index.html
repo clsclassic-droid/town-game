@@ -9606,7 +9606,7 @@ function showSetupMenu() {
     sTitle('Town Game'),
     sNote('เลือกโหมดเริ่มเกม'),
     ...(saved ? [sBtn(saved.online ? `▶ กลับเข้าห้องออนไลน์ ${saved.online.code}` : '▶ เล่นต่อจากที่บันทึกไว้', () => resumeSavedGame(), true)] : []),
-    sBtn(tutSeen() ? '🎓 บทเรียนสำหรับมือใหม่' : '🎓 เล่นครั้งแรก? ลองบทเรียน 3 นาที', startTutorial, !saved && !tutSeen(), true), // v239
+    sBtn(tutSeen() ? '🎓 บทเรียนสำหรับมือใหม่' : '🎓 เล่นครั้งแรก? ลองบทเรียน 5 นาที', startTutorial, !saved && !tutSeen(), true), // v239
     ...(onlineAvailable() ? [sBtn('🌐 แข่งออนไลน์กับเพื่อน', () => showOnlineMenu(), !saved && tutSeen())] : []), // v237
     sBtn('🏡 เล่นคนเดียว', showSoloSetup, !saved && !onlineAvailable() && tutSeen(), true),
     sBtn('⚡ แข่งด่วน 15 นาที', showQuickSetup, false, true), // v235
@@ -10800,9 +10800,19 @@ function tutTrip() { let t = false; eachCell((c) => { if (c && c.type === 'trade
 function tutSold() { return (humanSide.produced.wheat || 0) > 0; }
 const TUT_FIELD_TILES = [[4, 11], [5, 11], [6, 11]];
 const TUT_DEPOT_TILES = [[15, 7], [15, 8], [15, 9]];
-const TUT_STEPS = [
+let TUT317 = true; // v317: ขั้นเพิ่ม (บ่อน้ำ ถนน บ้านเกษตรกร ต้นไม้)
+const TUT_WELL_TILES = [[3, 10]];
+const TUT_ROAD_TILES = [[6, 8], [5, 8]];
+const TUT_HOUSE_TILES = [[6, 7]];
+const TUT_TREE_TILES = [[4, 13], [6, 13]];
+const TUT_WOOD317 = 10; // ไม้เริ่มต้นในบทเรียน (บ่อ 1 + บ้าน 1 + Trade Depot 5)
+function tutLeft(tiles, type) { return tiles.filter(([x, y]) => !(board[y][x] && board[y][x].type === type)); }
+// ปุ่มที่ต้องกดเพื่อถือเครื่องมือ type: ยังไม่เปิดหมวด = แท็บหมวด, เปิดแล้ว = ปุ่มอาคาร, ถืออยู่แล้ว = ไม่มี
+function tutPick(type) { if (buildType === type) return null; return openRow === groupRows[type] ? toolButtons[type] : tutTab(type); }
+function tutPickHint(type) { const t = tabList.find((o) => o.row === groupRows[type]); return `กดแท็บ <b>${t ? t.tab.textContent.trim() : ''}</b> ที่แถบด้านล่าง แล้วเลือก ${thumbHtml(type)} <b>${LABEL[type] || type}</b>`; }
+const TUT_STEPS_ALL = [
   { title: 'ยินดีต้อนรับสู่ Town Game 👋', next: true,
-    text: 'เป้าหมายคือสร้างเมืองฟาร์ม ผลิตของ แล้วส่งขายเพื่อเก็บ <b>💰 เงิน</b> และ <b>⭐ ดาว</b> (ดูได้ที่แผงมุมซ้ายบน)<br>บทเรียนนี้ใช้เวลาประมาณ 3 นาที ระหว่างบทเรียนพืชจะโตเร็วกว่าปกติ' },
+    text: 'เป้าหมายคือสร้างเมืองฟาร์ม ผลิตของ แล้วส่งขายเพื่อเก็บ <b>💰 เงิน</b> และ <b>⭐ ดาว</b> (ดูได้ที่แผงมุมซ้ายบน)<br>บทเรียนนี้ใช้เวลาประมาณ 5 นาที สอนปลูกพืช สร้างบ่อน้ำ ถนน บ้านคนงาน ต้นไม้ และขายของ ระหว่างบทเรียนพืชจะโตเร็วกว่าปกติ' },
   { title: 'รู้จักเมืองของคุณ', next: true,
     tiles: () => [[7, 7], [8, 7], [4, 10], [4, 9]],
     text: `กรอบสีเหลืองคือของที่มีให้ตั้งแต่เริ่ม:<br>${thumbHtml('farmhouse')} <b>บ้านเกษตรกร</b> คนงานรดน้ำและเก็บข้าวสาลี<br>${thumbHtml('silo')} <b>ไซโล</b> เก็บข้าวสาลี<br>${thumbHtml('field')} <b>ทุ่งข้าวสาลี</b> ต้องมีน้ำครบ 3 ถึงจะโต<br>${thumbHtml('well')} <b>บ่อน้ำ</b> เกษตรกรมาตักน้ำไปรดทุ่ง<br>${thumbHtml('road')} อาคารต้องติด<b>ถนน</b> (เส้นสีน้ำตาล) คนงานถึงจะออกมาทำงานได้` },
@@ -10816,6 +10826,32 @@ const TUT_STEPS = [
     done: () => countType('field') >= 4,
     progress: () => `ปลูกแล้ว ${Math.max(0, countType('field') - 1)}/3 แปลง`,
     text: `แตะช่องกรอบเหลืองระหว่าง ${thumbHtml('pond')} <b>สระ</b> 2 บ่อ ให้ครบ 3 แปลง<br>สระให้น้ำฟรีกับทุ่งที่อยู่ใกล้ (ติดกัน 2 ห่าง 1 ช่อง 1) ทุ่งที่ติดสระ 2 บ่อได้น้ำครบเลย เกษตรกรไม่ต้องรดน้ำ` },
+  { v317: true, title: 'สร้างบ่อน้ำ (1/2)', el: () => tutPick('well'),
+    done: () => buildType === 'well' || countType('well') >= 2,
+    text: () => `ทุ่งที่ไม่ติดสระต้องให้เกษตรกรตักน้ำจาก <b>บ่อน้ำ</b> มารด บ่อเดียวเติมน้ำไม่ทัน มาสร้างเพิ่มกัน<br>${tutPickHint('well')}` },
+  { v317: true, title: 'สร้างบ่อน้ำ (2/2)', el: () => tutPick('well'), tiles: () => tutLeft(TUT_WELL_TILES, 'well'),
+    done: () => countType('well') >= 2,
+    text: 'แตะช่องกรอบเหลืองข้างทุ่งข้าวสาลี<br>💡 บ่อยิ่งใกล้ทุ่ง เกษตรกรยิ่งเดินสั้น รดน้ำได้เร็ว' },
+  { v317: true, title: 'วางถนน (1/2)', el: () => tutPick('road'),
+    done: () => buildType === 'road' || !tutLeft(TUT_ROAD_TILES, 'road').length,
+    text: () => `อาคารที่มีคนงานต้อง<b>ติดถนน</b> คนงานถึงจะออกมาทำงานได้ มาต่อถนนเพื่อเตรียมที่สร้างบ้านหลังใหม่<br>${tutPickHint('road')}` },
+  { v317: true, title: 'วางถนน (2/2)', el: () => tutPick('road'), tiles: () => tutLeft(TUT_ROAD_TILES, 'road'),
+    done: () => !tutLeft(TUT_ROAD_TILES, 'road').length,
+    progress: () => `วางแล้ว ${TUT_ROAD_TILES.length - tutLeft(TUT_ROAD_TILES, 'road').length}/${TUT_ROAD_TILES.length} ช่อง`,
+    text: 'แตะช่องกรอบเหลือง 2 ช่อง ต่อจากถนนเดิม<br>💡 ถนนต้องต่อถึงกัน คนงานเดินได้เฉพาะบนถนนที่เชื่อมกัน' },
+  { v317: true, title: 'สร้างบ้านเกษตรกร (1/2)', el: () => tutPick('farmhouse'),
+    done: () => buildType === 'farmhouse' || countType('farmhouse') >= 2,
+    text: () => `บ้านเกษตรกร 1 หลัง = เกษตรกร 1 คน ทุ่งเยอะขึ้นก็ต้องมีคนเพิ่ม<br>${tutPickHint('farmhouse')}` },
+  { v317: true, title: 'สร้างบ้านเกษตรกร (2/2)', el: () => tutPick('farmhouse'), tiles: () => (countType('farmhouse') >= 2 ? [] : TUT_HOUSE_TILES),
+    done: () => countType('farmhouse') >= 2,
+    text: 'แตะช่องกรอบเหลืองที่ติดถนนที่เพิ่งวาง<br>💡 บ้านมี<b>ค่าแรง</b>หักทุกนาที สร้างเท่าที่งานมีพอ' },
+  { v317: true, title: 'ปลูกต้นไม้ (1/2)', el: () => tutPick('tree'), enter: () => { tut.treeBase = countType('tree'); },
+    done: () => buildType === 'tree' || countType('tree') >= tut.treeBase + TUT_TREE_TILES.length,
+    text: () => `อาคารส่วนใหญ่ต้องใช้ <b>ไม้</b> ในการสร้าง (ดูจำนวนไม้ได้ที่แถบบน) คนตัดไม้จะตัดต้นไม้ที่โตแล้วไปเก็บที่คลังไม้<br>${tutPickHint('tree')}` },
+  { v317: true, title: 'ปลูกต้นไม้ (2/2)', el: () => tutPick('tree'), tiles: () => tutLeft(TUT_TREE_TILES, 'tree'),
+    done: () => countType('tree') >= tut.treeBase + TUT_TREE_TILES.length || !tutLeft(TUT_TREE_TILES, 'tree').length,
+    progress: () => `ปลูกแล้ว ${Math.min(TUT_TREE_TILES.length, Math.max(0, countType('tree') - tut.treeBase))}/${TUT_TREE_TILES.length} ต้น`,
+    text: 'แตะช่องกรอบเหลือง 2 ช่องใกล้สระ<br>💡 ต้นไม้ต้องการน้ำ 5 ปลูกใกล้สระจะได้น้ำฟรี โตเร็วกว่า · ต้นไม้มี<b>เงา</b> ทำให้พืชที่อยู่ติดกันโตช้า อย่าปลูกชิดทุ่ง' },
   { title: 'สร้างจุดขายของ (1/3)', el: () => tutTab('tradedepot'),
     done: () => openRow === groupRows.tradedepot || buildType === 'tradedepot' || countType('tradedepot') >= 1,
     text: 'ระหว่างรอข้าวสาลีโต มาสร้างที่ขายของกัน<br>กดแท็บ <b>ขนส่ง</b>' },
@@ -10842,20 +10878,23 @@ const TUT_STEPS = [
   { title: '🎉 ขายได้ครั้งแรกแล้ว!', end: true,
     text: 'ได้ทั้ง 💰 เงินและ ⭐ ดาว นี่คือวงจรหลักของเกม: <b>ผลิต → เก็บ → ขาย</b><br>ขั้นต่อไป ลองทำของที่แพงขึ้น เช่น อาหารสัตว์ → ไข่ หรือข้าวสาลี → แป้ง ดูว่าต้องสร้างอะไรได้ที่หน้า <b>🧭 สายการผลิต</b> (แท็บเครื่องมือ)<br>พร้อมแล้วไปแข่งกับ AI หรือชวนเพื่อนแข่งออนไลน์ได้เลย!' },
 ];
+const TUT_STEPS = TUT_STEPS_ALL.filter((st) => TUT317 || !st.v317);
+function tutText(st) { return typeof st.text === 'function' ? st.text() : st.text; }
 (function tutStyle() {
   const st = document.createElement('style');
   st.textContent = '.tutGlow{outline:3px solid #ffd166 !important;outline-offset:2px;animation:tutPulse 1s ease-in-out infinite;position:relative;z-index:3;}'
     + '@keyframes tutPulse{50%{outline-color:#ff8a00;box-shadow:0 0 14px 5px rgba(255,190,60,.85);}}'
-    + '#tutBubble b{color:#ffd166;}';
+    + '#tutBubble b{color:#a04b00;}';
   document.head.appendChild(st);
 })();
 function startTutorial() {
   try { localStorage.setItem(TUT_KEY, '1'); } catch (e) { /* ignore */ }
   startMatch({ vs: false, terrain: tutTerrain(), tutorial: true });
-  tut = { i: -1, timer: null, glowEl: null, min: false };
+  tut = { i: -1, timer: null, glowEl: null, min: false, treeBase: 0 };
+  if (TUT317) { useSide(humanSide); const ws = tutFind('woodshed'); if (ws) { const c = board[ws[1]][ws[0]]; c.stock = Math.max(c.stock || 0, TUT_WOOD317); } }
   const bubble = document.createElement('div');
   bubble.id = 'tutBubble';
-  bubble.style.cssText = 'position:fixed;right:8px;top:96px;z-index:120;width:min(340px,calc(100vw - 16px));background:rgba(18,38,24,0.95);color:#fff;border:2px solid #ffd166;border-radius:12px;padding:10px 12px;box-shadow:0 4px 14px rgba(0,0,0,0.5);font-family:sans-serif;font-size:14px;line-height:1.5;box-sizing:border-box;';
+  bubble.style.cssText = 'position:fixed;right:8px;top:96px;z-index:120;width:min(340px,calc(100vw - 16px));background:rgba(251,243,223,0.97);color:#3a2a17;border:2px solid #7a5230;border-radius:14px;padding:10px 12px;box-shadow:0 4px 14px rgba(0,0,0,0.35);font-family:sans-serif;font-size:14px;line-height:1.5;box-sizing:border-box;';
   document.body.appendChild(bubble);
   tut.bubble = bubble;
   tutGo(0);
@@ -10871,7 +10910,7 @@ function tutGo(i) {
 }
 function tutRender() {
   const st = TUT_STEPS[tut.i], b = tut.bubble;
-  const mk = (t, primary, fn) => { const x = document.createElement('button'); x.textContent = t; x.style.cssText = `padding:6px 12px;font-size:14px;cursor:pointer;border:1px solid #2d4a2d;border-radius:8px;background:${primary ? '#ffd166' : '#f4f1e6'};color:#1d2a1d;`; x.addEventListener('click', fn); return x; };
+  const mk = (t, primary, fn) => { const x = document.createElement('button'); x.textContent = t; x.style.cssText = `padding:6px 12px;font-size:14px;cursor:pointer;border:1px solid #7a5230;border-radius:10px;background:${primary ? '#ffd166' : '#fffaf0'};color:#3a2a17;`; x.addEventListener('click', fn); return x; };
   b.replaceChildren();
   const head = document.createElement('div');
   head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:bold;font-size:15px;cursor:pointer;';
@@ -10881,9 +10920,9 @@ function tutRender() {
   if (tut.min) return;
   const body = document.createElement('div');
   body.style.cssText = 'margin-top:6px;';
-  body.innerHTML = st.text;
+  body.innerHTML = tutText(st);
   const prog = document.createElement('div');
-  prog.style.cssText = 'margin-top:6px;font-weight:bold;color:#9fe39a;';
+  prog.style.cssText = 'margin-top:6px;font-weight:bold;color:#2f6b1f;';
   tut.prog = prog;
   const row = document.createElement('div');
   row.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;justify-content:flex-end;';
@@ -10909,9 +10948,13 @@ function tutTick() {
   if (el !== tut.glowEl) { tutClearGlow(); if (el) { el.classList.add('tutGlow'); tut.glowEl = el; } }
   if (tut.prog) tut.prog.textContent = st.progress ? st.progress() : '';
   // v241: เปิดหน้าต่างขายอยู่ = ย้ายกล่องบทเรียนลงล่าง ไม่บังแถวข้าวสาลี (แถวบนสุด)
-  const low = !!depotPopup;
+  const tl317 = st.tiles ? st.tiles() : []; // ช่องเป้าหมายอยู่ครึ่งล่างของกระดาน = กล่องอยู่บน (แบบเดิม) ไม่บังช่อง
+  const port317 = TUT317 && window.innerHeight > window.innerWidth * 1.2 && tl317.every(([, y]) => y <= 8);
+  const low = !!depotPopup || port317;
   tut.bubble.style.top = low ? 'auto' : '96px';
-  tut.bubble.style.bottom = low ? 'calc(8px + env(safe-area-inset-bottom, 0px))' : 'auto';
+  let bot317 = 'calc(8px + env(safe-area-inset-bottom, 0px))';
+  if (port317 && !depotPopup) { let top317 = window.innerHeight; for (const el of [document.getElementById('tabRow305'), document.getElementById('toolbar'), typeof openRow !== 'undefined' ? openRow : null]) { if (!el || !el.getBoundingClientRect) continue; const r = el.getBoundingClientRect(); if (r.height > 0 && r.top > window.innerHeight * 0.4) top317 = Math.min(top317, r.top); } bot317 = Math.max(8, Math.round(window.innerHeight - top317 + 8)) + 'px'; }
+  tut.bubble.style.bottom = low ? bot317 : 'auto';
   if (st.done && matchActive && st.done()) {
     SFX.sell && playSfx('sell');
     tutGo(Math.min(TUT_STEPS.length - 1, tut.i + 1));
