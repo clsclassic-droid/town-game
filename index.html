@@ -1317,9 +1317,18 @@ function openDepotPopup(cell, x, y) {
   status.style.cssText = 'font-size:13px;color:#333;border-top:1px solid #ddd;padding-top:10px;margin-top:2px;';
   panel.appendChild(status);
 
+  if (UI318.depot) { // v318: ปักแถวสินค้าเป้าหมายของรอบไว้บนสุด (ตั้ง auto ได้ตั้งแต่คลังยังว่าง)
+    const gk = tutorialMode ? 'wheat' : (matchGoal && matchGoal.type === 'goods' ? matchGoal.kind : null);
+    if (gk && rows[gk]) {
+      rows[gk].pin = true;
+      const first = DEPOT_KINDS.map((k) => rows[k].row).find((r) => r.parentNode === panel);
+      if (first && first !== rows[gk].row) panel.insertBefore(rows[gk].row, first);
+      if (!tutorialMode) { const tag = document.createElement('span'); tag.textContent = '🎯 เป้าหมายรอบนี้'; tag.style.cssText = 'margin-left:6px;font-size:12px;font-weight:bold;color:#fff;background:#3b7a2a;border-radius:8px;padding:1px 7px;white-space:nowrap;'; rows[gk].row.firstChild.appendChild(tag); }
+    }
+  }
   const sellBtn = twoTapButton(
-    `ขาย Trade Depot (ได้ $${sellPrice(cell)})`,
-    'กดอีกครั้งเพื่อยืนยันการขาย',
+    UI318.depot ? `รื้อจุดขาย (ได้คืน $${sellPrice(cell)})` : `ขาย Trade Depot (ได้ $${sellPrice(cell)})`,
+    UI318.depot ? 'กดอีกครั้งเพื่อยืนยันการรื้อ' : 'กดอีกครั้งเพื่อยืนยันการขาย',
     () => { if (sellCell(x, y)) closeDepotPopup(); },
   );
   panel.appendChild(sellBtn);
@@ -1351,7 +1360,7 @@ function refreshDepotPopup() {
     r.btn.style.opacity = r.btn.disabled ? '0.4' : '1';
     r.check.checked = !!cell.auto[kind];
     if (document.activeElement !== r.thr) r.thr.value = Math.max(cell.threshold[kind] || SHIPMENT, SHIPMENT); // v261
-    const vis = depotShowAll || have > 0 || !!cell.auto[kind]; // v262
+    const vis = depotShowAll || have > 0 || !!cell.auto[kind] || !!r.pin; // v262, v318: แถวเป้าหมายแสดงเสมอ
     if (r.row.hidden === vis) r.row.hidden = !vis;
   }
   { // v262
@@ -1366,7 +1375,7 @@ function refreshDepotPopup() {
   sellBtn.style.opacity = cell.trip ? '0.4' : '1';
   if (cell.trip) {
     const sec = Math.max(0, Math.ceil((cell.trip.arriveAt - gameNow()) / 1000));
-    status.textContent = `รถกำลังส่งของ อีก ${sec} วินาทีถึงจะได้เงิน (ขายไม่ได้ระหว่างส่งของ)`;
+    status.textContent = `รถกำลังส่งของ อีก ${sec} วินาทีถึงจะได้เงิน (${UI318.depot ? 'รื้อจุดขาย' : 'ขาย'}ไม่ได้ระหว่างส่งของ)`;
   } else {
     status.textContent = 'รถพร้อมส่งของ';
   }
@@ -5002,6 +5011,15 @@ function drawPondMerged(px, py, x, y) {
 function drawPond(px, py, cell, gx, gy) {
   // v178: สระที่ยังสร้างไม่เสร็จเป็นพื้นดินสีน้ำตาล ยังไม่ให้ passive น้ำ และแสดงจำนวนน้ำที่ส่งแล้ว
   if (cell && cell.building && drawGroundTile('soil', px, py)) { // v194: ดินชุดใหม่ + ป้าย x/10
+    if (UI318.pond) { // v318: บอกชัดว่าเป็นสระกำลังสร้าง (ไม่ใช่แปลงพืช)
+      const k318 = (cell.waterIn || 0) / BUILDINGS.pond.waterCost;
+      ctx.fillStyle = 'rgba(46,134,222,0.28)'; ctx.fillRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+      ctx.fillStyle = 'rgba(20,40,70,0.55)'; ctx.fillRect(px + 4, py + TILE_SIZE - 8, TILE_SIZE - 8, 4);
+      ctx.fillStyle = '#4fc3f7'; ctx.fillRect(px + 4, py + TILE_SIZE - 8, Math.round((TILE_SIZE - 8) * k318), 4);
+      drawCount('🚧สระ', px + TILE_SIZE / 2, py + TILE_SIZE / 2 - 4, 8, '#ffe9a8');
+      drawCount(`💧${cell.waterIn || 0}/${BUILDINGS.pond.waterCost}`, px + TILE_SIZE / 2, py + TILE_SIZE / 2 + 6, 9);
+      return;
+    }
     drawCount(`${cell.waterIn || 0}/${BUILDINGS.pond.waterCost}`, px + TILE_SIZE / 2, py + TILE_SIZE / 2 + 4, 10);
     return;
   }
@@ -10783,6 +10801,7 @@ function setupViewSwitch() {
 // ==================== v239: บทเรียนสำหรับมือใหม่ (พาทำทีละขั้น) ====================
 // เมืองเริ่มต้นเหมือนเกมปกติ + แผนที่ตายตัว (สระใกล้ทุ่ง) · ระหว่างบทเรียนพืชโต/บ่อน้ำเติมเร็วขึ้น 4 เท่า (timeScale 0.25)
 // ไม่บันทึกเซฟระหว่างบทเรียน · กด "เล่นเมืองนี้ต่อ" แล้วกลับเป็นเวลาปกติและเริ่มบันทึก
+const UI318_TUT = true; // v318 (ต้องอยู่ก่อน TUT_FIELD_TILES)
 const TUT_KEY = 'townGame.tutorialSeen';
 const TUT_TIME_SCALE = 0.25;
 let tutorialMode = false;
@@ -10798,13 +10817,14 @@ function tutFind(type) { let p = null; eachCell((c, x, y) => { if (!p && c && c.
 function tutTab(type) { const t = tabList.find((o) => o.row === groupRows[type]); return t ? t.tab : null; }
 function tutTrip() { let t = false; eachCell((c) => { if (c && c.type === 'tradedepot' && c.trip) t = true; }); return t; }
 function tutSold() { return (humanSide.produced.wheat || 0) > 0; }
-const TUT_FIELD_TILES = [[4, 11], [5, 11], [6, 11]];
+const TUT_FIELD_TILES = UI318_TUT ? [[4, 11], [4, 12], [6, 12]] : [[4, 11], [5, 11], [6, 11]]; // v318: ช่องน้ำครบ ไม่ติดเงา
 const TUT_DEPOT_TILES = [[15, 7], [15, 8], [15, 9]];
+const UI318 = { pond: true, stuck: true, tut: true, hintpos: true, depot: true };
 let TUT317 = true; // v317: ขั้นเพิ่ม (บ่อน้ำ ถนน บ้านเกษตรกร ต้นไม้)
 const TUT_WELL_TILES = [[3, 10]];
 const TUT_ROAD_TILES = [[6, 8], [5, 8]];
 const TUT_HOUSE_TILES = [[6, 7]];
-const TUT_TREE_TILES = [[4, 13], [6, 13]];
+const TUT_TREE_TILES = UI318_TUT ? [[10, 11], [11, 11]] : [[4, 13], [6, 13]]; // v318: ไม่ชิดทุ่ง (เงาต้นไม้)
 const TUT_WOOD317 = 10; // ไม้เริ่มต้นในบทเรียน (บ่อ 1 + บ้าน 1 + Trade Depot 5)
 function tutLeft(tiles, type) { return tiles.filter(([x, y]) => !(board[y][x] && board[y][x].type === type)); }
 // ปุ่มที่ต้องกดเพื่อถือเครื่องมือ type: ยังไม่เปิดหมวด = แท็บหมวด, เปิดแล้ว = ปุ่มอาคาร, ถืออยู่แล้ว = ไม่มี
@@ -10825,7 +10845,7 @@ const TUT_STEPS_ALL = [
   { title: 'ปลูกข้าวสาลีเพิ่ม (3/3)', tiles: () => TUT_FIELD_TILES.filter(([x, y]) => !board[y][x]),
     done: () => countType('field') >= 4,
     progress: () => `ปลูกแล้ว ${Math.max(0, countType('field') - 1)}/3 แปลง`,
-    text: `แตะช่องกรอบเหลืองระหว่าง ${thumbHtml('pond')} <b>สระ</b> 2 บ่อ ให้ครบ 3 แปลง<br>สระให้น้ำฟรีกับทุ่งที่อยู่ใกล้ (ติดกัน 2 ห่าง 1 ช่อง 1) ทุ่งที่ติดสระ 2 บ่อได้น้ำครบเลย เกษตรกรไม่ต้องรดน้ำ` },
+    text: `แตะช่องกรอบเหลืองข้าง ${thumbHtml('pond')} <b>สระ</b> ให้ครบ 3 แปลง<br>สระให้น้ำฟรีกับทุ่งที่อยู่ใกล้ (ติดกัน 2 ห่าง 1 ช่อง 1) ทุ่งต้องการน้ำ 3 ช่องกรอบเหลืองได้น้ำครบจากสระ เกษตรกรไม่ต้องรดน้ำ และไม่ติดเงาอาคาร/ต้นไม้ จึงโตเต็มความเร็ว` },
   { v317: true, title: 'สร้างบ่อน้ำ (1/2)', el: () => tutPick('well'),
     done: () => buildType === 'well' || countType('well') >= 2,
     text: () => `ทุ่งที่ไม่ติดสระต้องให้เกษตรกรตักน้ำจาก <b>บ่อน้ำ</b> มารด บ่อเดียวเติมน้ำไม่ทัน มาสร้างเพิ่มกัน<br>${tutPickHint('well')}` },
@@ -10851,10 +10871,10 @@ const TUT_STEPS_ALL = [
   { v317: true, title: 'ปลูกต้นไม้ (2/2)', el: () => tutPick('tree'), tiles: () => tutLeft(TUT_TREE_TILES, 'tree'),
     done: () => countType('tree') >= tut.treeBase + TUT_TREE_TILES.length || !tutLeft(TUT_TREE_TILES, 'tree').length,
     progress: () => `ปลูกแล้ว ${Math.min(TUT_TREE_TILES.length, Math.max(0, countType('tree') - tut.treeBase))}/${TUT_TREE_TILES.length} ต้น`,
-    text: 'แตะช่องกรอบเหลือง 2 ช่องใกล้สระ<br>💡 ต้นไม้ต้องการน้ำ 5 ปลูกใกล้สระจะได้น้ำฟรี โตเร็วกว่า · ต้นไม้มี<b>เงา</b> ทำให้พืชที่อยู่ติดกันโตช้า อย่าปลูกชิดทุ่ง' },
+    text: 'แตะช่องกรอบเหลือง 2 ช่อง (ห่างจากทุ่งข้าว)<br>💡 ต้นไม้ต้องการน้ำ 5 เกษตรกรจะรดให้ ถ้าปลูกใกล้สระจะได้น้ำฟรี โตเร็วกว่า · ต้นไม้มี<b>เงา</b> ทำให้พืชที่อยู่ติดกันโตช้า อย่าปลูกชิดทุ่ง' },
   { title: 'สร้างจุดขายของ (1/3)', el: () => tutTab('tradedepot'),
     done: () => openRow === groupRows.tradedepot || buildType === 'tradedepot' || countType('tradedepot') >= 1,
-    text: 'ระหว่างรอข้าวสาลีโต มาสร้างที่ขายของกัน<br>กดแท็บ <b>ขนส่ง</b>' },
+    text: () => `${kindStock('wheat') >= SHIPMENT ? `ตอนนี้มีข้าวสาลีในไซโล ${kindStock('wheat')} ชิ้นแล้ว` : 'ระหว่างรอข้าวสาลีโต'} มาสร้างที่ขายของกัน<br>กดแท็บ <b>ขนส่ง</b>` },
   { title: 'สร้างจุดขายของ (2/3)', el: () => toolButtons.tradedepot,
     done: () => buildType === 'tradedepot' || countType('tradedepot') >= 1,
     text: `เลือก ${thumbHtml('tradedepot')} <b>Trade Depot</b> (ใช้เงิน $5,000 และไม้ 5 จากคลังไม้)` },
@@ -10864,7 +10884,7 @@ const TUT_STEPS_ALL = [
   { title: 'รอข้าวสาลีเข้าไซโล', tiles: () => [[8, 7]],
     done: () => kindStock('wheat') >= SHIPMENT || tutTrip() || tutSold(),
     progress: () => `🌾 ข้าวสาลีในไซโล ${kindStock('wheat')}/${SHIPMENT}`,
-    text: `รถขนของส่งทีละ ${SHIPMENT} ชิ้น ต้องรอให้มีข้าวสาลีครบก่อน ดูเกษตรกรตักน้ำ รดทุ่ง แล้วเก็บข้าวสาลีไปเก็บที่ไซโลได้เลย<br>💡 รู้ไว้: บ้านคนงานมี<b>ค่าแรง</b>หักทุกนาที (ดูได้ที่แถบสถานะ) อย่าสร้างเกินจำเป็น ถ้าเงินหมด = เกมจบ` },
+    minMs: 2500, text: `รถขนของส่งทีละ ${SHIPMENT} ชิ้น ต้องรอให้มีข้าวสาลีครบก่อน ดูเกษตรกรตักน้ำ รดทุ่ง แล้วเก็บข้าวสาลีไปเก็บที่ไซโลได้เลย<br>💡 รู้ไว้: บ้านคนงานมี<b>ค่าแรง</b>หักทุกนาที (ดูได้ที่แถบสถานะ) อย่าสร้างเกินจำเป็น ถ้าเงินหมด = เกมจบ` },
   { title: 'ขายข้าวสาลี (1/2)', tiles: () => { const p = tutFind('tradedepot'); return p ? [p] : []; },
     done: () => !!depotPopup || tutTrip() || tutSold(),
     text: `ข้าวสาลีครบแล้ว! แตะที่ ${thumbHtml('tradedepot')} <b>Trade Depot</b> ของคุณ` },
@@ -10904,6 +10924,7 @@ function tutClearGlow() { if (tut && tut.glowEl) { tut.glowEl.classList.remove('
 function tutGo(i) {
   if (!tut) return;
   tut.i = i;
+  tut.at318 = performance.now();
   const st = TUT_STEPS[i];
   if (st.enter) st.enter();
   tutRender();
@@ -10955,7 +10976,7 @@ function tutTick() {
   let bot317 = 'calc(8px + env(safe-area-inset-bottom, 0px))';
   if (port317 && !depotPopup) { let top317 = window.innerHeight; for (const el of [document.getElementById('tabRow305'), document.getElementById('toolbar'), typeof openRow !== 'undefined' ? openRow : null]) { if (!el || !el.getBoundingClientRect) continue; const r = el.getBoundingClientRect(); if (r.height > 0 && r.top > window.innerHeight * 0.4) top317 = Math.min(top317, r.top); } bot317 = Math.max(8, Math.round(window.innerHeight - top317 + 8)) + 'px'; }
   tut.bubble.style.bottom = low ? bot317 : 'auto';
-  if (st.done && matchActive && st.done()) {
+  if (st.done && matchActive && st.done() && !(UI318.tut && st.minMs && performance.now() - (tut.at318 || 0) < st.minMs)) {
     SFX.sell && playSfx('sell');
     tutGo(Math.min(TUT_STEPS.length - 1, tut.i + 1));
   }
@@ -13117,7 +13138,7 @@ function drawTip313(x, y, lines) {
 // วาดบนกระดานฝั่งผู้เล่น (เรียกจาก drawSide หลังกระดาน)
 function drawPlace313() {
   if (!buildType || !matchActive) return;
-  if (UI313.cost) drawTiles313(placeTiles313(buildType), false);
+  if (UI313.cost && !(UI318.tut && tutorialMode)) drawTiles313(placeTiles313(buildType), false);
   if (UI313.preview && hoverCell && inBounds(hoverCell.x, hoverCell.y)) drawTip313(hoverCell.x, hoverCell.y, preview313(hoverCell.x, hoverCell.y, buildType));
 }
 
@@ -13128,6 +13149,7 @@ function costText313(type) {
   if (b.oakCost) p.push(`โอ๊ก ${b.oakCost}`);
   if (b.lumberCost) p.push(`ไม้แปรรูป ${b.lumberCost}`);
   if (b.energyCost) p.push(`ไฟ ${b.energyCost}`);
+  if (UI318.pond && type === 'pond' && b.waterCost) p.push(`ขนน้ำ ${b.waterCost} ถัง`);
   return p.join(' · ');
 }
 if (UI313.cost) {
@@ -13151,6 +13173,7 @@ function needText313(type) {
   chk('ไฟฟ้า', b.energyCost || 0, energyStock());
   const where = type === 'tradedepot' ? 'วางที่ขอบแผนที่ช่องกรอบเหลือง'
     : type === 'waterpump' ? 'วางติดสระ/แม่น้ำ ช่องกรอบเหลือง'
+    : (UI318.pond && type === 'pond') ? `วางแล้วยังไม่ให้น้ำทันที เกษตรกรต้องขนน้ำจากบ่อมาเติม ${b.waterCost} ถังก่อน (อย่าสร้างหลายสระพร้อมกัน)`
       : b.needsPaved ? 'ต้องติดถนนลาดยาง' : b.needsRoad ? 'ต้องติดถนน' : '';
   if (coins < COST[type]) short = true;
   if (!have.length && !where && !short) return '';
@@ -13200,9 +13223,18 @@ function hintEl313() {
   hint313.el = el;
   return el;
 }
+// v318: ขอบบนของเมนูล่างทั้งหมดที่มองเห็น (แถบหมวด + แผงอาคารที่เปิดอยู่)
+function uiTop318() {
+  let top = window.innerHeight;
+  const els = [document.getElementById('tabRow305'), document.getElementById('toolbar'), typeof openRow !== 'undefined' ? openRow : null];
+  for (const k in toolButtons) { if (toolButtons[k] && toolButtons[k].offsetParent) { els.push(toolButtons[k]); } }
+  for (const e of els) { if (!e || !e.getBoundingClientRect) continue; const r = e.getBoundingClientRect(); if (r.height > 0 && r.top > window.innerHeight * 0.35) top = Math.min(top, r.top); }
+  return top;
+}
 function hintPos313(el) {
   const tb = document.getElementById('tabRow305') || document.getElementById('toolbar');
-  const top = tb ? tb.getBoundingClientRect().top : window.innerHeight;
+  let top = tb ? tb.getBoundingClientRect().top : window.innerHeight;
+  if (UI318.hintpos) top = Math.min(top, uiTop318());
   el.style.bottom = Math.max(8, Math.round(window.innerHeight - top + 8)) + 'px';
 }
 function hintShow313(html) {
@@ -13252,7 +13284,25 @@ function hintStep313() {
   if (dc.trip) return { step: 'trip', html: '🚚 รถกำลังไปขาย ได้เงินและดาวตอนรถกลับมา (ประมาณ 10 วินาที)', tiles: [[dx, dy]] };
   const ready = DEPOT_KINDS.find((k) => kindStock(k) >= SHIPMENT);
   if (ready) return { step: 'ship', html: `💡 <b>ขั้น 3:</b> ${KIND_LABEL[ready] || ready}ครบ ${SHIPMENT} แล้ว แตะ <b>Trade Depot</b> (กรอบเหลือง) แล้วกด <b>ส่ง ${SHIPMENT} ชิ้น</b> หรือติ๊ก auto`, tiles: [[dx, dy]] };
+  if (UI318.stuck) {
+    const st318 = stuck318();
+    if (st318) return st318;
+  }
   return { step: 'wait', html: `💡 รอข้าวสาลีเข้าไซโลให้ครบ ${SHIPMENT} ชิ้น (มี ${kindStock('wheat')}) ระหว่างนี้ปลูกเพิ่มหรือปลูกต้นไม้เก็บไม้ได้`, tiles: [] };
+}
+// v318: หาสาเหตุที่ของค้าง (สระรอน้ำ / เกษตรกรรอน้ำ / ไซโลเต็ม) → ข้อความ + ช่องที่เกี่ยวข้อง
+function stuck318() {
+  const now = gameNow(), ponds = [], dry = [], full = [];
+  eachCell((c, x, y) => {
+    if (!c) return;
+    if (c.type === 'pond' && c.building) ponds.push([x, y]);
+    if (c.type === 'farmhouse' && c.farmer) { const w = farmIdleWhy(c, now); if (w && /รอน้ำ/.test(w)) dry.push([x, y]); else if (w && /ไซโลเต็ม/.test(w)) full.push([x, y]); }
+  });
+  const have = kindStock('wheat');
+  if (ponds.length) return { step: 'stuck-pond', tiles: ponds, html: `⚠ <b>มีสระกำลังสร้าง ${ponds.length} จุด</b> (กรอบเหลือง) เกษตรกรต้องขนน้ำไปเติมสระละ ${BUILDINGS.pond.waterCost} ถัง เลยรดข้าวช้าลง · ข้าวสาลี ${have}/${SHIPMENT} · สร้าง <b>บ่อน้ำ</b> เพิ่ม หรือรอสระเสร็จก่อนค่อยสร้างสระใหม่` };
+  if (dry.length) return { step: 'stuck-water', tiles: dry, html: `⚠ <b>เกษตรกรรอน้ำ</b> (บ้านกรอบเหลือง) บ่อน้ำเติมไม่ทัน · ข้าวสาลี ${have}/${SHIPMENT} · สร้าง <b>บ่อน้ำ</b> เพิ่มใกล้ทุ่ง หรือปลูกข้าวติดสระจะได้น้ำฟรี` };
+  if (full.length) return { step: 'stuck-silo', tiles: full, html: '⚠ <b>ไซโลเต็ม</b> เกษตรกรหยุดเก็บ · แตะ Trade Depot ส่งขาย หรือสร้างไซโลเพิ่ม' };
+  return null;
 }
 function drawHints313() {
   if (!hintActive313()) { if (hint313.el && hint313.el.style.display !== 'none' && !hint313.doneAt) hintHide313(); return; }
