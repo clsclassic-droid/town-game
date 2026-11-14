@@ -7006,7 +7006,7 @@ function aiFindSpot(type) {
       if (type === 'waterfacility') score -= Math.min(WF.recipe.water, aiPondWaterAt(x, y)) * 2; // v208: โรงผลิตถังน้ำชอบข้างสระ (ได้น้ำ passive ไม่ต้องตักจากบ่อ)
       if (type === 'lumbermill' && pumpAdjacent(x, y)) score -= 10; // v187: โรงเลื่อยติดปั๊มน้ำได้ถังน้ำฟรี
       if (type === 'lumbermill' && powerNear(x, y)) score -= 6;      // v187: ในระยะโรงไฟฟ้าได้ไฟฟ้าฟรี
-      else if (CROP_TYPES.includes(type)) score += -shadeLevelAt(x, y) * 3;
+      else if (CROP_TYPES.includes(type)) score += -shadeLevelAt(x, y) * (type === 'tree' ? 6 : 3); // v315: ต้นไม้หลบเงาแรงขึ้น
       if (score < bestScore) { bestScore = score; best = [x, y]; }
     }
   }
@@ -7260,6 +7260,7 @@ function aiLaborCap() { return aiCount('farmhouse') * AI_FARMER_FLOW; }
 function aiWaterSupply() { return Math.min(aiWellCap(), aiLaborCap()) + AI_WATER_BASE; }
 function aiSpotDeficit(type, x, y) { return Math.max(0, (BUILDINGS[type].water || 0) - aiPassiveAt(x, y) - terrainAt('water', x, y)); }
 function aiPlace(x, y, type) {
+  if (AI_TREE316_HOLD && CROP_TYPES.includes(type) && type !== 'tree' && aiPondsBuilding() > 0 && aiTreeClusterOn316()) return 'hold316'; // v316b
   if (type === 'road' && aiCount('road') >= AI_ROAD_CAP) return 'roadcap';
   { const zb = aiMillZoneBlock(type, x, y); if (zb) return zb; } // v280
   const zoneSite = type === 'windmill' && aiMillZone() && aiMillZone().sites.some(([sx, sy]) => sx === x && sy === y);
@@ -7298,6 +7299,7 @@ function aiPlaceInner(x, y, type) {
     }
   }
   // v188: บ้านเกษตรกรพอแล้ว (คนขนน้ำเกินที่พืชต้องการ และทุ่งไม่เกิน 6 แปลงต่อหลัง) ไม่สร้างเพิ่ม (กันใช้ไม้หมดกับบ้านเกษตรกร)
+  if (!aiLayout && type === 'farmhouse' && aiCount('farmhouse') >= 3 && aiIdleFarmers315() >= 2) return 'idle315'; // v315
   if (!aiLayout && type === 'farmhouse' && aiCount('farmhouse') >= 3) {
     let fields = 0;
     eachCell((c) => { if (c && CROP_TYPES.includes(c.type) && c.type !== 'tree' && c.type !== 'oaktree') fields++; });
@@ -7479,9 +7481,11 @@ function aiFixWater(water) {
 function aiFixWellWater() {
   const demand = aiWaterDemand(), supply = aiWaterSupply();
   if (demand <= supply - AI_WELL_SUPPLY || aiEmptyCells() <= AI_KEEP_EMPTY / 2) return false;
+  const idle315 = aiIdleFarmers315(); // v315 aiwood315
   const wageBuf = wagePerMinute() * AI_WAGE_BUFFER_MIN;
   // คนขนน้ำไม่พอ: เพิ่มบ้านเกษตรกรก่อน (บ่อน้ำเพิ่มไปก็ไม่มีคนตัก)
   if (aiCount('farmhouse') < aiFarmNeed()) { // v197: เดิมเทียบคนขนกับบ่อ
+    if (idle315 >= 2 && aiCount('farmhouse') >= 3) return false; // v315: ยังมีคนว่างงาน ไม่ต้องเพิ่มบ้าน
     if (woodStock() < (WOOD_COST.farmhouse || 0) || coins < COST.farmhouse + wageBuf) return false;
     const fs = aiFindSpot('farmhouse');
     return !!fs && aiPlace(fs[0], fs[1], 'farmhouse') === null;
@@ -7494,6 +7498,7 @@ function aiFixWellWater() {
   const pondOk = !pondBusy && coins >= AI_POND_COINS + COST.pond + wageBuf;
   const usePond = pondOk && (noWood || aiPondGain() >= AI_POND_MIN_GAIN);
   const type = usePond ? 'pond' : 'well';
+  if (type === 'well' && (aiWellCap() >= demand + AI_WELL_SUPPLY || gameNow() - (activeSide.ai.lastWellSold315 || 0) < 120000)) return false; // v315: บ่อไม่ใช่คอขวด (คนขนไม่พอ) สร้างแล้วก็ถูกขายคืน
   if (usePond) {
     // ผ่านเงื่อนไขแล้ว
   } else if (noWood) return false;
@@ -7647,6 +7652,7 @@ const AI_TRIM_QUIET_MS = 40000; // v189: ขายบ่อน้ำ/บ้า�
 function aiTrimQuiet(type) { return gameNow() - (activeSide.ai['last_' + type] || 0) > AI_TRIM_QUIET_MS && gameNow() - (activeSide.ai.lastTrim || 0) > 5000; }
 function aiTrimWells() {
   if (aiLayout || aiPondsBuilding() > 0 || aiCount('well') <= 2 || !aiTrimQuiet('well')) return false;
+  if (gameNow() - (activeSide.ai.last_well || 0) < 180000) return false; // v315
   if (aiWaterDemand() + AI_WELL_SUPPLY * 4 > aiWellCap()) return false;
   let best = null, bestUse = Infinity;
   eachCell((c, x, y) => {
@@ -7662,7 +7668,7 @@ function aiTrimWells() {
   quietSell = true;
   const ok = sellCell(best[0], best[1]);
   quietSell = false;
-  if (ok) activeSide.ai.lastTrim = gameNow();
+  if (ok) { activeSide.ai.lastTrim = gameNow(); activeSide.ai.lastWellSold315 = gameNow(); } // v315
   return ok;
 }
 // บ้านเกษตรกรที่ต้องมี: เก็บเกี่ยว (พืชที่น้ำ passive ครบนับ 0.6 เพราะไม่ต้องขนน้ำ) + ขนน้ำให้พืชที่ยังขาด
@@ -8453,6 +8459,7 @@ function aiThinkInner(s, now) {
   // 0) ตรวจปัญหาที่เกิดขึ้นจริงก่อน: ขาดน้ำ ขาดไม้ หรือคนตัดไม้ไม่พอ
   if (aiTrimOak()) return; // v188
   if (aiTrimWells() || aiTrimFarmhouses()) return; // v189: น้ำจากสระพอแล้ว ขายบ่อน้ำ/บ้านเกษตรกรส่วนเกิน
+  if (aiTreeClusterStep()) return; // v316 aitree316: ต้นไม้ล้อมสระช่วงต้นเกม
   if (aiPondStep()) return; // v189: สระเป็นแหล่งน้ำหลัก
   if (aiTreeGrowStep()) return; // v196: ต้นไม้บนช่องน้ำครบจากสระ + คนตัดไม้ตามจำนวนต้นไม้
   if ((!aiLayout && aiFixWater(ai.water)) || aiFixWood() || aiFixLumber() || aiFixWoodStorage() || aiFixBottleneck()) return;
@@ -11719,6 +11726,35 @@ function tsGround() {
     const mk = () => Array.from({ length: N }, () => new Uint8Array(N));
     const sh = (flip) => { const v = document.createElement('canvas'); v.width = v.height = 64; const q = v.getContext('2d'); const gr = q.createLinearGradient(flip ? 64 : 0, 0, flip ? 40 : 24, 0); gr.addColorStop(0, 'rgba(40,26,14,0.38)'); gr.addColorStop(1, 'rgba(40,26,14,0)'); q.fillStyle = gr; q.fillRect(0, 0, 64, 64); return v; };
     const shR = sh(false), shL = sh(true);
+    // v316t mtn316: ผนังหินด้านข้าง + ขั้นหินขอบบน
+    const m316 = UI312.mountain316 !== false;
+    const wallFace = (flip) => {
+      const v = document.createElement('canvas'); v.width = v.height = 64; const q = v.getContext('2d');
+      q.imageSmoothingEnabled = false;
+      const r = document.createElement('canvas'); r.width = r.height = 64; const rq = r.getContext('2d');
+      rq.translate(32, 32); rq.rotate(flip ? -Math.PI / 2 : Math.PI / 2); rq.drawImage(elevIm, 64, 192, 64, 64, -32, -32, 64, 64);
+      const W = 22, x0 = flip ? 64 - W : 0;
+      q.drawImage(r, 0, 0, 64, 64, x0, 0, W, 64);
+      q.globalCompositeOperation = 'source-atop'; q.fillStyle = 'rgba(28,18,8,0.30)'; q.fillRect(0, 0, 64, 64);
+      q.globalCompositeOperation = 'source-over';
+      q.fillStyle = 'rgba(255,240,215,0.22)'; q.fillRect(flip ? 64 - W : W - 2, 0, 2, 64); // ขอบผนังสว่างเล็กน้อย
+      const gr = q.createLinearGradient(flip ? 64 - W : W, 0, flip ? 64 - W - 22 : W + 22, 0);
+      gr.addColorStop(0, 'rgba(40,26,14,0.42)'); gr.addColorStop(1, 'rgba(40,26,14,0)');
+      q.fillStyle = gr; if (flip) q.fillRect(0, 0, 64 - W, 64); else q.fillRect(W, 0, 64 - W, 64);
+      return v;
+    };
+    const wallR = m316 ? wallFace(false) : null, wallL = m316 ? wallFace(true) : null;
+    const lipN = (() => {
+      if (!m316) return null;
+      const v = document.createElement('canvas'); v.width = v.height = 64; const q = v.getContext('2d');
+      q.imageSmoothingEnabled = false;
+      q.drawImage(elevIm, 64, 192, 64, 64, 0, 64 - 20, 64, 20);
+      q.globalCompositeOperation = 'source-atop'; q.fillStyle = 'rgba(28,18,8,0.18)'; q.fillRect(0, 0, 64, 64);
+      q.globalCompositeOperation = 'source-over';
+      const gr = q.createLinearGradient(0, 44, 0, 30); gr.addColorStop(0, 'rgba(40,26,14,0.30)'); gr.addColorStop(1, 'rgba(40,26,14,0)');
+      q.fillStyle = gr; q.fillRect(0, 30, 64, 14);
+      return v;
+    })();
     const tier = [mk(), mk()];
     cliff312 = mk(); // ช่องที่ไม่วางของตกแต่ง (หินยก + หน้าผา)
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -11740,12 +11776,22 @@ function tsGround() {
       // เงาข้างชั้นหิน (ด้านซ้าย/ขวา) ให้เห็นว่ายกสูง
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         if (!T[j][i]) continue;
-        for (const [di, im] of [[1, shR], [-1, shL]]) {
+        for (const [di, im] of [[1, wallR || shR], [-1, wallL || shL]]) {
           const ii = i + di;
           if (ii < 0 || ii >= N || T[j][ii]) continue;
           c.drawImage(im, 0, 0, 64, 64, ii * TS_TP, j * TS_TP, TS_TP, TS_TP);
           (tiles[j * N + ii] || (tiles[j * N + ii] = [])).push(im, 0, 0);
+          if (wallR) cliff312[j][ii] = 1; // ไม่วางหินตกแต่งทับผนัง
         }
+      }
+      // v316t: ขอบบนของชั้นหินที่อยู่ใต้กระดาน = ขั้นหินเตี้ย (หันเข้ากระดาน)
+      if (lipN) for (let j = 1; j < N; j++) for (let i = 0; i < N; i++) {
+        if (!T[j][i] || T[j - 1][i]) continue;
+        const cy = Math.floor((j - TS_K * M) / TS_K);
+        if (cy <= G - 1) continue;
+        c.drawImage(lipN, 0, 0, 64, 64, i * TS_TP, (j - 1) * TS_TP, TS_TP, TS_TP);
+        (tiles[(j - 1) * N + i] || (tiles[(j - 1) * N + i] = [])).push(lipN, 0, 0);
+        cliff312[j - 1][i] = 1;
       }
       // หน้าผา: แผ่นใต้ขอบล่างของชั้น (แถวที่ 4 ของ Tilemap_Elevation)
       for (let j = 0; j < N - 1; j++) for (let i = 0; i < N; i++) {
@@ -13215,6 +13261,77 @@ function drawStatus313(px, py, info, x, y) {
     ctx.fillRect(px + 2, py + TILE_SIZE - 4, (TILE_SIZE - 4) * f, 3);
   }
   ctx.restore();
+}
+// v315 aiwood315: เกษตรกรของฝั่งที่กำลังคิด ที่ว่างงานอยู่
+function aiIdleFarmers315() {
+  let n = 0;
+  eachCell((c) => { if (c && c.type === 'farmhouse' && c.farmer && c.farmer.state === 'idle') n++; });
+  return n;
+}
+// ---------- v316 aitree316: ต้นไม้ล้อมสระช่วงต้นเกม ----------
+const AI_EARLY_TREE_CELLS = 8;   // ช่องต้นไม้น้ำครบ (มีต้นไม้แล้ว + ว่างรอปลูก) ที่ต้องการก่อนปล่อยให้สระไปช่วยพืชอื่น
+let AI_TREE316 = true;          // ปิด = พฤติกรรม v315
+let AI_TREE316_WD = 0.3;
+let AI_TREE316_WF = 0;            // v316b
+let AI_TREE316_HOLD = true;       // v316b: ชะลอทุ่งใหม่ระหว่างสระกลุ่มต้นไม้ยังสร้าง (ไม้ 12 นาที +70-130%)
+const AI_TREE316_SKIP = ['wheat', 'cotton', 'sugarcane', 'brine'];          // ระยะจากบ่อน้ำ (เกษตรกรขนน้ำมาสร้างสระเร็วขึ้น)
+function aiTreeCell316(x, y) {
+  return !aiOnLattice(x, y) && !aiPowerReserved(x, y) && !nearType(x, y, 'farmhouse', AI_TREE_FH_GAP);
+}
+// ช่องต้นไม้ที่น้ำครบ 5 (นับสระที่กำลังสร้าง): ต้นไม้ที่ยืนอยู่ + ช่องว่างที่ปลูกได้
+function aiTreeCells316() {
+  let n = 0;
+  for (let y = 0; y < GRID_SIZE; y++) for (let x = 0; x < GRID_SIZE; x++) {
+    const c = board[y][x];
+    if (c && c.type === 'tree') { if (aiCellWater(x, y, true) >= TREE_WATER_NEED) n++; continue; }
+    if (aiFreeCell(x, y) && !aiFrontierKept(x, y) && aiTreeCell316(x, y) && shadeLevelAt(x, y) === 0 && aiCellWater(x, y, true) >= TREE_WATER_NEED) n++;
+  }
+  return n;
+}
+function aiTreeClusterSpot316() {
+  let best = null;
+  for (let y = 0; y < GRID_SIZE; y++) for (let x = 0; x < GRID_SIZE; x++) {
+    if (!aiOnLattice(x, y) || placementProblem(x, y, 'pond') || aiFrontierKept(x, y) || aiPowerReserved(x, y)) continue;
+    if (neighbors4(x, y).some(([nx, ny]) => isRoad(nx, ny))) continue;
+    let v = 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const nx = x + dx, ny = y + dy;
+      if ((!dx && !dy) || !inBounds(nx, ny) || !aiTreeCell316(nx, ny)) continue;
+      const t = board[ny][nx];
+      const treeHere = t && t.type === 'tree';
+      if (!treeHere && (!aiFreeCell(nx, ny) || shadeLevelAt(nx, ny) > 0)) continue;
+      const before = aiCellWater(nx, ny, true), after = before + passiveAmount('pond', Math.max(Math.abs(dx), Math.abs(dy)));
+      if (before < TREE_WATER_NEED && after >= TREE_WATER_NEED) v += treeHere ? 1.5 : 1;
+      else if (before < 3 && after >= 3) v += 0.35;
+    }
+    const wd = Math.min(aiNearestDist(x, y, 'well'), aiNearestDist(x, y, 'windpump'), 12);
+    v -= wd * AI_TREE316_WD + Math.min(aiNearestDist(x, y, 'farmhouse'), 12) * AI_TREE316_WF; // v316b: ใกล้บ้านเกษตรกร (คนเดินน้อย)
+    if (v >= 0.7 && (!best || v > best.v)) best = { x, y, v };
+  }
+  return best;
+}
+function aiTreeClusterOn316() {
+  if (!AI_TREE316 || aiLayout || !activeSide.ai || activeSide.ai.water !== 'well' || !matchGoal || matchGoal.type !== 'goods') return false;
+  if (!aiPondMode()) return false;
+  if (AI_TREE316_SKIP.includes(aiGoalKind())) return false; // v316b: เป้าพืชดิบ (ข้าวสาลี ฯลฯ) ทุ่งสำคัญกว่าไม้ ใช้แบบเดิม
+  return aiTreeCells316() < AI_EARLY_TREE_CELLS;
+}
+function aiTreeClusterStep() {
+  if (!aiTreeClusterOn316()) return false;
+  const wageBuf = wagePerMinute() * AI_WAGE_BUFFER_MIN;
+  // 1) ปลูกต้นไม้บนช่องที่น้ำครบ (สระกำลังสร้างก็นับ)
+  if (coins >= COST.tree + wageBuf) {
+    for (let y = 0; y < GRID_SIZE; y++) for (let x = 0; x < GRID_SIZE; x++) {
+      if (!aiFreeCell(x, y) || aiFrontierKept(x, y) || !aiTreeCell316(x, y) || shadeLevelAt(x, y) > 0) continue;
+      if (aiCellWater(x, y, true) < TREE_WATER_NEED || placementProblem(x, y, 'tree')) continue;
+      if (aiPlace(x, y, 'tree') === null) return true;
+    }
+  }
+  // 2) สระกลุ่มต้นไม้
+  if (aiCount('well') + aiCount('windpump') === 0) return false;
+  if (aiPondsBuilding() >= aiPondsAtOnce() + 1 || coins < AI_POND_COINS + COST.pond + wageBuf || aiEmptyCells() <= AI_KEEP_EMPTY + 4) return false;
+  const best = aiTreeClusterSpot316();
+  return !!best && aiPlace(best.x, best.y, 'pond') === null;
 }
 </script>
 
