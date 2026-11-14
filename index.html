@@ -12867,6 +12867,18 @@ function card312() {
   const _d = openDepotPopup;
   openDepotPopup = function (...a) { const r = _d.apply(this, a); try { card312(); queueMicrotask(card312); } catch (e) { /* ไม่เป็นไร */ } return r; };
 }
+
+// 10. ถนนช่องเดี่ยว (ไม่ต่อกับถนน/ประตูด้านไหนเลย): มุมมนแบบพิกเซลเหมือนแปลงดิน (บอส "แก้เลยลงรุ่นจริง" 14 พ.ย. 20:15)
+if (UI312.road !== false) {
+  const orig = drawRoadTop;
+  drawRoadTop = function (cell, x, y) {
+    if (roadLinks(x, y) !== 0) return orig(cell, x, y);
+    ctx.save();
+    tilePath311(ctx, 0, 0, TILE_SIZE, TILE_SIZE);
+    ctx.clip();
+    try { return orig(cell, x, y); } finally { ctx.restore(); }
+  };
+}
 </script>
 
 </body></html>
