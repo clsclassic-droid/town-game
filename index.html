@@ -1013,6 +1013,17 @@ function updateWater(now) {
     }
     c.pumped = near;
     if (near) c.water = Math.max(c.water, ANIMALS[c.type].water);
+    // v314 pondpen314: สระให้น้ำ passive แก่โรงสัตว์ (บอส 14 พ.ย. 2026)
+    let pw = 0;
+    for (let dy = -POND_RANGE; dy <= POND_RANGE; dy++) {
+      for (let dx = -POND_RANGE; dx <= POND_RANGE; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const t = inBounds(x + dx, y + dy) ? cellAt(x + dx, y + dy) : null;
+        if (t && t.type === 'pond' && !t.building) pw += passiveAmount('pond', Math.max(Math.abs(dx), Math.abs(dy)));
+      }
+    }
+    c.pondWater = pw;
+    if (pw > 0) c.water = Math.max(c.water, Math.min(ANIMALS[c.type].water, pw));
   });
   // v185: โรงเลื่อยที่มีปั๊มน้ำติดกัน (ระยะ 1 รวมแนวทแยง) ได้ถังน้ำ passive ไม่ต้องขนถังน้ำมา
   eachCell((c, x, y) => {
@@ -2404,7 +2415,7 @@ const DESC = {
   silo: `เก็บข้าวสาลี ฝ้าย อ้อย และน้ำเกลือ รวมสูงสุด ${B_.silo.capacity} ชิ้น`,
   woodshed: `เก็บไม้ ไม้โอ๊ก และไม้แปรรูป รวมสูงสุด ${B_.woodshed.capacity} ชิ้น`,
   lumberyard: `เก็บไม้ ไม้โอ๊ก และไม้แปรรูป รวมสูงสุด ${B_.lumberyard.capacity} ชิ้น`,
-  pond: `สร้างต้องให้คนเกษตรขนน้ำ ${B_.pond.waterCost} ถังมาส่งที่จุดสร้าง ให้น้ำแก่พืช: ติดกัน ${B_.pond.passive[1]} หน่วย ห่าง 1 ช่อง ${B_.pond.passive[2] || 0} หน่วย`,
+  pond: `สร้างต้องให้คนเกษตรขนน้ำ ${B_.pond.waterCost} ถังมาส่งที่จุดสร้าง ให้น้ำแก่พืชและโรงสัตว์ (โรงไก่ โรงวัว คอกแกะ): ติดกัน ${B_.pond.passive[1]} หน่วย ห่าง 1 ช่อง ${B_.pond.passive[2] || 0} หน่วย`,
   lumbermill: `ผลิตไม้แปรรูป ← ${recipeText(LM_NEED)} (${LM.recipes.lumber.sec} วินาที) คนงานประจำโรงขนไฟฟ้าจากกังหันผลิตไฟ ถังน้ำจากโกดัง/โรงผลิตถังน้ำ และไม้จากคลังไม้ แล้วขนไม้แปรรูปไปคลังไม้ ถ้ามีปั๊มน้ำวางติดกันได้ถังน้ำฟรีไม่ต้องขน (Oak Barrel / Wooden Box ยังไม่ผลิต ต้องมีเหล็ก) ค่าแรง ${B_.lumbermill.wage}`,
   oilpump: `ผลิตน้ำมันดิบ 1 หน่วยทุก ${B_.oilpump.craftSec} วินาที ไม่ต้องใช้วัตถุดิบ ไม่มีค่าแรง เก็บรอได้ ${B_.oilpump.outCap} หน่วย ทำให้ช่องรอบๆ สกปรกในระยะ 3 คนงานโรงไฟฟ้ามาขนไปใช้`,
   powerplant: `ผลิตไฟฟ้า 1 ← ${recipeText(B_.powerplant.recipe)} (${B_.powerplant.craftSec} วินาที) ต้องวางติดถนนลาดยางและปั๊มน้ำ (ปั๊มให้ถังน้ำฟรี) สร้างใช้ไม้ ${B_.powerplant.woodCost} + ไม้แปรรูป ${B_.powerplant.lumberCost} + ไฟฟ้า ${B_.powerplant.energyCost} คนงานขนน้ำมันดิบจากบ่อน้ำมัน โรงเลื่อยในระยะ ${B_.powerplant.energyRange} ช่องได้ไฟฟ้าฟรีไม่ต้องขน ค่าแรง ${B_.powerplant.wage}`,
@@ -2501,7 +2512,7 @@ function prodModel(c) {
   }
   if (ANIMALS[t]) {
     const a = ANIMALS[t];
-    return { recipe: rec(a.out, { feed: a.feed, water: a.water, wood: a.wood }, B.craftSec), inputs: ['feed', 'water', 'wood'].map((k) => ({ k, have: c[k], need: a[k] })), outputs: [{ k: a.out, have: c[a.out], cap: ANIMAL_OUT_CAP }] };
+    return { recipe: rec(a.out, { feed: a.feed, water: a.water, wood: a.wood }, B.craftSec), inputs: ['feed', 'water', 'wood'].map((k) => ({ k, have: c[k], need: a[k], note: k === 'water' && c.pondWater ? `สระช่วย ${Math.min(a.water, c.pondWater)}` : '' })), outputs: [{ k: a.out, have: c[a.out], cap: ANIMAL_OUT_CAP }] };
   }
   if (t === 'waterfacility') {
     const pond = Math.min(c.pondWater || 0, WF.recipe.water);
@@ -2537,6 +2548,7 @@ function prodStatus(c, m) {
   if (DOOR_TYPES.includes(c.type) && !c.door) return { tone: 'bad', text: '⛔ ใช้งานไม่ได้ ต้องมีถนนติดอาคาร' };
   if (c.work != null) {
     const left = Math.max(0, Math.ceil((c.work - gameNow()) / 1000));
+    if (c.paused) return { tone: 'off', text: `⏸ ผลิต${workProductLabel(c)}รอบสุดท้าย เหลือ ${left} วินาที แล้วจะหยุด` }; // v313t
     return { tone: 'ok', text: `⚙ กำลังผลิต${workProductLabel(c)} เหลือ ${left} วินาที` };
   }
   const st = buildingStatusText(c);
@@ -2718,7 +2730,7 @@ function openSellPopup(cell, x, y) {
     // v193: ปุ่มเปิด/ปิดการทำงาน (กติกาเดียวกับที่ AI ใช้)
     const pb = document.createElement('button');
     pb.style.cssText = 'margin-top:10px;padding:6px 14px;font-size:14px;cursor:pointer;width:100%;' + (cell.paused ? 'background:#ffd166;' : '');
-    pb.textContent = cell.paused ? '▶ เปิดการทำงาน (ตอนนี้ปิดอยู่)' : '⏸ ปิดการทำงานชั่วคราว';
+    pb.textContent = cell.paused ? (cell.work != null ? '▶ ผลิตต่อ (ตอนนี้ผลิตรอบสุดท้ายแล้วจะหยุด)' : '▶ เปิดการทำงาน (ตอนนี้หยุดอยู่)') : '⏸ หยุดหลังผลิตรอบนี้เสร็จ';
     pb.title = 'ปิดอยู่: ไม่รับวัตถุดิบ ไม่เริ่มผลิตชิ้นใหม่ ค่าแรงยังจ่ายตามปกติ';
     pb.addEventListener('click', () => {
       cell.paused = !cell.paused;
@@ -6570,7 +6582,7 @@ function drawBoard(now) {
       if (info) {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         const [cx, cy] = tileCenterScreen(x, y);
-        drawStatus(cx - 16, cy - 16, info);
+        if (typeof drawStatus313 === 'function') drawStatus313(cx - 16, cy - 16, info, x, y); else drawStatus(cx - 16, cy - 16, info);
       }
     }
     // ป้ายบอกเหตุผลที่คนตัดไม้ยังไม่ทำงาน
@@ -6990,6 +7002,7 @@ function aiFindSpot(type) {
       }
       // v171: พืชหลบช่องที่มีโทษ (เงา เค็ม สกปรก) ทุ่งเกลือชอบช่องที่เค็ม
       if (type === 'saltfield') score -= terrainAt('salty', x, y) * 3;
+      if (ANIMALS[type]) score -= Math.min(ANIMALS[type].water, aiPondWaterAt(x, y)) * 2; // v314: โรงสัตว์ชอบข้างสระ (ได้น้ำ passive)
       if (type === 'waterfacility') score -= Math.min(WF.recipe.water, aiPondWaterAt(x, y)) * 2; // v208: โรงผลิตถังน้ำชอบข้างสระ (ได้น้ำ passive ไม่ต้องตักจากบ่อ)
       if (type === 'lumbermill' && pumpAdjacent(x, y)) score -= 10; // v187: โรงเลื่อยติดปั๊มน้ำได้ถังน้ำฟรี
       if (type === 'lumbermill' && powerNear(x, y)) score -= 6;      // v187: ในระยะโรงไฟฟ้าได้ไฟฟ้าฟรี
@@ -7569,6 +7582,7 @@ function aiPondValue(x, y) {
     const t = board[ny][nx];
     if (t && t.type === 'pond') { if (d === 1) v -= 3; continue; } // สระติดกันเปลืองที่
     if (isCrop(t)) { v += Math.min(aiCropDeficit(t), amt) * (t.type === 'tree' ? 1.5 : 1); continue; }
+    if (t && ANIMALS[t.type]) { v += Math.min(Math.max(0, ANIMALS[t.type].water - aiPondWaterAt(nx, ny)), amt); continue; } // v314
     if (t && t.type === 'waterfacility') { v += Math.min(Math.max(0, WF.recipe.water - aiPondWaterAt(nx, ny)), amt); continue; } // v208: สระช่วยโรงผลิตถังน้ำ (ไม่ต้องตักน้ำจากบ่อ)
     if (t || isDoorTile(nx, ny) || aiPowerReserved(nx, ny)) continue;
     const before = aiCellWater(nx, ny, true);
@@ -9172,6 +9186,7 @@ function drawSide(s, now) {
   if (showShade) drawShadeRange();
   if (s.isHuman) drawFloatFx(); // v235
   if (s.isHuman && tutorialMode) drawTutorialTiles(); // v239
+  if (s.isHuman && typeof drawPlace313 === 'function') { drawHints313(); drawPlace313(); } // v313t
   ctx.restore();
   if (s.isHuman) drawMinimap(); // v289t
 }
@@ -12868,16 +12883,338 @@ function card312() {
   openDepotPopup = function (...a) { const r = _d.apply(this, a); try { card312(); queueMicrotask(card312); } catch (e) { /* ไม่เป็นไร */ } return r; };
 }
 
-// 10. ถนนช่องเดี่ยว (ไม่ต่อกับถนน/ประตูด้านไหนเลย): มุมมนแบบพิกเซลเหมือนแปลงดิน (บอส "แก้เลยลงรุ่นจริง" 14 พ.ย. 20:15)
-if (UI312.road !== false) {
-  const orig = drawRoadTop;
+// ===== v313t รุ่นทดลอง (14 พ.ย. 2026, บอส "แก้เลย" ตามผลทดสอบของ ChatGPT) — ไม่แตะกติกาเกม (ผู้เล่นกับ AI ยังเหมือนกัน)
+// ปิดทีละข้อได้ที่ UI313
+//  cost    = ปุ่มสร้างบอกไม้ที่ต้องใช้ + เลือกอาคารแล้วบอกเงื่อนไขทันที + ช่องที่วาง Trade Depot/ปั๊มน้ำได้มีกรอบเหลือง
+//  preview = ชี้ช่อง (เมาส์) ตอนถือเครื่องมือ: บอกน้ำฟรี/เวลาผลิตจริง/เหตุที่วางไม่ได้ · วางแล้วช้าลงมีข้อความเตือน (ทุกเครื่อง)
+//  hint    = คำใบ้รอบแข่ง (จนกว่าจะขายได้ครั้งแรก หรือกด ✕)
+//  labels  = แถบสถานะ: ป้ายที่ยาวเกินช่องย่อเป็นวงกลมเล็ก (แตะ/ชี้ช่อง = ข้อความเต็ม)
+const UI313 = { cost: true, preview: true, hint: true, labels: true };
+
+// ---- v312b: ถนนช่องเดี่ยว (ไม่ต่อกับอะไร) มุมมนแบบพิกเซล ----
+if (typeof drawRoadTop === 'function' && typeof tilePath311 === 'function') {
+  const _road312b = drawRoadTop;
   drawRoadTop = function (cell, x, y) {
-    if (roadLinks(x, y) !== 0) return orig(cell, x, y);
-    ctx.save();
-    tilePath311(ctx, 0, 0, TILE_SIZE, TILE_SIZE);
-    ctx.clip();
-    try { return orig(cell, x, y); } finally { ctx.restore(); }
+    if (!(typeof UI312 !== 'undefined' && UI312.road === false) && roadLinks(x, y) === 0) {
+      ctx.save();
+      tilePath311(ctx, 0, 0, TILE_SIZE, TILE_SIZE);
+      ctx.clip();
+      try { return _road312b(cell, x, y); } finally { ctx.restore(); }
+    }
+    return _road312b(cell, x, y);
   };
+}
+
+// ---- คำนวณโทษ (เงา/สกปรก/เค็ม) ถ้าวางชนิด type ที่ (x,y) — สูตรเดียวกับ updateShade ----
+function pen313(x, y, type) {
+  let sum = 0, dirty = 0;
+  eachCell((src, sx, sy) => {
+    if (!src || !isUsable(src)) return;
+    const d = Math.max(Math.abs(x - sx), Math.abs(y - sy));
+    if (d === 0) return;
+    if (SHADE_SOURCES[src.type]) sum += SHADE_SOURCES[src.type][d] || 0;
+    if (DIRTY_SOURCES[src.type]) dirty += DIRTY_SOURCES[src.type][d] || 0;
+  });
+  const f = terrainField(), i = y * GRID_SIZE + x;
+  const shade = Math.max(0, Math.min(3, -sum + (f.shady[i] || 0))), salty = f.salty[i] || 0;
+  const parts = [];
+  let pen = 0;
+  if (type === 'saltfield') return { pen: 0, parts };
+  if (CROP_TYPES.includes(type)) {
+    pen = Math.min(3, shade + dirty + salty);
+    if (shade) parts.push(`เงา ${shade}`);
+    if (dirty) parts.push(`สกปรก ${dirty}`);
+    if (salty) parts.push(`เค็ม ${salty}`);
+  } else if (type === 'windmill') { pen = shade; if (shade) parts.push(`เงา ${shade}`); }
+  else if (ANIMALS[type]) { pen = Math.min(3, dirty); if (pen) parts.push(`สกปรก ${pen}`); }
+  else return null;
+  return { pen, parts };
+}
+// น้ำฟรีที่ช่องนี้จะได้ (สระ/ปั๊มรอบๆ + แม่น้ำ)
+function freeWater313(x, y) {
+  return aiPassiveAt(x, y) + (terrainField().water[y * GRID_SIZE + x] || 0);
+}
+// เวลาผลิตปกติ (วินาทีเกม) ของชนิดที่มีโทษ
+function baseSec313(type) {
+  if (CROP_TYPES.includes(type)) return BUILDINGS[type].growSec || 0;
+  if (type === 'windmill') return BUILDINGS.windmill.craftSec;
+  if (ANIMALS[type]) return ANIMALS[type].ms / 1000;
+  return 0;
+}
+const PROB313 = {
+  occupied: 'ช่องนี้มีของอยู่แล้ว', road: 'ต้องวางให้ติดถนน', coins: 'เงินไม่พอ',
+  door: 'ช่องนี้เป็นประตูของอาคาร', pendoor: 'ต้องเว้นที่ให้ประตูโรงสัตว์',
+};
+function probText313(prob, x, y, type) {
+  if (prob === 'edge') return type === 'tradedepot' ? 'ต้องวางที่ขอบแผนที่ (ช่องกรอบเหลือง)' : 'ต้องวางติดสระหรือแม่น้ำ (ช่องกรอบเหลือง)';
+  if (prob === 'wood') return `ไม้ไม่พอ (มี ${woodStock()}/${WOOD_COST[type]})`;
+  if (prob === 'oak') return `ไม้โอ๊กไม่พอ (มี ${oakStock()}/${BUILDINGS[type].oakCost})`;
+  if (PROB313[prob]) return PROB313[prob];
+  const extra = extraPlaceProblem(x, y, type);
+  return extra ? extra[1] : 'วางที่นี่ไม่ได้';
+}
+// ข้อความพรีวิว (หลายบรรทัด) [text, color]
+function preview313(x, y, type) {
+  const out = [];
+  const prob = placementProblem(x, y, type);
+  if (prob) out.push([`✖ ${probText313(prob, x, y, type)}`, '#ff8a80']);
+  if (prob === 'occupied') return out;
+  if (CROP_TYPES.includes(type) && type !== 'saltfield') {
+    const need = BUILDINGS[type].water || 0, have = Math.min(need, freeWater313(x, y));
+    out.push([have >= need ? `💧 น้ำฟรี ${have}/${need} ครบ ไม่ต้องรด` : `💧 น้ำฟรี ${have}/${need} · เกษตรกรต้องรดอีก ${need - have}`, '#8fd0ff']);
+  }
+  const p = pen313(x, y, type);
+  if (p) {
+    const sec = baseSec313(type) / PENALTY_SPEED[p.pen];
+    const verb = CROP_TYPES.includes(type) ? 'โต' : 'ผลิต';
+    if (p.pen) out.push([`⚠ ${verb} ${sec} วิ (ปกติ ${baseSec313(type)}) ช้าลง x${1 / PENALTY_SPEED[p.pen]} เพราะ${p.parts.join(' + ')}`, '#ffd166']);
+    else out.push([`⏱ ${verb} ${sec} วิ เต็มความเร็ว`, '#c5e1a5']);
+  }
+  if (!prob && !out.length) out.push(['✔ วางได้', '#c5e1a5']);
+  return out;
+}
+// ช่องที่วางได้ของอาคารที่มีเงื่อนไขตำแหน่ง (ไม่สนเงิน/ไม้ จะได้รู้ล่วงหน้าว่าต้องไปวางตรงไหน)
+function placeTiles313(type) {
+  const t = [];
+  if (type !== 'tradedepot' && type !== 'waterpump') return t;
+  for (let y = 0; y < GRID_SIZE; y++) for (let x = 0; x < GRID_SIZE; x++) {
+    if (board[y][x]) continue;
+    if (type === 'tradedepot' ? depotEdgeOk(x, y) : pumpEdgeOk(x, y)) t.push([x, y]);
+  }
+  return t;
+}
+function drawTiles313(tiles, strong) {
+  if (!tiles.length) return;
+  const a = 0.75 + 0.25 * Math.sin(performance.now() / 180);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.lineWidth = strong ? 4 : 3;
+  ctx.strokeStyle = `rgba(255,209,102,${a.toFixed(2)})`;
+  ctx.fillStyle = `rgba(255,209,102,${(a * (strong ? 0.4 : 0.25)).toFixed(2)})`;
+  for (const [x, y] of tiles) {
+    const pts = [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([gx, gy]) => gridToScreen(gx, gy));
+    ctx.beginPath();
+    pts.forEach(([px, py], k) => (k ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawTip313(x, y, lines) {
+  if (!lines.length) return;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // ผืนผ้าใบถูกย่อบนจอ → ขยายตัวหนังสือให้อ่านได้ ~13px บนจอจริง
+  const kr = canvas.getBoundingClientRect(), k = kr.width ? kr.width / canvas.width : 1;
+  const fs = Math.round(Math.max(13, Math.min(28, 13 / k))), lh = Math.round(fs * 1.4);
+  ctx.font = `bold ${fs}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  const w = Math.max(...lines.map(([t]) => ctx.measureText(t).width)) + fs, h = lines.length * lh + Math.round(fs * 0.6);
+  const [ax, ay] = gridToScreen(x + 0.5, y);
+  let bx = Math.round(ax - w / 2), by = Math.round(ay - h - 8);
+  const L = sideX + 4, R = sideX + VIEW_W - 4;
+  if (bx < L) bx = L;
+  if (bx + w > R) bx = R - w;
+  if (by < 4) { const [, b2] = gridToScreen(x + 0.5, y + 1); by = Math.round(b2 + 8); }
+  ctx.fillStyle = 'rgba(30, 20, 10, 0.86)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(bx, by, w, h, 6); else ctx.rect(bx, by, w, h);
+  ctx.fill();
+  lines.forEach(([t, col], i) => { ctx.fillStyle = col; ctx.fillText(t, bx + fs / 2, by + lh + i * lh - Math.round(fs * 0.1)); });
+  ctx.restore();
+}
+// วาดบนกระดานฝั่งผู้เล่น (เรียกจาก drawSide หลังกระดาน)
+function drawPlace313() {
+  if (!buildType || !matchActive) return;
+  if (UI313.cost) drawTiles313(placeTiles313(buildType), false);
+  if (UI313.preview && hoverCell && inBounds(hoverCell.x, hoverCell.y)) drawTip313(hoverCell.x, hoverCell.y, preview313(hoverCell.x, hoverCell.y, buildType));
+}
+
+// ---- ปุ่มสร้าง: ราคา + ไม้/วัสดุที่ต้องใช้ ----
+function costText313(type) {
+  const b = BUILDINGS[type], p = [`$${Number(COST[type]).toLocaleString('en-US')}`];
+  if (WOOD_COST[type]) p.push(`ไม้ ${WOOD_COST[type]}`);
+  if (b.oakCost) p.push(`โอ๊ก ${b.oakCost}`);
+  if (b.lumberCost) p.push(`ไม้แปรรูป ${b.lumberCost}`);
+  if (b.energyCost) p.push(`ไฟ ${b.energyCost}`);
+  return p.join(' · ');
+}
+if (UI313.cost) {
+  for (const type in toolButtons) {
+    const sm = toolButtons[type].querySelector('.bt306 small');
+    if (sm) sm.textContent = costText313(type);
+  }
+  const st = document.createElement('style');
+  st.textContent = '.bt306 small{white-space:normal;line-height:1.15;}';
+  document.head.appendChild(st);
+}
+// เลือกอาคารแล้วบอกสิ่งที่ต้องมีทันที (ก่อนแตะลงแผนที่)
+function needText313(type) {
+  const b = BUILDINGS[type];
+  const have = [];
+  let short = false;
+  const chk = (name, need, got) => { if (!need) return; have.push(`${name} ${need} (มี ${got}${got >= need ? '' : ' ✖'})`); if (got < need) short = true; };
+  chk('ไม้', WOOD_COST[type] || 0, woodStock());
+  chk('ไม้โอ๊ก', b.oakCost || 0, oakStock());
+  chk('ไม้แปรรูป', b.lumberCost || 0, kindStock('lumber'));
+  chk('ไฟฟ้า', b.energyCost || 0, energyStock());
+  const where = type === 'tradedepot' ? 'วางที่ขอบแผนที่ช่องกรอบเหลือง'
+    : type === 'waterpump' ? 'วางติดสระ/แม่น้ำ ช่องกรอบเหลือง'
+      : b.needsPaved ? 'ต้องติดถนนลาดยาง' : b.needsRoad ? 'ต้องติดถนน' : '';
+  if (coins < COST[type]) short = true;
+  if (!have.length && !where && !short) return '';
+  return `${LABEL[type]}: $${Number(COST[type]).toLocaleString('en-US')}${coins < COST[type] ? ' ✖' : ''}${have.length ? ' + ' + have.join(' + ') : ''}${where ? ' · ' + where : ''}`;
+}
+{
+  const _tb313 = refreshToolbar;
+  let last313 = null;
+  refreshToolbar = function () {
+    const r = _tb313.apply(this, arguments);
+    if (UI313.cost && buildType && buildType !== last313 && matchActive) {
+      const m = needText313(buildType);
+      if (m) showMessage(m, 4500);
+    }
+    last313 = buildType;
+    return r;
+  };
+}
+// วางแล้วช้าลง → บอกทันที (มือถือไม่มีเมาส์ชี้ช่อง)
+{
+  const _pb313 = placeBuilding;
+  placeBuilding = function (x, y, type) {
+    const mine = UI313.preview && activeSide === humanSide && matchActive;
+    const p = mine ? pen313(x, y, type) : null;
+    const err = _pb313.apply(this, arguments);
+    if (!err && p && p.pen) {
+      const verb = CROP_TYPES.includes(type) ? 'โต' : 'ผลิต';
+      showMessage(`วาง${LABEL[type]}แล้ว · ⚠ ${verb}ช้าลง x${1 / PENALTY_SPEED[p.pen]} เพราะติด${p.parts.join(' + ')}`, 3500);
+    }
+    return err;
+  };
+}
+
+// ---- คำใบ้รอบแข่ง (จนกว่าจะขายได้ครั้งแรก) ----
+const HINT313_KEY = 'townGame.hint313';
+let hint313 = { el: null, html: '', tiles: [], calcAt: 0, step: '', doneAt: 0 };
+function hintOff313() { try { return localStorage.getItem(HINT313_KEY) === 'done'; } catch (e) { return false; } }
+function hintSetOff313() { try { localStorage.setItem(HINT313_KEY, 'done'); } catch (e) { /* ไม่เป็นไร */ } }
+function hintEl313() {
+  if (hint313.el) return hint313.el;
+  const el = document.createElement('div');
+  el.id = 'hint313';
+  el.style.cssText = 'position:fixed;left:10px;z-index:95;max-width:min(330px,calc(100vw - 20px));background:#fbf3df;color:#3a2814;border:3px solid #7a5230;border-radius:12px;padding:8px 34px 8px 10px;font:14px/1.45 sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.3);display:none;';
+  el.innerHTML = '<div class="t313"></div><button title="ปิดคำใบ้" style="position:absolute;right:4px;top:4px;width:26px;height:26px;border:0;border-radius:6px;background:#8a5a2b;color:#fbf3df;font-weight:bold;cursor:pointer;">✕</button>';
+  el.querySelector('button').addEventListener('click', () => { hintSetOff313(); el.style.display = 'none'; });
+  document.body.appendChild(el);
+  hint313.el = el;
+  return el;
+}
+function hintPos313(el) {
+  const tb = document.getElementById('tabRow305') || document.getElementById('toolbar');
+  const top = tb ? tb.getBoundingClientRect().top : window.innerHeight;
+  el.style.bottom = Math.max(8, Math.round(window.innerHeight - top + 8)) + 'px';
+}
+function hintShow313(html) {
+  const el = hintEl313();
+  if (html !== hint313.html) { el.querySelector('.t313').innerHTML = html; hint313.html = html; }
+  hintPos313(el);
+  el.style.display = 'block';
+}
+function hintHide313() { if (hint313.el) hint313.el.style.display = 'none'; hint313.tiles = []; }
+function hintActive313() {
+  return UI313.hint && matchActive && !gameOver && (vsMode || onlineMode) && !tutorialMode && !hintOff313();
+}
+// ช่องปลูกข้าวที่ดีที่สุด 3 ช่อง (น้ำฟรีมาก ไม่ติดโทษ ไม่ใช่แถวขอบที่เก็บไว้วางจุดขาย)
+function bestFieldTiles313() {
+  const need = BUILDINGS.field.water || 3, list = [];
+  for (let y = 1; y < GRID_SIZE - 1; y++) for (let x = 1; x < GRID_SIZE - 1; x++) {
+    if (board[y][x] || isDoorTile(x, y)) continue;
+    const pr = placementProblem(x, y, 'field');
+    if (pr && pr !== 'coins') continue;
+    const w = Math.min(need, freeWater313(x, y)), p = pen313(x, y, 'field');
+    list.push([w * 10 - (p ? p.pen : 0) * 15, x, y]);
+  }
+  list.sort((a, b) => b[0] - a[0]);
+  return list.slice(0, 3).map(([, x, y]) => [x, y]);
+}
+function nearTiles313(tiles, n) {
+  let cx = GRID_SIZE / 2, cy = GRID_SIZE / 2;
+  eachCell((c, x, y) => { if (c && c.type === 'silo') { cx = x; cy = y; } });
+  return tiles.map((t) => [Math.abs(t[0] - cx) + Math.abs(t[1] - cy), t]).sort((a, b) => a[0] - b[0]).slice(0, n).map(([, t]) => t);
+}
+function hintStep313() {
+  const sold = Object.values(humanSide.produced || {}).some((v) => v > 0);
+  const depot = (() => { let p = null; eachCell((c, x, y) => { if (!p && c && c.type === 'tradedepot') p = [x, y, c]; }); return p; })();
+  if (sold) return { step: 'done', html: '🎉 <b>ขายได้ครั้งแรกแล้ว!</b> ผลิต → เก็บ → ขาย คือวงจรหลัก ติ๊ก "auto" ที่ Trade Depot ให้ส่งเองได้', tiles: [] };
+  if (!depot && countType('field') < 4) {
+    return { step: 'field', html: `💡 <b>ขั้น 1:</b> ปลูก <b>ทุ่งข้าวสาลี</b> ที่ช่องกรอบเหลือง (น้ำฟรีมาก ไม่ติดเงา) · ปลูกแล้ว ${countType('field')}/4`, tiles: bestFieldTiles313() };
+  }
+  if (!depot) {
+    const wn = WOOD_COST.tradedepot || 0, w = woodStock();
+    return {
+      step: 'depot',
+      html: `💡 <b>ขั้น 2:</b> สร้าง <b>Trade Depot</b> (จุดขาย) ที่ขอบแผนที่ช่องกรอบเหลือง · ใช้ $${COST.tradedepot.toLocaleString('en-US')} + ไม้ ${wn} (มีไม้ ${w}${w < wn ? ' → เก็บไม้ไว้ก่อน อย่าเพิ่งใช้สร้างอย่างอื่น' : ''})`,
+      tiles: nearTiles313(placeTiles313('tradedepot'), 3),
+    };
+  }
+  const [dx, dy, dc] = depot;
+  if (dc.trip) return { step: 'trip', html: '🚚 รถกำลังไปขาย ได้เงินและดาวตอนรถกลับมา (ประมาณ 10 วินาที)', tiles: [[dx, dy]] };
+  const ready = DEPOT_KINDS.find((k) => kindStock(k) >= SHIPMENT);
+  if (ready) return { step: 'ship', html: `💡 <b>ขั้น 3:</b> ${KIND_LABEL[ready] || ready}ครบ ${SHIPMENT} แล้ว แตะ <b>Trade Depot</b> (กรอบเหลือง) แล้วกด <b>ส่ง ${SHIPMENT} ชิ้น</b> หรือติ๊ก auto`, tiles: [[dx, dy]] };
+  return { step: 'wait', html: `💡 รอข้าวสาลีเข้าไซโลให้ครบ ${SHIPMENT} ชิ้น (มี ${kindStock('wheat')}) ระหว่างนี้ปลูกเพิ่มหรือปลูกต้นไม้เก็บไม้ได้`, tiles: [] };
+}
+function drawHints313() {
+  if (!hintActive313()) { if (hint313.el && hint313.el.style.display !== 'none' && !hint313.doneAt) hintHide313(); return; }
+  const now = performance.now();
+  if (now - hint313.calcAt > 700) {
+    hint313.calcAt = now;
+    const s = hintStep313();
+    hint313.tiles = s.tiles;
+    hint313.step = s.step;
+    hintShow313(s.html);
+    if (s.step === 'done') {
+      hintSetOff313();
+      hint313.doneAt = now;
+      setTimeout(() => { hintHide313(); hint313.doneAt = 0; }, 6000);
+    }
+  }
+  drawTiles313(hint313.tiles, true);
+}
+// ซ่อนคำใบ้เมื่อไม่ได้แข่ง (หน้าเมนู/จบเกม)
+setInterval(() => { if (hint313.el && hint313.el.style.display !== 'none' && !hint313.doneAt && !hintActive313()) hintHide313(); }, 1000);
+
+// ---- แถบสถานะ: ป้ายยาวเกินช่องย่อเป็นวงกลมเล็ก ----
+function drawStatus313(px, py, info, x, y) {
+  if (!UI313.labels) return drawStatus(px, py, info);
+  const sel = selectedTile && selectedTile.x === x && selectedTile.y === y;
+  const hov = hoverCell && hoverCell.x === x && hoverCell.y === y;
+  const [ax, ay] = gridToScreen(x, y), [bx, by] = gridToScreen(x + 1, y);
+  const tw = Math.hypot(bx - ax, by - ay);
+  ctx.save();
+  ctx.font = 'bold 13px sans-serif';
+  const w = ctx.measureText(info.text).width + 8;
+  ctx.restore();
+  if (sel || hov || w <= tw - 2) return drawStatus(px, py, info);
+  const r = Math.max(7, Math.min(11, tw * 0.2)), cx = px + r + 3, cy = py + r + 3;
+  const f = Math.max(0, Math.min(1, info.frac));
+  ctx.save();
+  ctx.fillStyle = info.color === FULL_RED || /^ขาด|^เต็ม/.test(info.text) ? info.color : 'rgba(0, 0, 0, 0.75)';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  if (!/^ขาด|^เต็ม/.test(info.text)) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r - 1.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = info.color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, r - 1.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.04, f)); ctx.stroke();
+  }
+  if (info.bar) {
+    ctx.fillStyle = '#222';
+    ctx.fillRect(px + 2, py + TILE_SIZE - 4, TILE_SIZE - 4, 3);
+    ctx.fillStyle = info.color;
+    ctx.fillRect(px + 2, py + TILE_SIZE - 4, (TILE_SIZE - 4) * f, 3);
+  }
+  ctx.restore();
 }
 </script>
 
