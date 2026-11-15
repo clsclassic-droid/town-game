@@ -534,6 +534,8 @@ function depotOpenSide(x, y) {
   return sides.find((s) => { const k = BORDER_KINDS[terrain.borders[s]]; return !!k && k.open; }) || null;
 }
 const DEPOT_SIDE_DELTA = { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] }; // v330: ทิศออกนอกแผนที่ของแต่ละด้าน
+const DEPOT_IN_BIT = { top: 4, bottom: 1, left: 2, right: 8 }; // v332: บิตทิศเข้าหาแผนที่ (ตรงข้ามทิศออก) ตามรหัส roadLinks (N1 E2 S4 W8)
+const DEPOT_OUT_BIT = { top: 1, bottom: 4, left: 8, right: 2 }; // v332: บิตทิศออกนอกแผนที่
 const DEPOT_ROAD_LEN = 2; // v330: ความยาวถนนลาดยางที่ต่อออกนอกแผนที่ (หน่วย = ช่อง)
 const DEPOT_TRUCK_TRAVEL_MS = 1500; // v330: เวลาที่รถใช้วิ่งเข้า/ออกแต่ละเที่ยว (ไม่เกินครึ่งหนึ่งของ TRIP_MS)
 // v330: ตำแหน่งต่อเนื่องบนจอ (ไม่ต้อง +0.5 เหมือน setTileBillboard เพราะ gx,gy ที่ส่งมาคือจุดกึ่งกลางอยู่แล้ว)
@@ -6783,11 +6785,12 @@ function roadArtExtruded(im) {
   if (W && H) roadExtrudeCache.set(im, c);
   return c;
 }
-function drawRoadTop(cell, x, y) {
+// v332: วาดภาพถนนจากมาสก์การเชื่อมต่อที่กำหนดเอง (แยกจาก roadLinks เพื่อวาดถนนนอกแผนที่ที่ roadLinks มองไม่เห็นได้)
+function drawRoadTile(m, cell) {
   let im = artImg('road', ART_ROAD_SRC);
   if (!im) return;
   im = roadArtDetailed(im);
-  const m = roadLinks(x, y), o = 0.4;
+  const o = 0.4;
   // ล้นเฉพาะด้านที่ต่อกับถนน/ประตู (ด้านที่ไม่ต่อไม่ล้น ไม่ให้ภาพถูกยืด)
   const l = m & 8 ? o : 0, r = m & 2 ? o : 0, t = m & 1 ? o : 0, b = m & 4 ? o : 0;
   const sl = l / TILE_SIZE * 32, sr = r / TILE_SIZE * 32, st = t / TILE_SIZE * 32, sb = b / TILE_SIZE * 32;
@@ -6796,6 +6799,9 @@ function drawRoadTop(cell, x, y) {
   const sx = ROAD_TILE_BY_MASK[m] * 34 + 1, sy = (cell.paved ? 34 : 0) + 1;
   ctx.drawImage(ex, sx - sl, sy - st, 32 + sl + sr, 32 + st + sb, -l, -t, TILE_SIZE + l + r, TILE_SIZE + t + b);
   ctx.restore();
+}
+function drawRoadTop(cell, x, y) {
+  drawRoadTile(roadLinks(x, y), cell);
 }
 function drawBoard(now) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -6854,13 +6860,19 @@ function drawBoard(now) {
 
   // v248: รอบที่ 2 ของพื้น: ตัวถนน
   if (artImg('road', ART_ROAD_SRC)) eachCell((cell, x, y) => { if (cell && cell.type === 'road') { setTileWarp(x, y); drawRoadTop(cell, x, y); } });
-  // v330: ถนนลาดยางต่อออกนอกแผนที่จาก Trade Depot ที่ติดขอบ (ของตกแต่ง ไม่ใช่ช่องที่วางได้)
+  // v330/v332: ถนนลาดยางต่อออกนอกแผนที่จาก Trade Depot ที่ติดขอบ (ของตกแต่ง ไม่ใช่ช่องที่วางได้)
+  //            ใช้ภาพถนนจริงเหมือนถนนในฟาร์ม เรียงเป็นเส้นตรงยาวต่อเนื่อง (roadLinks เดิมมองไม่เห็นช่องนอกแผนที่ จึงคำนวณมาสก์เอง)
   eachCell((cell, x, y) => {
     if (!cell || cell.type !== 'tradedepot') return;
     const side = depotOpenSide(x, y);
     if (!side) return;
     const [dx, dy] = DEPOT_SIDE_DELTA[side];
-    for (let i = 1; i <= DEPOT_ROAD_LEN; i++) { setTileWarp(x + dx * i, y + dy * i); drawSpr('road', 0, 0); }
+    const inBit = DEPOT_IN_BIT[side], outBit = DEPOT_OUT_BIT[side];
+    for (let i = 1; i <= DEPOT_ROAD_LEN; i++) {
+      setTileWarp(x + dx * i, y + dy * i);
+      const m = i < DEPOT_ROAD_LEN ? (inBit | outBit) : inBit; // ช่องกลางทะลุเป็นเส้นตรง ช่องปลายสุดเป็นถนนตัน
+      if (artImg('road', ART_ROAD_SRC)) drawRoadTile(m, { paved: true }); else drawSpr('road', 0, 0);
+    }
   });
 
   // เส้นตารางและช่องที่ชี้ (แสดงเฉพาะตอนเลือกเครื่องมือสร้าง) วาดบนพื้นให้อาคารทับได้
