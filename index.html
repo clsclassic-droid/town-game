@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Town Game"><meta name="theme-color" content="#5a3a1e"><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Town Game Online</title>
   <style>
     body {
@@ -3218,7 +3218,7 @@ let itemsLineHtml = '', goalLineHtml = '';
 infoPanel.append(infoHead, quickBar, statusEl, infoBody);
 document.body.appendChild(infoPanel);
 { const st = document.createElement('style');
-  st.textContent = 'button { background-color: #fbf3df; border: 1px solid #a07a4e; border-radius: 8px; color: #3a2814; font-family: inherit; } button:active { filter: brightness(0.94); } button:disabled { opacity: 0.55; } #status { font-size: 14px !important; } .infoMini #vsBar, .infoMini #viewSwitch { display: none !important; } @media (max-width: 600px) { #quickBar .qbBar, #quickBar .qbLab { display: none !important; } } .infoMini #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(580px, calc(100vw - 170px)); }';
+  st.textContent = 'button { background-color: #fbf3df; border: 1px solid #a07a4e; border-radius: 8px; color: #3a2814; font-family: inherit; } button:active { filter: brightness(0.94); } button:disabled { opacity: 0.55; } #status { font-size: 14px !important; } .infoMini #vsBar, .infoMini #viewSwitch { display: none !important; } @media (max-width: 600px) { #quickBar .qbBar { display: none !important; } } .infoMini #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(580px, calc(100vw - 170px)); }';
   document.head.appendChild(st); }
 
 // ---------- แผงสรุปคลัง (แสดงตลอด ไม่ถูกข้อความแจ้งเตือนทับ) ----------
@@ -3257,7 +3257,7 @@ function refreshSummary() {
   summaryItems.textContent = have.length ? have.map(([k, n]) => `${KIND_LABEL[k]} ${n}`).join(' · ') : 'คลังยังว่าง';
   // v225: ของในคลังแบบย่อ ไอคอน + จำนวน (ชี้ค้างดูชื่อได้)
   const ih = have.length
-    ? uiIcon('crate', 18) + ' ' + have.map(([k, n]) => `<span style="white-space:nowrap">${itemIconHtml(k, 18)}${KIND_LABEL[k]} ${n}</span>`).join(' · ')
+    ? uiIcon('crate', 18) + ' ' + have.map(([k, n]) => `<span style="white-space:nowrap">${itemIconHtml(k, 18)}<span class="kl326">${KIND_LABEL[k]} </span>${n}</span>`).join(' · ')
     : uiIcon('crate', 18) + ' คลังยังว่าง';
   if (ih !== itemsLineHtml) { itemsLineHtml = ih; itemsLine.innerHTML = ih; itemsLine.title = have.map(([k, n]) => `${KIND_LABEL[k]} ${n}`).join(' · '); }
   const hintText = buildHintText();
@@ -4514,6 +4514,13 @@ const FULL_RED = '#ff3b30';
 function storeFull(c) { return !!c && STORE_CAP[c.type] !== undefined && (c.stock || 0) >= STORE_CAP[c.type]; }
 // v231: ระหว่างวาดอาคารเรียงตามความลึก เก็บตัวเลขไว้วาดทีหลังทับทุกอย่าง (อาคารแถวหน้าไม่บังตัวเลขของแถวหลัง)
 let countQueue = null;
+// v325: ขนาดตัวอักษรที่ทำให้ข้อความกว้างไม่เกิน maxW (รวมขอบ)
+function fit325(text, size, maxW) {
+  ctx.save(); ctx.font = `bold ${size}px sans-serif`;
+  const w = ctx.measureText(text).width + 3;
+  ctx.restore();
+  return w <= maxW ? size : Math.max(7, Math.floor(size * maxW / w));
+}
 function drawCount(text, x, y, size, color) {
   if (countQueue) {
     if (ctx.shadowOffsetX || ctx.shadowOffsetY) return; // รอบวาดขอบเงาของ withOutline ไม่ต้องเก็บซ้ำ
@@ -5037,8 +5044,9 @@ function drawPond(px, py, cell, gx, gy) {
       ctx.fillStyle = 'rgba(46,134,222,0.28)'; ctx.fillRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
       ctx.fillStyle = 'rgba(20,40,70,0.55)'; ctx.fillRect(px + 4, py + TILE_SIZE - 8, TILE_SIZE - 8, 4);
       ctx.fillStyle = '#4fc3f7'; ctx.fillRect(px + 4, py + TILE_SIZE - 8, Math.round((TILE_SIZE - 8) * k318), 4);
-      drawCount('🚧สระ', px + TILE_SIZE / 2, py + TILE_SIZE / 2 - 5, 10, '#ffe9a8'); // v321: ใหญ่ขึ้น
-      drawCount(`💧${cell.waterIn || 0}/${BUILDINGS.pond.waterCost}`, px + TILE_SIZE / 2, py + TILE_SIZE / 2 + 9, 13);
+      const t325 = `${cell.waterIn || 0}/${BUILDINGS.pond.waterCost}`; // v325: เลขอยู่กลางช่อง ขนาดพอดีช่อง ไม่ล้นไปสระข้างๆ
+      drawCount('💧สระ', px + TILE_SIZE / 2, py + TILE_SIZE / 2 - 5, fit325('💧สระ', 10, TILE_SIZE - 4), '#ffe9a8');
+      drawCount(t325, px + TILE_SIZE / 2, py + TILE_SIZE / 2 + 9, fit325(t325, 13, TILE_SIZE - 3));
       return;
     }
     drawCount(`${cell.waterIn || 0}/${BUILDINGS.pond.waterCost}`, px + TILE_SIZE / 2, py + TILE_SIZE / 2 + 4, 10);
@@ -13279,7 +13287,11 @@ function drawPen321() {
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  const st325 = document.getElementById('stage');
+  const split325 = vsMode && !(st325 && st325.classList.contains('focus')); // เห็นสองฝั่ง = เลขเฉพาะรอบช่องที่เล็ง
+  const aim325 = hoverCell && inBounds(hoverCell.x, hoverCell.y) ? hoverCell : null;
   for (const [x, y, pen] of pen321.tiles) {
+    if (split325 && (!aim325 || Math.max(Math.abs(x - aim325.x), Math.abs(y - aim325.y)) > 2)) continue;
     const [ax] = gridToScreen(x, y), [bx] = gridToScreen(x + 1, y), [cx, cy] = gridToScreen(x + 0.5, y + 0.5);
     const fs = Math.max(9, Math.round(Math.abs(bx - ax) * 0.46));
     ctx.font = `bold ${fs}px sans-serif`;
@@ -13394,8 +13406,26 @@ function hintPos313(el) {
 function hintShow313(html) {
   const el = hintEl313();
   if (html !== hint313.html) { el.querySelector('.t313').innerHTML = html; hint313.html = html; }
-  hintPos313(el);
   el.style.display = 'block';
+  hintPos313(el);
+  hintFit325(el);
+}
+// v325: พื้นที่เหนือแผงไม่พอ = ย่อเหลือ 1 บรรทัด (แตะข้อความเพื่ออ่านเต็ม แตะอีกครั้งย่อ)
+function hintFit325(el) {
+  const t = el.querySelector('.t313');
+  if (!el.dataset.fit325) {
+    el.dataset.fit325 = '1';
+    t.style.cursor = 'pointer';
+    t.addEventListener('click', () => { hint313.expand325 = !hint313.expand325; hintFit325(el); });
+  }
+  t.style.whiteSpace = ''; t.style.overflow = ''; t.style.textOverflow = '';
+  let lim = 0;
+  for (const id of ['top306', 'hudPanel']) { const e = document.getElementById(id); if (e && e.getClientRects().length) lim = Math.max(lim, e.getBoundingClientRect().bottom); }
+  const r = el.getBoundingClientRect();
+  const tight = r.top < lim + 4;
+  el.dataset.tight325 = tight ? '1' : '';
+  if (tight && !hint313.expand325) { t.style.whiteSpace = 'nowrap'; t.style.overflow = 'hidden'; t.style.textOverflow = 'ellipsis'; }
+  t.title = tight ? (hint313.expand325 ? 'แตะเพื่อย่อ' : 'แตะเพื่ออ่านเต็ม') : '';
 }
 function hintHide313() { if (hint313.el) hint313.el.style.display = 'none'; hint313.tiles = []; }
 function hintActive313() {
@@ -13445,6 +13475,18 @@ function hintStep313() {
   return { step: 'wait', html: `💡 รอข้าวสาลีเข้าไซโลให้ครบ ${SHIPMENT} ชิ้น (มี ${kindStock('wheat')}) ระหว่างนี้ปลูกเพิ่มหรือปลูกต้นไม้เก็บไม้ได้`, tiles: [] };
 }
 // v318: หาสาเหตุที่ของค้าง (สระรอน้ำ / เกษตรกรรอน้ำ / ไซโลเต็ม) → ข้อความ + ช่องที่เกี่ยวข้อง
+// v325: แนะนำสร้างบ่อได้จริงไหม (ไม้/เงินพอ) + สระที่ใกล้เสร็จที่สุด
+function wellAdvice325() {
+  const wn = WOOD_COST.well || 0, w = woodStock();
+  if (w < wn) return `<b>ไม้ไม่พอสร้างบ่อ</b> (ต้องใช้ ${wn} มี ${w}) รอคนตัดไม้ตัดต้นไม้ หรือปลูกต้นไม้เพิ่ม`;
+  if (coins < COST.well) return `<b>เงินไม่พอสร้างบ่อ</b> (ต้องใช้ $${COST.well.toLocaleString('en-US')}) ขายของก่อน`;
+  return null;
+}
+function pondNear325() {
+  let best = null;
+  eachCell((c, x, y) => { if (c && c.type === 'pond' && c.building && (!best || (c.waterIn || 0) > best.n)) best = { x, y, n: c.waterIn || 0 }; });
+  return best;
+}
 function stuck318() {
   const now = gameNow(), ponds = [], dry = [], full = [];
   eachCell((c, x, y) => {
@@ -13453,6 +13495,12 @@ function stuck318() {
     if (c.type === 'farmhouse' && c.farmer) { const w = farmIdleWhy(c, now); if (w && /รอน้ำ/.test(w)) dry.push([x, y]); else if (w && /ไซโลเต็ม/.test(w)) full.push([x, y]); }
   });
   const have = kindStock('wheat');
+  const wa325 = wellAdvice325();
+  if (ponds.length) { // v325: บอกสระที่ใกล้เสร็จที่สุด + ถังที่ยังขาด และไม่แนะนำบ่อถ้าไม้/เงินไม่พอ
+    const pn = pondNear325(), need = BUILDINGS.pond.waterCost;
+    return { step: 'stuck-pond', tiles: ponds, html: `⚠ <b>มีสระกำลังสร้าง ${ponds.length} จุด</b> (กรอบเหลือง) เกษตรกรต้องขนน้ำไปเติมสระละ ${need} ถัง เลยรดข้าวช้าลง · ข้าวสาลี ${have}/${SHIPMENT}${pn ? ` · สระที่ใกล้เสร็จสุดขาดอีก <b>${need - pn.n} ถัง</b>` : ''} · ${wa325 || 'สร้าง <b>บ่อน้ำ</b> เพิ่ม'} หรือรอสระเสร็จก่อนค่อยสร้างสระใหม่` };
+  }
+  if (dry.length) return { step: 'stuck-water', tiles: dry, html: `⚠ <b>เกษตรกรรอน้ำ</b> (บ้านกรอบเหลือง) บ่อน้ำเติมไม่ทัน · ข้าวสาลี ${have}/${SHIPMENT} · ${wa325 ? wa325 + ' · หรือ' : 'สร้าง <b>บ่อน้ำ</b> เพิ่มใกล้ทุ่ง หรือ'}ปลูกข้าวติดสระจะได้น้ำฟรี` };
   if (ponds.length) return { step: 'stuck-pond', tiles: ponds, html: `⚠ <b>มีสระกำลังสร้าง ${ponds.length} จุด</b> (กรอบเหลือง) เกษตรกรต้องขนน้ำไปเติมสระละ ${BUILDINGS.pond.waterCost} ถัง เลยรดข้าวช้าลง · ข้าวสาลี ${have}/${SHIPMENT} · สร้าง <b>บ่อน้ำ</b> เพิ่ม หรือรอสระเสร็จก่อนค่อยสร้างสระใหม่` };
   if (dry.length) return { step: 'stuck-water', tiles: dry, html: `⚠ <b>เกษตรกรรอน้ำ</b> (บ้านกรอบเหลือง) บ่อน้ำเติมไม่ทัน · ข้าวสาลี ${have}/${SHIPMENT} · สร้าง <b>บ่อน้ำ</b> เพิ่มใกล้ทุ่ง หรือปลูกข้าวติดสระจะได้น้ำฟรี` };
   if (full.length) return { step: 'stuck-silo', tiles: full, html: '⚠ <b>ไซโลเต็ม</b> เกษตรกรหยุดเก็บ · แตะ Trade Depot ส่งขาย หรือสร้างไซโลเพิ่ม' };
@@ -13580,6 +13628,69 @@ function aiTreeClusterStep() {
   const best = aiTreeClusterSpot316();
   return !!best && aiPlace(best.x, best.y, 'pond') === null;
 }
+
+// ==================== v326: มือถือแนวตั้ง แผนที่ได้พื้นที่มากขึ้น ====================
+const MOB326_Q = '(max-width: 600px) and (orientation: portrait)';
+function mob326() { try { return window.matchMedia(MOB326_Q).matches; } catch (e) { return false; } }
+{
+  const st = document.createElement('style');
+  st.textContent = `@media ${MOB326_Q} {
+html body #top306{flex-wrap:nowrap!important;border-width:6px!important;border-image-width:6px!important;padding:1px 2px!important;gap:3px!important;}
+html body #topL306{flex:none!important;gap:3px!important;}
+html body #top306 .chip306{height:28px!important;min-height:28px!important;padding:0 5px!important;border-width:4px!important;border-image-width:4px!important;gap:2px!important;}
+html body #top306 .chip306 > *{font-size:13px!important;}
+html body #top306 > .chip306.items306{order:1;flex:1 1 auto!important;min-width:0!important;max-width:none!important;padding:0 4px!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none;}
+html body #top306 > .chip306.items306::-webkit-scrollbar{display:none;}
+html body #top306 > .chip306.items306 > div{white-space:nowrap!important;overflow:visible!important;line-height:1.2!important;}
+html body #top306 .kl326{display:none;}
+html body #top306 #hudRow305{order:2;gap:3px!important;flex:none!important;}
+html body #top306 .hudPill{min-height:28px!important;padding:0 5px!important;font-size:13px!important;border-width:4px!important;gap:2px!important;}
+html body #top306 .hudPill img, html body #top306 .hudPill svg{width:18px!important;height:18px!important;}
+html body #tabRow305{grid-template-columns:repeat(8,minmax(0,1fr))!important;gap:2px!important;border-width:6px!important;border-image-width:6px!important;}
+html body #tabRow305 > button{flex-direction:column!important;gap:0!important;min-height:38px!important;padding:2px 0!important;border-width:4px!important;border-image-width:4px!important;}
+html body #tabRow305 > button svg{width:18px!important;height:18px!important;}
+html body #tabRow305 > button span{font-size:9.5px!important;letter-spacing:-0.4px!important;white-space:nowrap;line-height:1.1;}
+}
+body.full326 #top306, body.full326 #hudPanel, body.full326 .hide326, body.full326 #hint313{display:none!important;}
+#full326Exit{position:fixed;top:calc(6px + env(safe-area-inset-top, 0px));right:6px;z-index:130;display:none;padding:6px 10px;font:bold 13px sans-serif;border:2px solid #7a5230;border-radius:10px;background:rgba(251,243,223,0.92);color:#3a2814;box-shadow:0 2px 6px rgba(0,0,0,.35);}
+body.full326 #full326Exit{display:block;}`;
+  document.head.appendChild(st);
+}
+// (3) แผงสรุปเริ่มแบบย่อบนมือถือ (กด ▾ เปิดดูได้ตามเดิม)
+function infoMini326() { if (mob326() && infoOpen) { infoOpen = false; paintInfo(); } }
+{
+  const _sm326 = startMatch;
+  startMatch = function () { const r = _sm326.apply(this, arguments); infoMini326(); return r; };
+  infoMini326();
+}
+// (4) โหมดเต็มจอ: ซ่อนแถบบน แผงสรุป เมนูล่าง เหลือแผนที่
+let full326 = false;
+toolbar.classList.add('hide326');
+function setFull326(on) {
+  full326 = on;
+  document.body.classList.toggle('full326', on);
+  if (typeof pen321 !== 'undefined' && pen321.el) pen321.el.classList.add('hide326');
+  try {
+    if (on && document.documentElement.requestFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    if (!on && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  } catch (e) { /* เบราว์เซอร์ไม่รองรับ ใช้แบบซ่อนเมนูอย่างเดียว */ }
+  setTimeout(fitCanvasToWindow, 50);
+  setTimeout(fitCanvasToWindow, 400);
+}
+{
+  const exit = document.createElement('button');
+  exit.id = 'full326Exit';
+  exit.textContent = '☰ แสดงเมนู';
+  exit.addEventListener('click', () => setFull326(false));
+  document.body.appendChild(exit);
+  const b = document.createElement('button');
+  b.style.cssText = btnStyle;
+  b.textContent = '⛶ เต็มจอ (ซ่อนเมนู)';
+  b.addEventListener('click', () => { if (typeof showOnlyRow === 'function') { /* ปิดแผงก่อน */ } setFull326(true); showMessage('ดูแผนที่เต็มจอ · กด "☰ แสดงเมนู" มุมขวาบนเพื่อกลับ', 3000); });
+  utilRow.appendChild(b);
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && full326 && !mob326()) setFull326(false); });
+}
+window.addEventListener('orientationchange', () => setTimeout(fitCanvasToWindow, 300));
 </script>
 
 </body></html>
