@@ -3818,6 +3818,17 @@ let suppressClick = false;
 let mmDrag = false;      // v289t: กำลังแตะ/ลากบนแผนที่ย่อ
 let ptrSide = null;      // v256: กระดานที่กำลังลาก/ซูมด้วยนิ้ว (ฝั่งคุณ หรือฝั่ง AI)
 canvas.style.touchAction = 'none';
+// v335: กันหน้าเว็บทั้งหน้าซูมค้างบนมือถือ (แตะปุ่มรัวๆ / ถ่างนิ้วนอกแผนที่)
+(function lockPageZoom() {
+  try {
+    const st = document.createElement('style');
+    st.textContent = 'html,body,body *{touch-action:manipulation}';
+    document.head.appendChild(st); // แผนที่ตั้ง touchAction='none' แบบ inline จึงยังลาก/ซูมได้เหมือนเดิม
+    const vp = document.querySelector('meta[name=viewport]');
+    if (vp) vp.setAttribute('content', 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
+    for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+  } catch (e) { /* เบราว์เซอร์ไม่รองรับ: ข้าม */ }
+})();
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerdown', (e) => {
   const downSide = sideAtCanvasX(clientToCanvas(e.clientX, e.clientY)[0]); // v256: ฝั่ง AI ลาก/ซูม/หมุนดูได้
