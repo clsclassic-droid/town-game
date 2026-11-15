@@ -3418,6 +3418,18 @@ statusBtn.addEventListener('click', () => {
   statusBtn.style.background = showStatus ? '#ffab91' : '';
 });
 utilRow.appendChild(rangeBtn);
+// v324: แสดงระยะเงา / ระยะมลพิษ (แยกกัน กดเปิด/ปิด)
+let showShade324 = false, showDirty324 = false;
+function mkRange324(label, get, set) {
+  const b = document.createElement('button');
+  b.style.cssText = btnStyle;
+  b.textContent = 'แสดง' + label;
+  b.addEventListener('click', () => { set(!get()); b.textContent = (get() ? 'ซ่อน' : 'แสดง') + label; b.style.background = get() ? '#ffd166' : ''; });
+  utilRow.appendChild(b);
+  return b;
+}
+const shadeRangeBtn324 = mkRange324('ระยะเงา', () => showShade324, (v) => { showShade324 = v; });
+const dirtyRangeBtn324 = mkRange324('ระยะมลพิษ', () => showDirty324, (v) => { showDirty324 = v; });
 utilRow.appendChild(shadeBtn);
 utilRow.appendChild(statusBtn);
 
@@ -6660,6 +6672,38 @@ function drawBoard(now) {
 }
 
 // วาดรัศมีน้ำของสระ (ฟ้าเข้ม) และปั๊มน้ำ (ฟ้าอ่อน)
+// v324: ระดับเงา (อาคาร/ต้นไม้/ภูเขา) และมลพิษ ของทุกช่อง คำนวณใหม่ไม่เกินทุก 0.4 วิ
+const RANGE324_COL = { shade: ['rgba(70, 40, 15, 0.2)', 'rgba(70, 40, 15, 0.36)', 'rgba(50, 25, 5, 0.52)'], dirty: ['rgba(255, 140, 20, 0.25)', 'rgba(255, 120, 10, 0.42)', 'rgba(230, 80, 0, 0.58)'] };
+let range324 = { at: 0, shade: null, dirty: null };
+function range324Calc() {
+  const n = GRID_SIZE * GRID_SIZE, sh = new Int8Array(n), dr = new Int8Array(n), f = terrainField();
+  for (let ty = 0; ty < GRID_SIZE; ty++) for (let tx = 0; tx < GRID_SIZE; tx++) {
+    let sum = 0, dirty = 0;
+    eachCell((src, sx, sy) => {
+      if (!src || !isUsable(src)) return;
+      const d = Math.max(Math.abs(tx - sx), Math.abs(ty - sy));
+      if (d === 0) return;
+      if (SHADE_SOURCES[src.type]) sum += SHADE_SOURCES[src.type][d] || 0;
+      if (DIRTY_SOURCES[src.type]) dirty += DIRTY_SOURCES[src.type][d] || 0;
+    });
+    const i = ty * GRID_SIZE + tx;
+    sh[i] = Math.max(0, Math.min(3, -sum + (f.shady[i] || 0)));
+    dr[i] = Math.max(0, Math.min(3, dirty));
+  }
+  range324 = { at: performance.now(), shade: sh, dirty: dr };
+}
+function drawRange324() {
+  if (!range324.shade || performance.now() - range324.at > 400) range324Calc();
+  for (let y = 0; y < GRID_SIZE; y++) for (let x = 0; x < GRID_SIZE; x++) {
+    const i = y * GRID_SIZE + x;
+    const a = showShade324 ? range324.shade[i] : 0, b = showDirty324 ? range324.dirty[i] : 0;
+    if (!a && !b) continue;
+    setTileWarp(x, y);
+    const w = a && b ? TILE_SIZE / 2 : TILE_SIZE; // โดนทั้งสองอย่าง = แบ่งครึ่งช่อง
+    if (a) { ctx.fillStyle = RANGE324_COL.shade[a - 1]; ctx.fillRect(0, 0, w, TILE_SIZE); }
+    if (b) { ctx.fillStyle = RANGE324_COL.dirty[b - 1]; ctx.fillRect(a ? w : 0, 0, w, TILE_SIZE); }
+  }
+}
 function drawWaterRange() {
   eachCell((c, x, y) => {
     if (!c || c.building || (c.type !== 'pond' && c.type !== 'waterpump')) return;
@@ -9234,6 +9278,7 @@ function drawSide(s, now) {
   // v218: เอาวงกลมเข็มทิศออก (บอสสั่ง) drawTopViewCompass() ยังเก็บไว้ไม่เรียกใช้
   if (!topView) drawGroundShade();
   if (showRange) drawWaterRange();
+  if (s.isHuman && (showShade324 || showDirty324)) drawRange324(); // v324
   if (s.isHuman && typeof drawPen321 === 'function') drawPen321(); // v321: แทนปุ่มแสดงเงา/เค็มเดิม
   if (s.isHuman) drawFloatFx(); // v235
   if (s.isHuman && tutorialMode) drawTutorialTiles(); // v239
@@ -12486,8 +12531,8 @@ const UI306 = {"carved": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADA
   left.id = 'topL306';
   const chip = (el, cls) => { const c = document.createElement('div'); c.className = 'chip306 ' + (cls || ''); c.appendChild(el); return c; };
   // เงิน/ดาว: ย้ายป้ายเดิม (updateHud อัปเดตอยู่แล้ว) · ของในคลัง: ย้ายบรรทัดเดิม (อัปเดตเองอยู่แล้ว)
-  left.append(chip(infoMoney, 'money306'), chip(infoStars), chip(itemsLine, 'items306'));
-  top.append(left, hud);
+  left.append(chip(infoMoney, 'money306'), chip(infoStars));
+  top.append(left, hud, chip(itemsLine, 'items306')); // v324: ของในคลังอยู่แถวสอง เวลา/ความเร็ว/พักขึ้นแถวแรก
   document.body.appendChild(top);
   infoTitle.innerHTML = uiIcon('crate', 18) + ' สรุป';
 
@@ -12501,7 +12546,8 @@ const UI306 = {"carved": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADA
     `.chip306.money306 > *{color:#7a4500!important;}`,
     `.chip306.items306{flex:0 1 auto;min-width:0;overflow:hidden;}`,
     `.chip306.items306{height:auto!important;min-height:34px;padding-top:3px!important;padding-bottom:3px!important;}`, // v323: สูงตามจำนวนบรรทัด
-    `#topL306 > .chip306:not(.items306){flex:none;}`, // v323: เงิน/ดาวไม่หดเมื่อของในคลังยาว
+    `#topL306 > .chip306:not(.items306){flex:none;}`, `#top306 > .chip306.items306{flex:1 1 100%;max-width:100%;}`, // v324: แถวสองเต็มความกว้าง
+ // v323: เงิน/ดาวไม่หดเมื่อของในคลังยาว
     `#topL306{flex-wrap:wrap;row-gap:4px;} #topL306 > .chip306.items306{flex:1 1 240px;}`, // v323: จอแคบ ของในคลังขึ้นแถวใหม่เต็มความกว้าง
     `.chip306.items306 > div{height:auto!important;max-width:none!important;overflow:visible!important;white-space:normal!important;text-overflow:clip!important;line-height:1.35;font-size:15px!important;}`, // v323: เดิมตัดด้วย …
     `body #top306 #hudRow305{position:static!important;flex-direction:row!important;align-items:center!important;flex:none;gap:6px!important;pointer-events:auto;}`,
