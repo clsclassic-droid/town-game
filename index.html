@@ -605,7 +605,7 @@ function drawDepotCart(side, inbound, alpha = 1, now = 0) {
 const SHADE_SOURCES = Object.fromEntries(Object.entries(BUILDINGS).filter(([, b]) => b.shade).map(([t, b]) => [t, b.shade]));
 const DIRTY_SOURCES = Object.fromEntries(Object.entries(BUILDINGS).filter(([, b]) => b.dirty).map(([t, b]) => [t, b.dirty]));
 // ==================== v328: หอเวท ลดโทษของช่องรอบตัว (กติกาเดียวกันทั้งผู้เล่นและ AI) ====================
-// ช่องติดหอ (ระยะ 1, 8 ช่อง) ลด 2 ระดับ · วงถัดไป (ระยะ 2, 16 ช่อง) ลด 1 ระดับ · หลายหอซ้อนกันไม่เพิ่มผล (ใช้ค่าสูงสุด)
+// ช่องติดหอ (ระยะ 1, 8 ช่อง) ลด 2 ระดับ · วงถัดไป (ระยะ 2, 16 ช่อง) ลด 1 ระดับ · v336: หลายหอบวกผลกัน สูงสุดลด 3 ระดับ
 // หอเวทสุริยะวายุ = เงา · เสาคริสตัลดูดเกลือ = ความเค็ม (ไม่กระทบทุ่งเกลือ) · ตะเกียงเวทสีเขียว = มลพิษ
 // คิดหลังจำกัดโทษแต่ละชนิดที่ 3 ระดับ (เงา 3 ติดหอ = เหลือ 1) · ไม่มีประตู ไม่ต้องติดถนน ไม่มีค่าแรง
 const CURE_TYPES = { suntower: 'shade', saltcrystal: 'salt', greenlamp: 'dirty' };
@@ -621,10 +621,9 @@ function cureAt(x, y, kind) {
     const src = board[sy][sx];
     const hit = (src && CURE_TYPES[src.type] === kind) || (cureExtra328 && cureExtra328.kind === kind && cureExtra328.x === sx && cureExtra328.y === sy);
     if (!hit) continue;
-    const v = CURE_TABLE[Math.max(Math.abs(dx), Math.abs(dy))] || 0;
-    if (v > best) best = v;
+    best += CURE_TABLE[Math.max(Math.abs(dx), Math.abs(dy))] || 0; // v336: หลายหอบวกกัน
   }
-  return best;
+  return Math.min(3, best);
 }
 // โทษดิบของช่อง (ก่อนหอเวท) แต่ละชนิดจำกัด 0-3: [เงา, มลพิษ, เค็ม]
 function penRaw328(x, y) {
@@ -2644,9 +2643,9 @@ function renderSegs(div, segs) {
 }
 // ---------- v222: หน้าต่างอาคารผลิตแบบใหม่ (อ่านง่าย): ผลิต / วัตถุดิบ / สถานะ / คนงาน / ข้อมูลอาคาร ----------
 Object.assign(DESC, {
-  suntower: 'หอเวทแสงอาทิตย์และลม ไล่เงารอบตัว: ช่องติดหอ 8 ช่องลดเงา 2 ระดับ วงถัดไป 16 ช่องลด 1 ระดับ (ช่วยพืชและโรงโม่) ไม่ต้องติดถนน ไม่มีค่าแรง ตั้งหลายหอซ้อนกันไม่เพิ่มผล',
-  saltcrystal: 'เสาคริสตัลดูดเกลือออกจากดิน: ช่องติดเสา 8 ช่องลดความเค็ม 2 ระดับ วงถัดไป 16 ช่องลด 1 ระดับ (ช่วยพืช ไม่กระทบทุ่งเกลือ) ไม่ต้องติดถนน ไม่มีค่าแรง ตั้งหลายต้นซ้อนกันไม่เพิ่มผล',
-  greenlamp: 'ตะเกียงเวทดูดควันพิษ: ช่องติดตะเกียง 8 ช่องลดมลพิษ 2 ระดับ วงถัดไป 16 ช่องลด 1 ระดับ (ช่วยพืชและโรงสัตว์) ไม่ต้องติดถนน ไม่มีค่าแรง ตั้งหลายอันซ้อนกันไม่เพิ่มผล',
+  suntower: 'หอเวทแสงอาทิตย์และลม ไล่เงารอบตัว: ช่องติดหอ 8 ช่องลดเงา 2 ระดับ วงถัดไป 16 ช่องลด 1 ระดับ (ช่วยพืชและโรงโม่) ไม่ต้องติดถนน ไม่มีค่าแรง ตั้งหลายหอใกล้กันลดได้มากขึ้น (บวกกัน สูงสุด 3 ระดับ)',
+  saltcrystal: 'เสาคริสตัลดูดเกลือออกจากดิน: ช่องติดเสา 8 ช่องลดความเค็ม 2 ระดับ วงถัดไป 16 ช่องลด 1 ระดับ (ช่วยพืช ไม่กระทบทุ่งเกลือ) ไม่ต้องติดถนน ไม่มีค่าแรง ตั้งหลายต้นใกล้กันลดได้มากขึ้น (บวกกัน สูงสุด 3 ระดับ)',
+  greenlamp: 'ตะเกียงเวทดูดควันพิษ: ช่องติดตะเกียง 8 ช่องลดมลพิษ 2 ระดับ วงถัดไป 16 ช่องลด 1 ระดับ (ช่วยพืชและโรงสัตว์) ไม่ต้องติดถนน ไม่มีค่าแรง ตั้งหลายอันใกล้กันลดได้มากขึ้น (บวกกัน สูงสุด 3 ระดับ)',
 });
 const PROD_POPUP = ['feedmill', 'windmill', 'bakery', 'chickencoop', 'milkbarn', 'sheeppen', 'waterfacility', 'lumbermill', 'windturbine', 'oilpump', 'powerplant'];
 const KIND_ICON = { wheat: '🌾', sugarcane: '🎋', brine: '🌊', wood: '🪵', feed: '🌽', water: '💧', flour: '🍞', sugar: '🍬', salt: '🧂',
@@ -10370,9 +10369,9 @@ function prodCellRateText(c) {
   return `⏱ อัตราตอนนี้: ${prodKL(r.out)} ${prodFmt(x.perMin)}/นาที (${prodFmt(sec)} วิ/ชิ้น${why})${ins ? ` · ใช้ ${ins}/นาที` : ''}${x.val ? ` · ~$${Math.round(x.val).toLocaleString('en-US')}/นาที` : ''} (ไม่รวมเวลารอวัตถุดิบ/คนงาน)`;
 }
 Object.assign(BUILDING_DATA, { // v328
-  suntower: { cls: 'เวท', gives: 'ลดเงา ช่องติด -2 วงถัดไป -1 (ซ้อนไม่เพิ่ม)', dist: 2 },
-  saltcrystal: { cls: 'เวท', gives: 'ลดเค็ม ช่องติด -2 วงถัดไป -1 (ซ้อนไม่เพิ่ม)', dist: 2 },
-  greenlamp: { cls: 'เวท', gives: 'ลดมลพิษ ช่องติด -2 วงถัดไป -1 (ซ้อนไม่เพิ่ม)', dist: 2 },
+  suntower: { cls: 'เวท', gives: 'ลดเงา ช่องติด -2 วงถัดไป -1 (หลายอันบวกกัน)', dist: 2 },
+  saltcrystal: { cls: 'เวท', gives: 'ลดเค็ม ช่องติด -2 วงถัดไป -1 (หลายอันบวกกัน)', dist: 2 },
+  greenlamp: { cls: 'เวท', gives: 'ลดมลพิษ ช่องติด -2 วงถัดไป -1 (หลายอันบวกกัน)', dist: 2 },
 });
 function showBuildInfo() {
   const money = (n) => `$${n.toLocaleString('en-US')}`;
@@ -11436,6 +11435,7 @@ function tutGo(i) {
   tut.i = i;
   tut.at318 = performance.now();
   const st = TUT_STEPS[i];
+  if (st.end) hintSetOff313(); // v336: จบบทเรียนแล้ว ไม่ต้องแนะนำขายครั้งแรกในเกมแข่งอีก
   if (st.enter) st.enter();
   tutRender();
 }
@@ -13884,7 +13884,7 @@ function drawFocus327() {
   ctx.restore();
 }
 function hintActive313() {
-  return UI313.hint && matchActive && !gameOver && !tutorialMode && (hint313.force || ((vsMode || onlineMode) && !hintOff313()));
+  return UI313.hint && matchActive && !gameOver && !tutorialMode && (hint313.force || (vsMode && !onlineMode && !hintOff313())); // v336: ไม่แสดงเองในโหมด Online
 }
 // ช่องปลูกข้าวที่ดีที่สุด 3 ช่อง (น้ำฟรีมาก ไม่ติดโทษ ไม่ใช่แถวขอบที่เก็บไว้วางจุดขาย)
 function bestFieldTiles313() {
