@@ -10814,7 +10814,8 @@ function applyStageView() {
   // มือถือ (หน้าจอสัมผัสและจอแคบ) เริ่มที่ฝั่งคุณ ส่วนคอมและไอแพดเริ่มที่สองฝั่ง
   // v234: จอสัมผัสแนวตั้ง (iPad แนวตั้ง) ก็เริ่มที่ฝั่งคุณ กระดานใหญ่กว่าดูสองฝั่ง
   const coarse = window.matchMedia('(pointer: coarse)').matches;
-  const phoneLike = coarse && (window.innerWidth < 500 || window.innerHeight > window.innerWidth);
+  const portraitNarrow327 = window.matchMedia('(max-width: 600px) and (orientation: portrait)').matches; // v327: จอแนวตั้งแคบ (เช่น หน้าต่างจำลองมือถือ) ก็เริ่มที่ฝั่งคุณ
+  const phoneLike = portraitNarrow327 || (coarse && (window.innerWidth < 500 || window.innerHeight > window.innerWidth));
   const mode = vsMode ? (stageChoice || (phoneLike ? 'human' : 'both')) : 'both';
   stageMode = mode;
   stage.classList.toggle('focus', mode !== 'both');
@@ -13416,7 +13417,7 @@ function hintFit325(el) {
   if (!el.dataset.fit325) {
     el.dataset.fit325 = '1';
     t.style.cursor = 'pointer';
-    t.addEventListener('click', () => { hint313.expand325 = !hint313.expand325; hintFit325(el); });
+    t.addEventListener('click', () => { hint313.expand325 = !hint313.expand325; hintFit325(el); hintFocus327(); });
   }
   t.style.whiteSpace = ''; t.style.overflow = ''; t.style.textOverflow = '';
   let lim = 0;
@@ -13427,7 +13428,33 @@ function hintFit325(el) {
   if (tight && !hint313.expand325) { t.style.whiteSpace = 'nowrap'; t.style.overflow = 'hidden'; t.style.textOverflow = 'ellipsis'; }
   t.title = tight ? (hint313.expand325 ? 'แตะเพื่อย่อ' : 'แตะเพื่ออ่านเต็ม') : '';
 }
-function hintHide313() { if (hint313.el) hint313.el.style.display = 'none'; hint313.tiles = []; }
+function hintHide313() { if (hint313.el) hint313.el.style.display = 'none'; hint313.tiles = []; hint313.focus327 = 0; }
+// v327: แตะข้อความคำใบ้เรื่องสระ = เน้นสระที่ใกล้เสร็จสุด 6 วินาที (แตะซ้ำ = เริ่มนับใหม่)
+function hintFocus327() {
+  if (hint313.step !== 'stuck-pond' || !pondNear325()) return;
+  hint313.focus327 = performance.now() + 6000;
+}
+function drawFocus327() {
+  if (!hint313.focus327 || performance.now() > hint313.focus327) { hint313.focus327 = 0; return; }
+  const pn = pondNear325();
+  if (!pn) { hint313.focus327 = 0; return; }
+  const need = BUILDINGS.pond.waterCost, a = 0.7 + 0.3 * Math.sin(performance.now() / 120);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const pts = [[pn.x, pn.y], [pn.x + 1, pn.y], [pn.x + 1, pn.y + 1], [pn.x, pn.y + 1]].map(([gx, gy]) => gridToScreen(gx, gy));
+  ctx.lineJoin = 'round';
+  ctx.beginPath(); pts.forEach(([px, py], k) => (k ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.closePath();
+  ctx.fillStyle = `rgba(255,120,30,${(a * 0.38).toFixed(2)})`; ctx.fill();
+  ctx.lineWidth = 7; ctx.strokeStyle = '#fff8e6'; ctx.stroke();
+  ctx.lineWidth = 4; ctx.strokeStyle = `rgba(255,110,20,${a.toFixed(2)})`; ctx.stroke();
+  const [cx, cy] = gridToScreen(pn.x + 0.5, pn.y + 0.5), [ax] = gridToScreen(pn.x, pn.y), [bx] = gridToScreen(pn.x + 1, pn.y);
+  const fs = Math.max(13, Math.min(18, Math.round(Math.abs(bx - ax) * 0.45)));
+  ctx.font = `bold ${fs}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const txt = `ขาดอีก ${Math.max(0, need - pn.n)} ถัง`;
+  ctx.lineWidth = Math.max(3, fs * 0.3); ctx.strokeStyle = '#fff8e6'; ctx.strokeText(txt, cx, cy - fs * 1.2);
+  ctx.fillStyle = '#c0390b'; ctx.fillText(txt, cx, cy - fs * 1.2);
+  ctx.restore();
+}
 function hintActive313() {
   return UI313.hint && matchActive && !gameOver && !tutorialMode && (hint313.force || ((vsMode || onlineMode) && !hintOff313()));
 }
@@ -13522,6 +13549,7 @@ function drawHints313() {
     }
   }
   drawTiles313(hint313.tiles, true);
+  drawFocus327(); // v327: แตะคำใบ้ = เน้นสระที่ใกล้เสร็จสุด
 }
 // ซ่อนคำใบ้เมื่อไม่ได้แข่ง (หน้าเมนู/จบเกม)
 setInterval(() => { if (hint313.el && hint313.el.style.display !== 'none' && !hint313.doneAt && !hintActive313()) hintHide313(); }, 1000);
@@ -13635,16 +13663,16 @@ function mob326() { try { return window.matchMedia(MOB326_Q).matches; } catch (e
 {
   const st = document.createElement('style');
   st.textContent = `@media ${MOB326_Q} {
-html body #top306{flex-wrap:nowrap!important;border-width:6px!important;border-image-width:6px!important;padding:1px 2px!important;gap:3px!important;}
+html body #top306{flex-wrap:wrap!important;border-width:6px!important;border-image-width:6px!important;padding:1px 2px!important;gap:2px 3px!important;}
 html body #topL306{flex:none!important;gap:3px!important;}
 html body #top306 .chip306{height:28px!important;min-height:28px!important;padding:0 5px!important;border-width:4px!important;border-image-width:4px!important;gap:2px!important;}
 html body #top306 .chip306 > *{font-size:13px!important;}
-html body #top306 > .chip306.items306{order:1;flex:1 1 auto!important;min-width:0!important;max-width:none!important;padding:0 4px!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none;}
+html body #top306 > .chip306.items306{order:3;flex:1 1 100%!important;height:26px!important;min-height:26px!important;min-width:0!important;max-width:none!important;padding:0 4px!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none;}
 html body #top306 > .chip306.items306::-webkit-scrollbar{display:none;}
 html body #top306 > .chip306.items306 > div{white-space:nowrap!important;overflow:visible!important;line-height:1.2!important;}
 html body #top306 .kl326{display:none;}
-html body #top306 #hudRow305{order:2;gap:3px!important;flex:none!important;}
-html body #top306 .hudPill{min-height:28px!important;padding:0 5px!important;font-size:13px!important;border-width:4px!important;gap:2px!important;}
+html body #top306 #hudRow305{order:2;gap:3px!important;flex:none!important;margin-left:auto;}
+html body #top306 .hudPill{min-height:28px!important;padding:0 4px!important;font-size:13px!important;border-width:4px!important;gap:2px!important;}
 html body #top306 .hudPill img, html body #top306 .hudPill svg{width:18px!important;height:18px!important;}
 html body #tabRow305{grid-template-columns:repeat(8,minmax(0,1fr))!important;gap:2px!important;border-width:6px!important;border-image-width:6px!important;}
 html body #tabRow305 > button{flex-direction:column!important;gap:0!important;min-height:38px!important;padding:2px 0!important;border-width:4px!important;border-image-width:4px!important;}
