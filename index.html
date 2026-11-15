@@ -3527,34 +3527,100 @@ function closeBuildPreview329() {
   buildPreview329.card.remove();
   buildPreview329 = null;
 }
+const BP337_KEY = 'townGame.buildPreviewPos';
+// ตำแหน่งเริ่มต้น: ชิดขวา ใต้แถบข้อมูลสินค้า (ถ้ามี) · ถ้าเคยลากไว้ใช้ตำแหน่งเดิม (ดึงกลับเข้าจอถ้าหลุด)
+function placeBuildPreview337(card) {
+  const W = innerWidth, H = innerHeight, cw = card.offsetWidth, ch = card.offsetHeight, m = 8;
+  let pos = null;
+  try { pos = JSON.parse(localStorage.getItem(BP337_KEY) || 'null'); } catch (e) { pos = null; }
+  let x, y;
+  if (pos && isFinite(pos.x) && isFinite(pos.y)) { x = pos.x; y = pos.y; } else {
+    const bar = itemsLine && itemsLine.offsetParent ? (itemsLine.closest('.items306') || itemsLine.parentElement) : null;
+    const r = bar ? bar.getBoundingClientRect() : null;
+    x = (r ? r.right : W - m) - cw;
+    y = (r ? r.bottom : 64) + 6;
+  }
+  card.style.left = Math.round(Math.max(m, Math.min(W - cw - m, x))) + 'px';
+  card.style.top = Math.round(Math.max(m, Math.min(H - Math.min(ch, 80) - m, y))) + 'px';
+}
 function showBuildPreview329(type) {
   closeBuildPreview329();
+  const narrow = innerWidth < 600;
   const card = document.createElement('div');
-  card.style.cssText = 'position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:60;background:#fff;color:#222;border-radius:10px;padding:12px 14px;width:min(340px,92vw);max-height:60vh;overflow:auto;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,0.35);box-sizing:border-box;';
-  const title = document.createElement('div');
-  title.style.cssText = 'font-weight:bold;font-size:16px;';
-  title.textContent = LABEL[type];
+  card.className = 'bp337';
+  card.style.cssText = `position:fixed;z-index:60;background:linear-gradient(#fbf3de,#f3e4bf);color:#3b2a14;border:3px solid #8a5a2b;border-radius:14px;`
+    + `box-shadow:0 6px 18px rgba(60,35,10,.35),inset 0 0 0 2px #fff6df;width:${narrow ? 'min(300px,66vw)' : '320px'};max-height:60vh;overflow:hidden;`
+    + `display:flex;flex-direction:column;box-sizing:border-box;font-family:inherit;`;
+  // หัวกล่อง = ที่จับลาก
   const head = document.createElement('div');
-  head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;';
+  head.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 8px 6px 10px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-bottom:2px dashed rgba(138,90,43,.35);';
+  head.title = 'ลากเพื่อย้ายกล่อง';
+  const ic = document.createElement('span');
+  ic.style.cssText = 'flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;background:#fff8e6;border:2px solid #c9a46a;border-radius:10px;';
+  ic.innerHTML = thumbHtml(type, 32);
+  const title = document.createElement('div');
+  title.style.cssText = `flex:1;min-width:0;font-weight:bold;font-size:${narrow ? 15 : 17}px;line-height:1.2;color:#5a3a1e;`;
+  title.textContent = LABEL[type];
+  const grip = document.createElement('span');
+  grip.textContent = '⠿';
+  grip.style.cssText = 'flex:none;color:#a07a4a;font-size:16px;';
   const x = document.createElement('button');
   x.type = 'button';
   x.textContent = '✕';
   x.setAttribute('aria-label', 'ปิด');
-  x.style.cssText = 'flex:none;padding:3px 9px;font-size:14px;cursor:pointer;border:1px solid #bbb;border-radius:8px;background:#f4f1e6;color:#222;';
+  x.style.cssText = 'flex:none;width:30px;height:30px;padding:0;font-size:15px;font-weight:bold;cursor:pointer;border:2px solid #8a5a2b;border-radius:9px;background:#8a5a2b;color:#fff8e6;';
+  x.addEventListener('pointerdown', (e) => e.stopPropagation());
   x.addEventListener('click', closeBuildPreview329);
-  head.append(title, x);
+  head.append(ic, title, grip, x);
   card.appendChild(head);
-  const info = document.createElement('div');
-  info.style.cssText = 'font-size:13px;color:#555;margin-bottom:6px;';
-  info.textContent = prodInfoLine({ type });
-  card.appendChild(info);
+  const body = document.createElement('div');
+  body.style.cssText = 'padding:8px 10px 10px;overflow:auto;';
+  // ป้ายค่าใช้จ่าย
+  const bd = BUILDINGS[type] || {};
+  const chips = [];
+  const chip = (t, bg, fg) => `<span style="display:inline-block;margin:0 4px 4px 0;padding:2px 8px;border-radius:999px;background:${bg};color:${fg};font-size:${narrow ? 12 : 13}px;font-weight:bold;white-space:nowrap;border:1px solid rgba(0,0,0,.08)">${t}</span>`;
+  if (bd.cost !== undefined) chips.push(chip(`💰 $${bd.cost.toLocaleString('en-US')}`, '#fff1c7', '#7a4f00'));
+  if (bd.wage) chips.push(chip(`👷 ${bd.wage}/นาที`, '#e8f1fb', '#1f4a73'));
+  if (bd.woodCost) chips.push(chip(`🪵 ไม้ ${bd.woodCost}`, '#efe3d0', '#5a3a1e'));
+  if (bd.lumberCost) chips.push(chip(`🪚 ไม้แปรรูป ${bd.lumberCost}`, '#efe3d0', '#5a3a1e'));
+  if (bd.energyCost) chips.push(chip(`⚡ ไฟฟ้า ${bd.energyCost}`, '#fff6cf', '#6b5600'));
+  if (chips.length) { const c = document.createElement('div'); c.innerHTML = chips.join(''); body.appendChild(c); }
   if (DESC[type]) {
     const desc = document.createElement('div');
-    desc.style.cssText = 'font-size:14px;line-height:1.5;white-space:pre-line;';
+    desc.style.cssText = `font-size:${narrow ? 13 : 14}px;line-height:1.5;white-space:pre-line;color:#3b2a14;margin-top:2px;`;
     desc.textContent = DESC[type];
-    card.appendChild(desc);
+    if (narrow) { // มือถือ: ย่อเหลือ 3 บรรทัด แตะเพื่อขยาย/ย่อ
+      const clamp = 'display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;';
+      desc.style.cssText += clamp;
+      desc.title = 'แตะเพื่ออ่านทั้งหมด';
+      let open = false;
+      desc.addEventListener('click', () => { open = !open; desc.style.webkitLineClamp = open ? 'unset' : '3'; desc.style.display = open ? 'block' : '-webkit-box'; });
+    }
+    body.appendChild(desc);
   }
+  card.appendChild(body);
   document.body.appendChild(card);
+  placeBuildPreview337(card);
+  // ลากย้าย (นิ้ว/เมาส์) แล้วจำตำแหน่ง
+  let drag = null;
+  head.addEventListener('pointerdown', (e) => {
+    const r = card.getBoundingClientRect();
+    drag = { id: e.pointerId, dx: e.clientX - r.left, dy: e.clientY - r.top };
+    head.setPointerCapture(e.pointerId); head.style.cursor = 'grabbing'; e.preventDefault();
+  });
+  head.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const m = 4, cw = card.offsetWidth;
+    card.style.left = Math.round(Math.max(m, Math.min(innerWidth - cw - m, e.clientX - drag.dx))) + 'px';
+    card.style.top = Math.round(Math.max(m, Math.min(innerHeight - 44, e.clientY - drag.dy))) + 'px';
+  });
+  const endDrag = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag = null; head.style.cursor = 'grab';
+    try { localStorage.setItem(BP337_KEY, JSON.stringify({ x: parseFloat(card.style.left), y: parseFloat(card.style.top) })); } catch (er) { /* ไม่เป็นไร */ }
+  };
+  head.addEventListener('pointerup', endDrag);
+  head.addEventListener('pointercancel', endDrag);
   const onOutside = (e) => { if (!card.contains(e.target)) closeBuildPreview329(); };
   document.addEventListener('click', onOutside, true);
   buildPreview329 = { card, onOutside };
