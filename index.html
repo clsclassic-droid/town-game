@@ -10204,6 +10204,10 @@ function startDemo340() {
     viewOY -= t * 1.6;
     const gridTop = viewOY - GRID_SIZE * t / 2; // ขอบบนของแผนที่บนจอ
     if (gridTop < t * 1.2) viewOY = t * 2 + GRID_SIZE * t / 2; // เห็นแม่น้ำอย่างน้อย ~2 ช่อง
+    if (window.innerHeight > window.innerWidth) { // v349: มือถือแนวตั้ง ซูมให้พื้นหญ้าคลุมจอสูงทั้งหมด (ไม่มีส่วนว่าง) แม่น้ำอยู่เหนือโลโก้
+      viewZoom = Math.max(viewZoom, (canvas.height + 30) / (GRID_SIZE + 2 * TS_M) / TOP_TILE_PX);
+      viewOY = canvas.height / 2;
+    }
   }
 }
 function stopDemo340() {
@@ -10223,22 +10227,28 @@ function stopDemo340() {
   st.textContent = `
 body.demo340 .h340, body.demo340 #top306, body.demo340 #viewSwitch, body.demo340 #status { display:none !important; }
 body.demo340 #setupOv340 { background: rgba(10,20,14,0.45) !important; }
+body.demo340 #frame308 { display:none !important; }
+html body.demo340 #stage { border-radius:0 !important; box-shadow:none !important; }
+body.demo340 #board { filter:saturate(1.45) brightness(1.1) contrast(1.06); }
 body #setupOv340.ov340 { background: rgba(10,20,14,0.06) !important; align-items:flex-start !important; overflow-y:auto !important; -webkit-overflow-scrolling:touch; }
 .sm340 { background:none !important; box-shadow:none !important; padding:0 !important; border-radius:0 !important; width:min(480px, 86vw, calc((100dvh - 36px) / 1.75)) !important; max-height:none !important; overflow:visible !important; margin:auto !important; container-type:inline-size; }
+@media (orientation:portrait) { .sm340 { margin:auto auto max(14px, env(safe-area-inset-bottom)) !important; margin-top:auto !important; } } /* v349: มือถือแนวตั้ง เมนูชิดล่าง เห็นแม่น้ำด้านบน */
 .sm340.saved340 { width:min(480px, 86vw, calc((100dvh - 36px) / 1.92)) !important; }
 .logo340 { display:block; width:76%; margin:12px auto 14px; filter:drop-shadow(0 8px 0 rgba(20,8,0,0.34)) drop-shadow(0 0 14px rgba(0,0,0,0.65)) drop-shadow(0 26px 18px rgba(0,0,0,0.55)); pointer-events:none; }
 .frame340 { --m: 2px; --fb: calc(var(--m) * 33); image-rendering:pixelated; position:relative; box-sizing:border-box; border-style:solid; border-color:transparent; border-width:calc(var(--m) * 20) calc(var(--m) * 18) calc(var(--m) * 18); border-image-source:url(${SM340.frame}); border-image-slice:${SM340.frameSlice} fill; border-image-width:var(--fb); border-image-repeat:stretch; padding:calc(var(--m) * 14) calc(var(--m) * 6) calc(var(--m) * 12); filter:drop-shadow(1px 0 0 #250a00) drop-shadow(-1px 0 0 #250a00) drop-shadow(0 1px 0 #250a00) drop-shadow(0 -1px 0 #250a00) drop-shadow(0 8px 0 rgba(20,8,0,0.34)) drop-shadow(0 0 16px rgba(0,0,0,0.65)) drop-shadow(0 28px 20px rgba(0,0,0,0.55)); margin-bottom:calc(var(--m) * 10); }
 @container (max-width: 339px) { .frame340 { --m: 1.5px; } }
 .r340 { display:grid; gap:0.8cqw; margin:0 0 0.8cqw; }
 .r340.one { grid-template-columns:1fr; } .r340.two { grid-template-columns:1fr 1fr; } .r340.three { grid-template-columns:repeat(3,1fr); } .r340.four { grid-template-columns:repeat(4,1fr); }
-.b340 { box-sizing:border-box; border:clamp(7px,2.4cqw,12px) solid transparent; border-image-source:url(${SM340.btn_cream}); border-image-slice:${SM340.btnSlice} fill; border-image-repeat:stretch; background:none; margin:0; padding:1px 0; min-width:0;
+.b340 { --c:clamp(5px,2cqw,10px); --bd:#6a3d17; --top:#fff4d8; --bot:#efc182; --hi:rgba(255,255,255,.65); box-sizing:border-box; border:0; position:relative; isolation:isolate; background:var(--bd); clip-path:polygon(var(--c) 0,calc(100% - var(--c)) 0,100% var(--c),100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,var(--c) 100%,0 calc(100% - var(--c)),0 var(--c)); margin:0; padding:clamp(7px,2.4cqw,12px) clamp(5px,1.6cqw,9px); min-width:0;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; font:bold clamp(10px,3.4cqw,16px)/1.15 sans-serif; color:#4a2a12; text-shadow:0 1px 0 rgba(255,255,255,0.55); -webkit-tap-highlight-color:transparent; transition:transform .08s; }
+.b340::before { content:''; position:absolute; inset:3px; z-index:-1; background:linear-gradient(var(--top),var(--bot)); clip-path:polygon(calc(var(--c) - 2px) 0,calc(100% - var(--c) + 2px) 0,100% calc(var(--c) - 2px),100% calc(100% - var(--c) + 2px),calc(100% - var(--c) + 2px) 100%,calc(var(--c) - 2px) 100%,0 calc(100% - var(--c) + 2px),0 calc(var(--c) - 2px)); box-shadow:inset 0 2px 0 var(--hi), inset 0 -3px 0 rgba(0,0,0,.2); }
+.r340 { filter:drop-shadow(0 3px 0 rgba(40,18,4,.5)); }
 .b340 span { display:block; max-width:100%; overflow-wrap:anywhere; }
 .b340 img { width:clamp(22px,9cqw,44px); height:clamp(22px,9cqw,44px); pointer-events:none; filter:drop-shadow(0 2px 0 rgba(0,0,0,0.25)); }
 .b340:active { transform:translateY(2px) scale(0.97); }
 .b340.big { min-height:22cqw; font-size:clamp(13px,4.6cqw,22px); color:#fff; text-shadow:0 2px 0 rgba(0,0,0,0.6),0 0 3px rgba(0,0,0,0.5); }
 .b340.big img { width:13cqw; height:13cqw; }
-.b340.green { border-image-source:url(${SM340.btn_green}); } .b340.blue { border-image-source:url(${SM340.btn_blue}); }
+.b340.green { --bd:#123d10; --top:#62c24a; --bot:#2b7d2a; --hi:rgba(220,255,190,.55); } .b340.blue { --bd:#0b2a58; --top:#3f8fe0; --bot:#1b5099; --hi:rgba(200,230,255,.55); }
 .b340.green:not(.big) { color:#fff; text-shadow:0 2px 0 rgba(0,0,0,0.6); }
 .b340.mid { min-height:17cqw; }
 .b340.wide { flex-direction:row; gap:8px; min-height:10.5cqw; font-size:clamp(11px,3.9cqw,18px); }
@@ -13193,11 +13203,11 @@ const UI308 = { card: true, frame: true, bubble: true };
       if (stage && topEl) {
         const W = window.innerWidth, Hh = window.innerHeight;
         const tb = tabRow.getBoundingClientRect();
-        const AH = tb.height > 0 && tb.top > Hh * 0.5 ? Math.floor(tb.top) - 4 : Hh;
-        const TOP = Math.ceil(topEl.getBoundingClientRect().bottom) + 2;
+        const AH = !demo340 && tb.height > 0 && tb.top > Hh * 0.5 ? Math.floor(tb.top) - 4 : Hh;
+        const TOP = demo340 ? 0 : Math.ceil(topEl.getBoundingClientRect().bottom) + 2; // v349: ฉากหลังเมนูเต็มจอ
         const cw = stage.classList.contains('focus') ? canvas.width / 2 : canvas.width;
         let H = Math.round(cw * (AH - TOP) / W);
-        H = Math.max(Math.round(cw * 0.4), Math.min(Math.round(cw * 2), H));
+        H = Math.max(Math.round(cw * 0.4), Math.min(Math.round(cw * (demo340 ? 3 : 2)), H));
         const old = canvas.height;
         if (H > 100 && Math.abs(H - old) >= 3) {
           canvas.height = H;
@@ -13208,6 +13218,7 @@ const UI308 = { card: true, frame: true, bubble: true };
       }
     } catch (e) { /* ไม่เป็นไร */ }
     _fit();
+    if (demo340) { const st = document.getElementById('stage'); if (st) { const W = window.innerWidth, Hh = window.innerHeight; st.style.top = '0px'; st.style.left = '0px'; st.style.width = W + 'px'; st.style.height = Hh + 'px'; canvas.style.width = W + 'px'; canvas.style.height = Hh + 'px'; } } // v349: ฉากหลังเมนูเต็มจอ ไม่มีแถบเบจด้านบน
   };
   setTimeout(fitCanvasToWindow, 0);
 }
