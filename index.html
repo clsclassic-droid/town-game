@@ -5428,9 +5428,10 @@ function drawPondMerged(px, py, x, y) {
 }
 function drawPond(px, py, cell, gx, gy) {
   // v178: สระที่ยังสร้างไม่เสร็จเป็นพื้นดินสีน้ำตาล ยังไม่ให้ passive น้ำ และแสดงจำนวนน้ำที่ส่งแล้ว
-  if (cell && cell.building && drawGroundTile('pond_dry', px, py)) { // v194: ดินชุดใหม่ + ป้าย x/10
+  if (cell && cell.building && drawGroundTile('soil', px, py)) { // v194: ดินชุดใหม่ + ป้าย x/10
     if (UI318.pond) { // v318: บอกชัดว่าเป็นสระกำลังสร้าง (ไม่ใช่แปลงพืช)
       const k318 = (cell.waterIn || 0) / BUILDINGS.pond.waterCost;
+      ctx.fillStyle = 'rgba(46,134,222,0.28)'; ctx.fillRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6); // v354: คืนแบบสระเก่า
       ctx.fillStyle = 'rgba(20,40,70,0.55)'; ctx.fillRect(px + 4, py + TILE_SIZE - 8, TILE_SIZE - 8, 4);
       ctx.fillStyle = '#4fc3f7'; ctx.fillRect(px + 4, py + TILE_SIZE - 8, Math.round((TILE_SIZE - 8) * k318), 4);
       const t325 = `${cell.waterIn || 0}/${BUILDINGS.pond.waterCost}`; // v325: เลขอยู่กลางช่อง ขนาดพอดีช่อง ไม่ล้นไปสระข้างๆ
