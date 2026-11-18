@@ -14402,5 +14402,23 @@ window.addEventListener('orientationchange', () => setTimeout(fitCanvasToWindow,
   document.head.appendChild(st);
 })();
 </script>
+<script>
+// v362: การ์ดข้อมูลอาคาร อ่านง่าย: กระดาษครีมเรียบ ไม่มีแถบไม้/กรอบทอง สถานะบรรทัดเดียว (CSS ล้วน ไม่แตะลอจิกเกม)
+(function () {
+  const st = document.createElement('style');
+  const C = 'html body .card305';
+  st.textContent = [
+    `${C}{background:#fbf3df!important;border:2px solid #b99a68!important;border-image:none!important;border-radius:12px!important;padding:12px 14px 14px!important;box-shadow:0 6px 16px rgba(40,24,8,.4)!important;filter:none!important;}`,
+    `${C} .head305{background:transparent!important;border-bottom:1px solid #d9c59a!important;border-radius:0!important;margin:-12px -14px 8px!important;top:-12px!important;padding:12px 14px 8px!important;}`,
+    `${C} .rib305, ${C} .rib305.ai305{border:0!important;border-image:none!important;padding:0!important;color:#3a2814!important;text-shadow:none!important;font-size:18px!important;}`,
+    `${C} .rib305.ai305{color:#8a2a1f!important;}`,
+    `${C} button.close308.close308.close308{width:34px!important;height:34px!important;min-width:0!important;padding:0!important;background:#f8ecd0!important;background-image:none!important;border:2px solid #8a5a2b!important;border-image:none!important;border-radius:8px!important;color:#5a3a1e!important;font-size:16px!important;font-weight:bold;line-height:1;filter:none!important;box-shadow:none!important;}`,
+    `${C} > div:not(.head305){line-height:1.5;}`,
+    `${C} div[data-t][data-t][data-t]{background:#efe3c3!important;border:0!important;border-left:4px solid #b99a68!important;border-radius:6px!important;box-shadow:none!important;padding:5px 10px!important;margin:6px 0!important;font-size:14px!important;font-weight:bold;color:#3a2814;display:block!important;}`,
+    `${C} div[data-t][data-t][data-t]::before{display:none!important;content:none!important;}`,
+  ].join('\n');
+  document.head.appendChild(st);
+})();
+</script>
 
 </body></html>
