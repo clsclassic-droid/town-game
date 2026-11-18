@@ -6883,7 +6883,27 @@ function drawRoadTile(m, cell) {
   ctx.restore();
 }
 function drawRoadTop(cell, x, y) {
-  drawRoadTile(roadLinks(x, y), cell);
+  const m = roadLinks(x, y);
+  drawRoadTile(m, cell);
+  roadFill367(cell, x, y);
+}
+// v367: ถนนก้อน 2x2 ขึ้นไป — มุมด้านในของภาพถนนโค้งทำให้เกิดรูตรงกลาง ถมมุมนั้นด้วยดินถนนเมื่อช่องทแยงเป็นถนนด้วย (วง 3x3 ที่มีหญ้ากลางจริงไม่ถูกถม)
+function roadFill367(cell, x, y) {
+  const isR = (a, b) => inBounds(a, b) && board[b][a] && board[b][a].type === 'road';
+  const corners = [[1, -1, 1, 0], [1, 1, 1, 1], [-1, 1, 0, 1], [-1, -1, 0, 0]]; // dx, dy ของช่องทแยง, ตำแหน่งมุมในช่อง (0/1)
+  let im = artImg('road', ART_ROAD_SRC);
+  if (!im) return;
+  im = roadArtDetailed(im);
+  const T = TILE_SIZE, h = T / 2;
+  for (const [dx, dy, cx, cy] of corners) {
+    if (!(isR(x + dx, y) && isR(x, y + dy) && isR(x + dx, y + dy))) continue;
+    const ex = roadArtExtruded(im);
+    const sx = ROAD_TILE_BY_MASK[15] * 34 + 1 + 8, sy = (cell.paved ? 34 : 0) + 1 + 8;
+    ctx.save(); ctx.imageSmoothingEnabled = false;
+    const ox = cx * h - (cx ? 0 : 0.4), oy = cy * h - (cy ? 0 : 0.4);
+    ctx.drawImage(ex, sx, sy, 16, 16, ox, oy, h + 0.4, h + 0.4);
+    ctx.restore();
+  }
 }
 function drawBoard(now) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
