@@ -14280,17 +14280,30 @@ window.addEventListener('orientationchange', () => setTimeout(fitCanvasToWindow,
       if (im.getAttribute('src') !== src) im.src = src;
     }
   }
-  swap(); new MutationObserver(swap).observe(bar, { childList: true, subtree: true });
+  function rows() { if (typeof tabList === 'undefined') return; for (const t of tabList) { const k = t.tab.getAttribute('aria-label'); if (!IC355[k]) continue; t.row.dataset.t = k; t.row.style.setProperty('--ic', 'url(' + IC355[k] + ')'); } }
+  rows(); swap(); new MutationObserver(swap).observe(bar, { childList: true, subtree: true });
   const W1 = 'linear-gradient(#7d4a26,#5b3418)', W2 = 'linear-gradient(#6a3d1e,#4a2a12)';
   const st = document.createElement('style');
   st.textContent = [
     `html body #tabRow305{background:${W2}!important;border:3px solid #c27a2c!important;border-radius:12px!important;padding:6px!important;gap:6px!important;box-shadow:inset 0 0 0 2px #3a1f0c, 0 -2px 10px rgba(0,0,0,.4)!important;}`,
     `html body #tabRow305 > button:not([style*="59, 122, 42"]){background:${W1}!important;border:2px solid #3a1f0c!important;border-radius:9px!important;box-shadow:inset 0 0 0 1px #a8683a, inset 0 -3px 0 rgba(0,0,0,.25)!important;color:#fff!important;min-height:60px!important;padding:4px 1px 3px!important;gap:0!important;position:relative;}`,
     `html body #tabRow305 > button span{color:#fff!important;font-weight:800!important;text-shadow:0 1px 2px #000, 0 0 3px #000;}`,
+    `html body #tabRow305 > button{position:relative!important;padding-bottom:8px!important;}`,
+    // ----- แผงเป็นไม้: แผงหมวด (เมนูสร้าง/เครื่องมือ) หัวไม้ + ไอคอน ชื่อหมวด -----
+    `html body div[data-t][data-t]{background:#f6e8c8!important;border:4px solid #7a4a22!important;border-radius:14px!important;box-shadow:0 0 0 2px #d79a45, 0 6px 14px rgba(30,15,5,.5), inset 0 0 0 2px #e9cf9a!important;padding:8px!important;}`,
+    `html body div[data-t][data-t]::before{content:attr(data-t);display:block;grid-column:1/-1;flex:0 0 calc(100% + 16px);box-sizing:border-box;margin:-8px -8px 4px;padding:9px 14px 9px 52px;background:var(--ic) no-repeat 12px center/30px 30px, linear-gradient(#7d4a26,#5b3418);color:#fff;font-weight:800;font-size:18px;line-height:1.2;text-align:left;text-shadow:0 1px 2px #000;border-radius:9px 9px 0 0;border-bottom:2px solid #3a1f0c;}`,
+    `html body div[data-t][data-t] button{border:2px solid #b78a54!important;border-radius:10px!important;background:linear-gradient(#fff8e6,#f1dfb6)!important;box-shadow:inset 0 1px 0 #fff, 0 2px 0 rgba(90,55,25,.4)!important;font-weight:700;}`,
+    // ----- แผงสรุปภารกิจ/แข่งขัน: หัวไม้ -----
+    `html body #hudPanel{background:#f6e8c8!important;border:3px solid #7a4a22!important;border-radius:13px!important;box-shadow:0 0 0 2px #d79a45, 0 5px 12px rgba(30,15,5,.45)!important;padding:0 10px 6px!important;overflow:hidden;}`,
+    `html body #hudPanel > div:first-child{margin:0 -10px 6px!important;padding:7px 12px!important;background:linear-gradient(#7d4a26,#5b3418)!important;border-bottom:2px solid #3a1f0c;}`,
+    `html body #hudPanel > div:first-child, html body #hudPanel > div:first-child *{color:#fff!important;text-shadow:0 1px 2px #000;}`,
+    // ----- การ์ดอาคาร: หัวไม้ -----
+    `html body .card305 .head305{background:linear-gradient(#7d4a26,#5b3418)!important;border-bottom:2px solid #3a1f0c!important;}`,
+    `html body .card305 .rib305, html body .card305 .rib305.ai305{color:#fff!important;text-shadow:0 1px 2px #000!important;}`,
     `html body #tabRow305 > button img.ic355{display:block;width:34px;height:34px;object-fit:contain;pointer-events:none;margin-bottom:1px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));}`,
     `html body #tabRow305 > button[style*="59, 122, 42"]{background:linear-gradient(#fbe9c0,#eccf92)!important;border-color:#c27a2c!important;box-shadow:inset 0 0 0 1px #fff3d0, 0 0 0 1px #5b3418!important;}`,
     `html body #tabRow305 > button[style*="59, 122, 42"] span{color:#4a2a12!important;text-shadow:none!important;}`,
-    `html body #tabRow305 > button[style*="59, 122, 42"]::after{content:"";position:absolute;left:12%;right:12%;bottom:4px;height:5px;border-radius:3px;background:linear-gradient(#58e03a,#27a317);box-shadow:0 0 0 1px #14610c;}`,
+    `html body #tabRow305 > button[style*="59, 122, 42"]::after{content:"";position:absolute;left:12%;right:12%;bottom:3px;height:4px;border-radius:3px;background:linear-gradient(#58e03a,#27a317);box-shadow:0 0 0 1px #14610c;}`,
     `@media (max-width:520px){html body #tabRow305{padding:4px!important;gap:3px!important;border-width:2px!important;} html body #tabRow305 > button{min-height:54px!important;} html body #tabRow305 > button img.ic355{width:26px;height:26px;}}`,
     // ป้ายบน: เงิน ดาว เวลา ความเร็ว พัก ทรัพยากร = ป้ายไม้
     `html body .chip306, html body #top306 .hudPill, html body #top306 .chip306{background:${W2}!important;border:2px solid #c27a2c!important;border-radius:11px!important;box-shadow:inset 0 0 0 1px #3a1f0c, 0 2px 0 rgba(30,15,5,.5)!important;color:#fff!important;}`,
