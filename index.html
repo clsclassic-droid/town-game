@@ -6888,21 +6888,41 @@ function drawRoadTop(cell, x, y) {
   roadFill367(cell, x, y);
 }
 // v367: ถนนก้อน 2x2 ขึ้นไป — มุมด้านในของภาพถนนโค้งทำให้เกิดรูตรงกลาง ถมมุมนั้นด้วยดินถนนเมื่อช่องทแยงเป็นถนนด้วย (วง 3x3 ที่มีหญ้ากลางจริงไม่ถูกถม)
+let roadFillCol367 = null;
 function roadFill367(cell, x, y) {
   const isR = (a, b) => inBounds(a, b) && board[b][a] && board[b][a].type === 'road';
   const corners = [[1, -1, 1, 0], [1, 1, 1, 1], [-1, 1, 0, 1], [-1, -1, 0, 0]]; // dx, dy ของช่องทแยง, ตำแหน่งมุมในช่อง (0/1)
   let im = artImg('road', ART_ROAD_SRC);
   if (!im) return;
   im = roadArtDetailed(im);
-  const T = TILE_SIZE, h = T / 2;
+  const T = TILE_SIZE, h = T / 2, u = T / 32;
+  const key = cell.paved ? 1 : 0;
+  if (!roadFillCol367) roadFillCol367 = [null, null];
+  if (!roadFillCol367[key]) { // สีดินเฉลี่ยจากกลางภาพถนนสี่แยก (ไม่เอาลวดลาย) — เฉลี่ยเฉพาะพิกเซลที่ใกล้สีกลาง ตัดกรวดสว่าง/เข้มออก
+    try {
+      const ex = roadArtExtruded(im), c = document.createElement('canvas'); c.width = c.height = 16;
+      const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+      g.drawImage(ex, ROAD_TILE_BY_MASK[15] * 34 + 9, (key ? 34 : 0) + 9, 16, 16, 0, 0, 16, 16);
+      const d = g.getImageData(0, 0, 16, 16).data, px = [];
+      for (let i = 0; i < d.length; i += 4) px.push([d[i], d[i + 1], d[i + 2], d[i] + d[i + 1] + d[i + 2]]);
+      px.sort((p, q) => p[3] - q[3]);
+      const mid = px.slice(Math.floor(px.length * 0.25), Math.ceil(px.length * 0.75));
+      const av = [0, 1, 2].map((k) => Math.round(mid.reduce((t, v) => t + v[k], 0) / mid.length));
+      roadFillCol367[key] = av;
+    } catch (e) { roadFillCol367[key] = [150, 104, 64]; }
+  }
+  const av = roadFillCol367[key];
   for (const [dx, dy, cx, cy] of corners) {
     if (!(isR(x + dx, y) && isR(x, y + dy) && isR(x + dx, y + dy))) continue;
-    const ex = roadArtExtruded(im);
-    const sx = ROAD_TILE_BY_MASK[15] * 34 + 1 + 8, sy = (cell.paved ? 34 : 0) + 1 + 8;
-    ctx.save(); ctx.imageSmoothingEnabled = false;
     const ox = cx * h - (cx ? 0 : 0.4), oy = cy * h - (cy ? 0 : 0.4);
-    ctx.drawImage(ex, sx, sy, 16, 16, ox, oy, h + 0.4, h + 0.4);
-    ctx.restore();
+    ctx.fillStyle = `rgb(${av[0]},${av[1]},${av[2]})`;
+    ctx.fillRect(ox, oy, h + 0.4, h + 0.4);
+    const hs = ((x * 73856093) ^ (y * 19349663) ^ (cx * 83492791) ^ (cy * 2654435761)) >>> 0; // กรวดจุดเล็กคงที่ต่อช่อง
+    if (hs % 5 < 2) {
+      const gx = ox + ((hs >> 3) % 12) * u + u, gy = oy + ((hs >> 8) % 12) * u + u;
+      ctx.fillStyle = (hs >> 13) % 2 ? `rgb(${Math.min(255, av[0] + 28)},${Math.min(255, av[1] + 22)},${Math.min(255, av[2] + 14)})` : `rgb(${Math.round(av[0] * 0.8)},${Math.round(av[1] * 0.8)},${Math.round(av[2] * 0.8)})`;
+      ctx.fillRect(gx, gy, u, u);
+    }
   }
 }
 function drawBoard(now) {
