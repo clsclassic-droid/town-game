@@ -1,5 +1,5 @@
-<!doctype html><html><head><meta charset=utf8><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Town Game"><meta name="theme-color" content="#5a3a1e"><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Town Game Online</title>
+<!doctype html><html><head><meta charset=utf8><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="SproutMill"><meta name="theme-color" content="#5a3a1e"><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>SproutMill Online</title>
   <style>
     body {
       margin: 0;
@@ -131,7 +131,7 @@
 
 
   <div id="app">
-    <h1>Town Game</h1>
+    <h1>SproutMill</h1>
     <div id="stage"><canvas id="board" width="512" height="512"></canvas></div>
     <p id="status">กำลังโหลด...</p>
     <div id="viewSwitch" hidden>
@@ -10142,7 +10142,7 @@ function showSetupMenu() {
   setupPanel.style.width = '';
   const saved = readSavedGame();
   setupPanel.replaceChildren(
-    sTitle('Town Game'),
+    sTitle('SproutMill'),
     sNote('เลือกโหมดเริ่มเกม'),
     ...(saved ? [sBtn(saved.online ? `▶ กลับเข้าห้องออนไลน์ ${saved.online.code}` : '▶ เล่นต่อจากที่บันทึกไว้', () => resumeSavedGame(), true)] : []),
     sBtn(tutSeen() ? '🎓 บทเรียนสำหรับมือใหม่' : '🎓 เล่นครั้งแรก? ลองบทเรียน 5 นาที', startTutorial, !saved && !tutSeen(), true), // v239
@@ -11314,7 +11314,7 @@ function tutPickHint(type) { const t = tabList.find((o) => o.row === groupRows[t
 const TUT323 = true; // v323: ขั้นสอนผลกระทบ + แท็บเครื่องมือ (false = 21 ขั้นแบบเดิม)
 function tutTab323() { const t = tabList.find((o) => o.row === utilRow); return t ? t.tab : null; }
 const TUT_STEPS_ALL = [
-  { title: 'ยินดีต้อนรับสู่ Town Game 👋', next: true,
+  { title: 'ยินดีต้อนรับสู่ SproutMill 👋', next: true,
     text: 'เป้าหมายคือสร้างเมืองฟาร์ม ผลิตของ แล้วส่งขายเพื่อเก็บ <b>💰 เงิน</b> และ <b>⭐ ดาว</b> (ดูได้ที่แผงมุมซ้ายบน)<br>บทเรียนนี้ใช้เวลาประมาณ 5 นาที สอนปลูกพืช สร้างบ่อน้ำ ถนน บ้านคนงาน ต้นไม้ และขายของ ระหว่างบทเรียนพืชจะโตเร็วกว่าปกติ' },
   { title: 'รู้จักเมืองของคุณ', next: true,
     tiles: () => [[7, 7], [8, 7], [4, 10], [4, 9]],
