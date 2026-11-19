@@ -14992,4 +14992,61 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
   };
 })();
 </script>
+<script>
+// ===== v380: ภาพคมชัดบนจอใหญ่ (คอม) — วาดที่ความละเอียดตามขนาดจอจริง แทนการขยายผืนผ้าใบเล็ก 800px =====
+// พิกัด/ขนาด/กติกาในเกมยังเป็นหน่วยเดิม (logical) · ผืนผ้าใบจริงใหญ่ขึ้น S เท่า แล้วคูณ S ที่ ctx.setTransform เท่านั้น
+// ใช้เมื่อถูกขยายเกิน 1.25 เท่า (มือถือ/จอเล็กไม่เปลี่ยน) · เปิด "ประหยัดแบต" = ความละเอียดเดิม
+(function () {
+  const proto = HTMLCanvasElement.prototype;
+  const wd = Object.getOwnPropertyDescriptor(proto, 'width'), hd = Object.getOwnPropertyDescriptor(proto, 'height');
+  const osT = CanvasRenderingContext2D.prototype.setTransform;
+  const ogT = CanvasRenderingContext2D.prototype.getTransform;
+  const orT = CanvasRenderingContext2D.prototype.resetTransform;
+  let S = 1, LW = canvas.width, LH = canvas.height;
+  const MAX_S = 3, MAX_PX = 7e6;
+
+  function applyReal() {
+    wd.set.call(canvas, Math.max(1, Math.round(LW * S)));
+    hd.set.call(canvas, Math.max(1, Math.round(LH * S)));
+    osT.call(ctx, S, 0, 0, S, 0, 0);
+    ctx.imageSmoothingEnabled = false; // ค่าเริ่มต้นเดิมของเกม (ปรับขนาดผืนผ้าใบแล้วสถานะ ctx ถูกรีเซ็ต)
+  }
+  // ขนาดที่เกมอ่าน/เขียน = หน่วย logical เสมอ
+  Object.defineProperty(canvas, 'width', { configurable: true, get() { return LW; }, set(v) { LW = Math.max(0, Math.floor(+v) || 0); applyReal(); } });
+  Object.defineProperty(canvas, 'height', { configurable: true, get() { return LH; }, set(v) { LH = Math.max(0, Math.floor(+v) || 0); applyReal(); } });
+
+  ctx.setTransform = function (a, b, c, d, e, f) {
+    if (a && typeof a === 'object') return osT.call(ctx, a.a * S, a.b * S, a.c * S, a.d * S, a.e * S, a.f * S);
+    return osT.call(ctx, a * S, b * S, c * S, d * S, e * S, f * S);
+  };
+  ctx.resetTransform = function () { return osT.call(ctx, S, 0, 0, S, 0, 0); };
+  ctx.getTransform = function () { const m = ogT.call(ctx); return new DOMMatrix([m.a / S, m.b / S, m.c / S, m.d / S, m.e / S, m.f / S]); };
+
+  function wantS() {
+    try {
+      if (typeof bat371 !== 'undefined' && bat371) return 1;
+      const r = canvas.getBoundingClientRect();
+      if (!r.width || !LW || !LH) return S;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const ratio = r.width * dpr / LW;
+      if (ratio < 1.25) return 1;
+      let s = Math.min(MAX_S, ratio);
+      s = Math.min(s, Math.sqrt(MAX_PX / (LW * LH)));
+      return Math.max(1, s);
+    } catch (e) { return S; }
+  }
+  function refresh() {
+    const s = wantS();
+    if (Math.abs(s - S) < 0.05) return;
+    S = s; applyReal();
+    try {
+      const r = canvas.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.style.imageRendering = (S > 1 && S >= (r.width * dpr / LW) * 0.95) ? 'auto' : '';
+    } catch (e) { }
+  }
+  setInterval(refresh, 400);
+  window.addEventListener('resize', () => setTimeout(refresh, 60));
+  refresh();
+})();
+</script>
 </body></html>
