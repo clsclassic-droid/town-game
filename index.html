@@ -6689,7 +6689,7 @@ function drawStopMark(c, x, y, now) {
   const [cx, cy] = tileCenterScreen(x, y);
   const F = uiK381(); // v381: จอคอมใหญ่ ย่อป้าย + ขยับลงชิดอาคาร
   const r = Math.max(9, 11 * viewZoom) * F;
-  const top = cy - 32 * viewZoom + 20 * viewZoom * (1 - F);
+  const top = cy - 32 * viewZoom + 28 * viewZoom * (1 - F);
   const pulse = 1 + 0.08 * Math.sin(performance.now() / 220);
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -6719,7 +6719,7 @@ function drawLumberMark(c, x, y, reason, now) {
   if (c.lumberSince == null || c.lumberSince > now) c.lumberSince = now;
   if (now - c.lumberSince < 4000) return;
   const [cx, cy] = tileCenterScreen(x, y);
-  const F = uiK381(), r = Math.max(8, 9.5 * viewZoom) * F, top = cy - 32 * viewZoom + 20 * viewZoom * (1 - F);
+  const F = uiK381(), r = Math.max(8, 9.5 * viewZoom) * F, top = cy - 32 * viewZoom + 28 * viewZoom * (1 - F);
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.beginPath(); ctx.arc(cx, top, r, 0, Math.PI * 2);
@@ -6738,7 +6738,7 @@ function drawLumberMark(c, x, y, reason, now) {
 function drawPausedMark(x, y) {
   const [cx, cy] = tileCenterScreen(x, y);
   const F = uiK381(), r = Math.max(7, 9 * viewZoom) * F;
-  const top = cy - 30 * viewZoom + 20 * viewZoom * (1 - F);
+  const top = cy - 30 * viewZoom + 28 * viewZoom * (1 - F);
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
