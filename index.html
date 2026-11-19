@@ -14664,4 +14664,208 @@ window.addEventListener('orientationchange', () => setTimeout(fitCanvasToWindow,
   };
 })();
 </script>
+<script>
+// ===== v377: แคมเปญ "สายส่งเสบียง" (ธีมสงคราม เล่นคนเดียว ไม่มี AI) =====
+// humanSide.camp = { lv } บอกว่ากำลังเล่นด่านแคมเปญ (บันทึกไปกับเซฟ) · ความคืบหน้าดาวเก็บใน localStorage
+const CAMP_KEY = 'sproutmill.campaign.v1';
+const CAMP_LEVELS = [
+  { name: 'ชานเมือง', leader: 'ลุงมี', icon: 'farmhouse', terrain: ['plains', 'river'], coins: 150000, min: 15, fast: 10, keep: 0.6,
+    goals: [{ k: 'wheat', n: 30 }, { k: 'sugarcane', n: 30 }],
+    allow: ['road', 'field', 'sugarcane', 'farmhouse', 'silo', 'tree', 'lumberjack', 'woodshed', 'pond', 'well', 'windpump', 'tradedepot'],
+    story: 'ทหารกำลังมาตั้งค่ายที่หมู่บ้านข้างๆ ลุงมีอยากได้ข้าวสาลีกับอ้อยส่งไปเป็นเสบียง ช่วยปลูกแล้วส่งขายให้ทันนะหลาน',
+    end: 'เสบียงชุดแรกถึงหมู่บ้านแล้ว ทหารฝากคำขอบใจมาถึงชาวไร่ชานเมือง' },
+  { name: 'หมู่บ้าน', leader: 'ป้าบัว', icon: 'oven', terrain: ['plains', 'none'], coins: 250000, min: 25, fast: 18, keep: 0.5,
+    goals: [{ k: 'bread', n: 10 }],
+    allow: ['windmill', 'storehouse', 'oven'],
+    story: 'หมู่บ้านได้ข้าวสาลีกับอ้อยแล้ว แต่ทหารต้องการขนมปัง ช่วยป้าโม่แป้ง ทำน้ำตาล แล้วอบขนมปังส่งไปที่ค่าย',
+    end: 'กลิ่นขนมปังหอมไปทั้งค่าย ทหารอิ่มท้อง พร้อมออกเดินทัพ' },
+  { name: 'ในเมือง', leader: 'ผู้กองเดช', icon: 'chickencoop', terrain: ['plains', 'river'], coins: 400000, min: 30, fast: 22, keep: 0.5,
+    goals: [{ k: 'eggs', n: 20 }, { k: 'milk', n: 10 }],
+    allow: ['ranchhouse', 'feedmill', 'trough', 'chickencoop', 'milkbarn', 'waterpump'],
+    story: 'เมืองต้องเก็บเสบียงไว้ยามศึก เลี้ยงไก่ เลี้ยงวัว แล้วส่งไข่กับนมเข้าคลังของกองทัพ',
+    end: 'คลังเสบียงของเมืองเต็มแล้ว ผู้กองเดชพยักหน้าอย่างพอใจ' },
+  { name: 'ฤดูหนาว', leader: 'ครูแก้ว', icon: 'sheeppen', terrain: ['plains', 'ocean'], coins: 500000, min: 30, fast: 22, keep: 0.5,
+    goals: [{ k: 'wool', n: 20 }, { k: 'salt', n: 20 }],
+    allow: ['sheeppen', 'saltfield', 'warehouse', 'cotton', 'oaktree', 'lumberyard'],
+    story: 'หน้าหนาวมาเร็วกว่าที่คิด ทหารต้องการขนแกะทำผ้าห่มกับเครื่องแบบ และเกลือไว้ถนอมอาหาร',
+    end: 'ทหารมีผ้าห่มอุ่นๆ และอาหารพอผ่านหน้าหนาวไปได้' },
+  { name: 'แนวป้องกัน', leader: 'ช่างทอง', icon: 'lumbermill', terrain: ['plains', 'mountain'], coins: 600000, min: 30, fast: 22, keep: 0.4,
+    goals: [{ k: 'lumber', n: 20 }],
+    allow: ['lumbermill', 'windturbine', 'waterfacility', 'workerhouse', 'suntower', 'saltcrystal', 'greenlamp'],
+    story: 'ภูเขากั้นทางเดินทัพ ต้องใช้ไม้แปรรูปสร้างสะพานและค่ายกันลม ตั้งโรงเลื่อยให้เร็วที่สุด',
+    end: 'สะพานกับค่ายเสร็จทันเวลา กองทัพเดินทัพผ่านภูเขาได้แล้ว' },
+  { name: 'ฐานเสบียงใหญ่', leader: 'นายพลสิงห์', icon: 'bakery', terrain: ['plains', 'none'], coins: 1500000, min: 45, fast: 35, keep: 0.3,
+    goals: [{ k: 'butter', n: 10 }, { k: 'bread', n: 20 }],
+    allow: ['oilpump', 'fuelstorage', 'powerplant', 'bakery'],
+    story: 'นี่คือฐานเสบียงใหญ่ที่สุดของกองทัพ ต้องมีโรงไฟฟ้ากับเบเกอรี่ ทำเนยและขนมปังส่งไปทั่วแนวหน้า',
+    end: 'กองทัพได้เสบียงครบทุกแนว สงครามจบลงโดยไม่มีใครต้องอดอยาก ขอบคุณที่ดูแลสายส่งเสบียงจนถึงวันสุดท้าย' },
+];
+function campAllowed(i) { const s = new Set(); for (let j = 0; j <= i; j++) CAMP_LEVELS[j].allow.forEach((t) => s.add(t)); return s; }
+function campProgress() { try { return JSON.parse(localStorage.getItem(CAMP_KEY)) || { stars: {} }; } catch (e) { return { stars: {} }; } }
+function campSaveStars(i, n) { const p = campProgress(); p.stars[i] = Math.max(p.stars[i] || 0, n); try { localStorage.setItem(CAMP_KEY, JSON.stringify(p)); } catch (e) { } }
+function campUnlocked(i) { return i === 0 || (campProgress().stars[i - 1] || 0) > 0; }
+function campActive() { return !!(matchActive && !demo340 && !vsMode && !onlineMode && !tutorialMode && humanSide && humanSide.camp); }
+function campLv() { return humanSide && humanSide.camp ? CAMP_LEVELS[humanSide.camp.lv] : null; }
+function campSold(k) { return (humanSide.produced && humanSide.produced[k]) || 0; }
+function campElapsed() { return Math.max(0, gameNow() - matchStartAt); }
+function campFmt(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+function campGoalText(g) { return `ขาย${KIND_LABEL[g.k]} ${g.n}`; }
+
+// ด่านแคมเปญไม่ใช้ภารกิจ 16 ข้อเดิม และล็อกอาคารตามด่าน
+const _soloMissionActive377 = soloMissionActive;
+soloMissionActive = function () { return _soloMissionActive377() && !(humanSide && humanSide.camp); };
+const _buildLocked377 = buildLocked;
+buildLocked = function (type) {
+  if (campActive() && (!activeSide || activeSide === humanSide)) return !campAllowed(humanSide.camp.lv).has(type);
+  return _buildLocked377(type);
+};
+const _unlockText377 = unlockText;
+unlockText = function (type) {
+  if (!campActive()) return _unlockText377(type);
+  const j = CAMP_LEVELS.findIndex((L) => L.allow.includes(type));
+  return j >= 0 ? `🔒 ${LABEL[type]} ใช้ได้ตั้งแต่ด่าน ${j + 1} (${CAMP_LEVELS[j].name})` : `🔒 ${LABEL[type]} ไม่มีในแคมเปญนี้`;
+};
+const _missionCheck377 = missionCheck;
+missionCheck = function () { if (campActive()) campCheck(); else _missionCheck377(); };
+const _updateMissionLine377 = updateMissionLine;
+let campLineHtml = '';
+updateMissionLine = function () {
+  if (!campActive()) { campLineHtml = ''; _updateMissionLine377(); return; }
+  syncQuickBar();
+  const L = campLv(), left = L.min * 60000 - campElapsed();
+  const gs = L.goals.map((g) => `${KIND_LABEL[g.k]} <span style="color:${campSold(g.k) >= g.n ? '#9fe39a' : '#ffe08a'}">${Math.min(g.n, campSold(g.k))}/${g.n}</span>`).join(' · ');
+  const html = `⚔ ด่าน ${humanSide.camp.lv + 1} ${L.name}: ขาย ${gs} · ⏱ เหลือ <b style="color:${left < 120000 ? '#ff8a80' : 'inherit'}">${campFmt(left)}</b> <span style="opacity:.75">· แตะดูเป้า</span>`;
+  if (html !== campLineHtml) { campLineHtml = html; missionLineHtml = ''; goalLineHtml = ''; goalLine.innerHTML = html; imgifyEmoji(goalLine); }
+};
+goalLine.addEventListener('click', (e) => { if (!campActive()) return; e.stopImmediatePropagation(); showMessage(`⚔ ด่าน ${humanSide.camp.lv + 1} ${campLv().name} (${campLv().leader})\n${campLv().story}\nเป้า: ${campLv().goals.map(campGoalText).join(' + ')} ภายใน ${campLv().min} นาที`); }, true);
+
+function campCheck() {
+  const L = campLv();
+  if (!L || gameOver) return;
+  captureSide(activeSide);
+  const t = campElapsed();
+  if (L.goals.every((g) => campSold(g.k) >= g.n)) campFinish(true, t);
+  else if (t >= L.min * 60000) campFinish(false, t);
+}
+function campFinish(win, t) {
+  const i = humanSide.camp.lv, L = CAMP_LEVELS[i];
+  useSide(humanSide);
+  const left = coins;
+  const got = win ? [true, t <= L.fast * 60000, left >= L.coins * L.keep] : [false, false, false];
+  const n = got.filter(Boolean).length;
+  matchActive = false; gameOver = true; matchEndAt = gameNow();
+  endReasonText = win ? `ผ่านด่าน ${i + 1}` : 'หมดเวลา';
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) { }
+  if (win) { campSaveStars(i, n); try { SFX.win(); } catch (e) { } } else { try { SFX.lose(); } catch (e) { } }
+  campResult(i, win, got, t, left);
+}
+
+// ---------- หน้าจอ ----------
+const CAMP_CSS = document.createElement('style');
+CAMP_CSS.textContent = `
+.cp377 { color:#3a2814; font:14px/1.45 sans-serif; text-align:left; }
+.cp377 .hd { display:flex; justify-content:space-between; align-items:center; margin:0 0 6px; font-weight:bold; font-size:17px; color:#fff4d8; text-shadow:0 1px 0 #3a1a05,1px 0 0 #3a1a05,-1px 0 0 #3a1a05,0 -1px 0 #3a1a05; }
+.cp377 .pill { font-size:13px; background:#fbf3df; color:#3a2814; text-shadow:none; border:2px solid #a8814f; border-radius:10px; padding:2px 9px; }
+.cp377 svg { display:block; width:100%; height:auto; background:#cfe3a6; border:2px solid #8a5d33; border-radius:10px; margin:0 0 8px; }
+.cp377 .card { background:#fbf3df; border:2px solid #a8814f; border-radius:12px; padding:10px 12px; margin:0 0 8px; }
+.cp377 .who { display:flex; gap:10px; align-items:center; margin:0 0 6px; }
+.cp377 .who .ic { width:44px; height:44px; flex:none; border-radius:10px; background:#ead6a8; border:2px solid #a8814f; display:flex; align-items:center; justify-content:center; }
+.cp377 .t1 { font-weight:bold; font-size:16px; } .cp377 .t2 { font-size:12px; color:#6b5230; }
+.cp377 .story { border-left:3px solid #b08a5a; padding:0 0 0 9px; margin:0 0 8px; font-size:13.5px; }
+.cp377 .goals { font-size:13.5px; margin:0 0 6px; } .cp377 .goals div { margin:2px 0; }
+.cp377 .stats { display:grid; grid-template-columns:auto 1fr; gap:6px; font-size:12px; margin:0 0 4px; }
+.cp377 .stats > div { background:#efe3c6; border-radius:8px; padding:5px 8px; } .cp377 .stats b { font-size:13.5px; }
+.cp377 .new { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; } .cp377 .new span { display:inline-flex; align-items:center; background:#fbf3df; border-radius:6px; padding:1px; }
+.cp377 .stars { font-size:30px; letter-spacing:4px; text-align:center; color:#e0a21b; text-shadow:0 2px 0 #7a4a10; margin:4px 0; }
+.cp377 .why div { font-size:13px; margin:2px 0; }
+.cp377 .r340 { margin-top:6px; }
+`;
+document.head.appendChild(CAMP_CSS);
+function campShell() {
+  const frame = document.createElement('div'); frame.className = 'frame340';
+  const box = document.createElement('div'); box.className = 'cp377'; frame.appendChild(box);
+  setupPanel.replaceChildren(frame);
+  setupPanel.classList.add('sm340'); setupOverlay.classList.add('ov340');
+  setupOverlay.style.display = 'flex';
+  return box;
+}
+function campBtn(cls, label, fn) { const b = document.createElement('button'); b.type = 'button'; b.className = 'b340 ' + cls; const s = document.createElement('span'); s.textContent = label; b.appendChild(s); b.addEventListener('click', fn); return b; }
+function campRow(cls, ...k) { const d = document.createElement('div'); d.className = 'r340 ' + cls; d.append(...k); return d; }
+function campStarsStr(n) { return '★'.repeat(n) + '☆'.repeat(3 - n); }
+let campSel = 0;
+function showCampaignMap(sel) {
+  if (!matchActive || gameOver) setTimeout(() => { if ((!matchActive || gameOver) && setupOverlay.style.display !== 'none') startDemo340(); }, 0);
+  const prog = campProgress();
+  if (sel == null) { sel = 0; while (sel < CAMP_LEVELS.length - 1 && campUnlocked(sel + 1)) sel++; }
+  campSel = sel;
+  const total = CAMP_LEVELS.reduce((a, _, i) => a + (prog.stars[i] || 0), 0);
+  const box = campShell();
+  const hd = document.createElement('div'); hd.className = 'hd';
+  hd.innerHTML = `<span>⚔ แคมเปญ: สายส่งเสบียง</span><span class="pill">★ ${total}/${CAMP_LEVELS.length * 3}</span>`;
+  const P = [[34, 104], [92, 52], [150, 92], [208, 46], [266, 88], [322, 50]];
+  let svg = `<svg viewBox="0 0 356 140" role="img" aria-label="แผนที่ด่าน"><path d="M${P.map((p) => p.join(' ')).join(' L')}" fill="none" stroke="#9a6b3a" stroke-width="4" stroke-dasharray="3 7" stroke-linecap="round"/>`;
+  P.forEach(([x, y], i) => {
+    const un = campUnlocked(i), st = prog.stars[i] || 0, on = i === sel;
+    const fill = !un ? '#cdbf9d' : st ? '#7bbf5a' : '#f3b640', stroke = !un ? '#8a7a55' : st ? '#3b6d11' : '#854f0b';
+    svg += `<g data-lv="${i}" style="cursor:${un ? 'pointer' : 'default'}"><circle cx="${x}" cy="${y}" r="${on ? 21 : 17}" fill="${fill}" stroke="${on ? '#3a1a05' : stroke}" stroke-width="${on ? 4 : 3}"/>`
+      + `<text x="${x}" y="${y + 6}" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="${on ? 18 : 15}" fill="${un ? '#2a1a08' : '#7a6a48'}">${i + 1}</text>`
+      + (st ? `<text x="${x}" y="${y + 31}" text-anchor="middle" font-size="12" fill="#c8870f">${campStarsStr(st)}</text>` : '') + '</g>';
+  });
+  svg += '</svg>';
+  const map = document.createElement('div'); map.innerHTML = svg;
+  map.querySelectorAll('[data-lv]').forEach((g) => g.addEventListener('click', () => { const i = +g.dataset.lv; if (campUnlocked(i)) showCampaignMap(i); }));
+  const L = CAMP_LEVELS[sel], un = campUnlocked(sel), prev = sel ? campAllowed(sel - 1) : new Set();
+  const card = document.createElement('div'); card.className = 'card';
+  card.innerHTML = `<div class="who"><div class="ic">${thumbHtml(L.icon, 34)}</div><div><div class="t1">ด่าน ${sel + 1} · ${L.name}</div><div class="t2">หัวหน้า: ${L.leader} · เวลา ${L.min} นาที${prog.stars[sel] ? ` · ได้แล้ว ${campStarsStr(prog.stars[sel])}` : ''}</div></div></div>`
+    + `<div class="story">${L.story}</div>`
+    + `<div class="goals"><b>เป้าหมาย</b>${L.goals.map((g) => `<div>${itemIconHtml(g.k, 18)} ${campGoalText(g)}</div>`).join('')}`
+    + `<div style="color:#6b5230">★★ เสร็จภายใน ${L.fast} นาที · ★★★ จบด่านโดยเหลือเงินอย่างน้อย $${Math.round(L.coins * L.keep).toLocaleString('en-US')}</div></div>`
+    + `<div class="stats"><div>เงินเริ่มต้น<br><b>$${L.coins.toLocaleString('en-US')}</b></div><div>ปลดล็อกใหม่<div class="new">${L.allow.filter((t) => !prev.has(t)).map((t) => `<span title="${LABEL[t]}">${thumbHtml(t, 22)}</span>`).join('')}</div></div></div>`;
+  box.append(hd, map, card,
+    campRow('two', campBtn('green', un ? '▶ เริ่มด่าน' : '🔒 ผ่านด่านก่อนหน้าก่อน', () => { if (un) startCampaignLevel(sel); }), campBtn('mid', '← เมนูหลัก', showSetupMenu)));
+  imgifyEmoji(box);
+}
+function startCampaignLevel(i) {
+  const L = CAMP_LEVELS[i];
+  startMatch({ vs: false, terrain: makeTerrain(L.terrain[0], L.terrain[1]) });
+  useSide(humanSide);
+  coins = L.coins; humanSide.coins = L.coins;
+  humanSide.camp = { lv: i };
+  humanSide.mission = SOLO_MISSIONS.length; // ไม่ให้ภารกิจเดิมนับต่อ
+  campLineHtml = '';
+  refreshLocks(); refreshToolbar(); updateStatus(); updateMissionLine();
+  showMessage(`⚔ ด่าน ${i + 1} ${L.name} — ${L.leader}\n${L.story}\nเป้า: ${L.goals.map(campGoalText).join(' + ')} ภายใน ${L.min} นาที`);
+}
+function campResult(i, win, got, t, left) {
+  const L = CAMP_LEVELS[i], box = campShell(), n = got.filter(Boolean).length;
+  const hd = document.createElement('div'); hd.className = 'hd';
+  hd.innerHTML = `<span>${win ? '✅ ผ่านด่าน' : '⌛ หมดเวลา'} ${i + 1} · ${L.name}</span>`;
+  const card = document.createElement('div'); card.className = 'card';
+  card.innerHTML = (win ? `<div class="stars">${campStarsStr(n)}</div>` : '')
+    + `<div class="story">${win ? L.end : `${L.leader}: ไม่เป็นไร ลองใหม่อีกครั้งนะ เสบียงยังรอเราอยู่`}</div>`
+    + `<div class="why"><div>${got[0] ? '★' : '☆'} ${L.goals.map((g) => `${campGoalText(g)} (${Math.min(g.n, campSold(g.k))}/${g.n})`).join(' + ')}</div>`
+    + `<div>${got[1] ? '★' : '☆'} เสร็จภายใน ${L.fast} นาที (ใช้ ${campFmt(t)})</div>`
+    + `<div>${got[2] ? '★' : '☆'} เหลือเงิน $${Math.round(L.coins * L.keep).toLocaleString('en-US')} ขึ้นไป (เหลือ $${Math.round(left).toLocaleString('en-US')})</div></div>`
+    + (win && i === CAMP_LEVELS.length - 1 ? '<div style="text-align:center;font-weight:bold;margin-top:6px">🏆 จบแคมเปญแล้ว!</div>' : '');
+  const btns = [];
+  if (win && i + 1 < CAMP_LEVELS.length) btns.push(campBtn('green', `▶ ด่านต่อไป (${i + 2})`, () => startCampaignLevel(i + 1)));
+  btns.push(campBtn(win ? 'mid' : 'green', '↻ เล่นด่านนี้ใหม่', () => startCampaignLevel(i)));
+  box.append(hd, card, campRow(btns.length > 1 ? 'two' : 'one', ...btns), campRow('two', campBtn('mid', '🗺 แผนที่ด่าน', () => showCampaignMap(win ? Math.min(i + 1, CAMP_LEVELS.length - 1) : i)), campBtn('mid', '← เมนูหลัก', showSetupMenu)));
+  imgifyEmoji(box);
+}
+// ปุ่มแคมเปญในเมนูหลัก (ใต้ปุ่มเล่นต่อ)
+const _showSetupMenu377 = showSetupMenu;
+showSetupMenu = function () {
+  _showSetupMenu377();
+  const fr = setupPanel.querySelector('.frame340');
+  if (!fr) return;
+  const p = campProgress(), tot = CAMP_LEVELS.reduce((a, _, i) => a + (p.stars[i] || 0), 0);
+  const r = campRow('one', campBtn('wide hl', `⚔ แคมเปญ: สายส่งเสบียง${tot ? `  ★ ${tot}/${CAMP_LEVELS.length * 3}` : ' (ใหม่!)'}`, () => showCampaignMap()));
+  const rows = fr.querySelectorAll('.r340');
+  const after = rows[0] && rows[0].textContent.includes('▶') ? rows[0] : null;
+  if (after) after.after(r); else fr.prepend(r);
+};
+// เมนูแรกถูกสร้างก่อนสคริปต์นี้โหลด: สร้างใหม่ให้มีปุ่มแคมเปญ
+if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340') && !setupPanel.textContent.includes('แคมเปญ')) showSetupMenu();
+</script>
 </body></html>
