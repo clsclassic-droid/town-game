@@ -6687,8 +6687,9 @@ function drawStopMark(c, x, y, now) {
   if (c.stopSince == null || c.stopSince > now) c.stopSince = now;
   if (now - c.stopSince < 4000) return;
   const [cx, cy] = tileCenterScreen(x, y);
-  const r = Math.max(9, 11 * viewZoom);
-  const top = cy - 32 * viewZoom;
+  const F = uiK381(); // v381: จอคอมใหญ่ ย่อป้าย + ยกขึ้นเหนืออาคารเล็กน้อย
+  const r = Math.max(9, 11 * viewZoom) * F;
+  const top = cy - 32 * viewZoom - 5 * viewZoom * (1 - F);
   const pulse = 1 + 0.08 * Math.sin(performance.now() / 220);
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -6696,7 +6697,7 @@ function drawStopMark(c, x, y, now) {
   ctx.arc(cx, top, r * pulse, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
   ctx.fill();
-  ctx.lineWidth = Math.max(2, 2.5 * viewZoom);
+  ctx.lineWidth = Math.max(2, 2.5 * viewZoom) * F;
   ctx.strokeStyle = r0.color;
   ctx.stroke();
   const icon = r0.kind && ITEM_IMG[r0.kind] ? artImg('item_' + r0.kind, ITEM_IMG[r0.kind]) : (EMOJI_UI[r0.icon] ? uiArt(EMOJI_UI[r0.icon]) : null); // v284: ป้ายเต็ม = ภาพลัง
@@ -6718,12 +6719,12 @@ function drawLumberMark(c, x, y, reason, now) {
   if (c.lumberSince == null || c.lumberSince > now) c.lumberSince = now;
   if (now - c.lumberSince < 4000) return;
   const [cx, cy] = tileCenterScreen(x, y);
-  const r = Math.max(8, 9.5 * viewZoom), top = cy - 32 * viewZoom;
+  const F = uiK381(), r = Math.max(8, 9.5 * viewZoom) * F, top = cy - 32 * viewZoom - 5 * viewZoom * (1 - F);
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.beginPath(); ctx.arc(cx, top, r, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
-  ctx.lineWidth = Math.max(1.5, 2 * viewZoom); ctx.strokeStyle = m[1]; ctx.stroke();
+  ctx.lineWidth = Math.max(1.5, 2 * viewZoom) * F; ctx.strokeStyle = m[1]; ctx.stroke();
   const lim = EMOJI_UI[m[0]] ? uiArt(EMOJI_UI[m[0]]) : null; // v284: ไม่มีคลังไม้ว่าง = ภาพลัง
   if (lim) ctx.drawImage(lim, cx - r * 0.75, top - r * 0.75, r * 1.5, r * 1.5);
   else {
@@ -6736,8 +6737,8 @@ function drawLumberMark(c, x, y, reason, now) {
 // v193: เครื่องหมาย ⏸ เหนืออาคารที่ปิดการทำงาน
 function drawPausedMark(x, y) {
   const [cx, cy] = tileCenterScreen(x, y);
-  const r = Math.max(7, 9 * viewZoom);
-  const top = cy - 30 * viewZoom;
+  const F = uiK381(), r = Math.max(7, 9 * viewZoom) * F;
+  const top = cy - 30 * viewZoom - 5 * viewZoom * (1 - F);
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
