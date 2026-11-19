@@ -5430,7 +5430,7 @@ function drawPondMerged(px, py, x, y) {
 }
 function drawPond(px, py, cell, gx, gy) {
   // v178: สระที่ยังสร้างไม่เสร็จเป็นพื้นดินสีน้ำตาล ยังไม่ให้ passive น้ำ และแสดงจำนวนน้ำที่ส่งแล้ว
-  if (cell && cell.building && drawGroundTile('soil', px, py)) { // v194: ดินชุดใหม่ + ป้าย x/10
+  if (cell && cell.building && drawGroundTile('pond_wait', px, py)) { // v372: ภาพใหม่ (เดิม 'soil') · v194: ดินชุดใหม่ + ป้าย x/10
     if (UI318.pond) { // v318: บอกชัดว่าเป็นสระกำลังสร้าง (ไม่ใช่แปลงพืช)
       const k318 = (cell.waterIn || 0) / BUILDINGS.pond.waterCost;
       ctx.fillStyle = 'rgba(46,134,222,0.28)'; ctx.fillRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6); // v354: คืนแบบสระเก่า
@@ -13072,6 +13072,8 @@ const SOIL351 = {soil_tree:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAA
   };
 }
 
+SOIL351.pond_wait = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAIl0lEQVR4XkVXya5cVxVdp7tNda/sZz/HFiiDOILAACZ8ABJCESN+hB9gEkUIvocBYsAvoChSGIQAgUSWbGK/rqpue+5p0NqnbErvVXPvufvsZq2191EA8PuPf4qskTdrh7ZxGPpF/eLnz/Gvf17jq//c5JgyUs7QUCpA45M/f4ZPfvUj6GSgM6C0yUoBGQA/U8wqJI1P//I5fvfLH0MbB2cMIpLYyhkIxqhP//QZ1G8+fo4rvc5PLjf46MNHaJsKd3cDxt7jcJpxdxixqh3mJaKfA5aY3m1UGY3aGjTOQGsl9/p5gV8SYs5lHTKs1tivKtjKYgkRh35GiFmcsE/0Oj+92uGjDx9j6GZ0xxlGK9zfDlgiUDsLaIW2tmhoICXJBl/OMidKtuG7MwpbrTCZyEdgjZZ1xnAdv2V55vGuxX3v0U9LtgoaP/zgEq9e3MvizBQh48nTHcZxwZvrAczZZtvgcJzgrEFWgE4Zt92ETVPBunKNjhhrsLFGnpl8LI7Smwy0rZP/25seu1WFYV6glQY+/+IVxjlIZMpoXOxXqGqLvvO472fQ+pGfmgnNEm1SwIN1I2V4eNHAMCmZ+5YA6BBL008L+nGRZ9rW4uZuwHC+Bg3YiKgOvc+V1Wgqg3H0OHYz7k7cOEttWU8DDV0yKiCKIcOwBBm4O06yCfHAIGylpSjjErBuHOqaGQFevTqJvaZx+O5+hFVKWZV0Zq0aZ9EPC6Y5Yg4Rm8YJFiYf4IzGy5tejPEaP5lVAgoJqJzBEpJkkWurZBBTQu0MrNUYpyh2GCBLaBSwriwG7+kEsGsd7roZ39x0GJeIShd013x4ibLpcVoQUkLrLFriIAM+RtnQx4J6rrVSJqAhFmrST+E4Lu/Ws2RPLlo83NQY/ZKtUWWzf785YfQRIbHGCSYpTFOUTVbOYt86SWO/BBxJtZikriwdn3dK49muFZQfhhk3g8dxSiDvIwFoNTbCJINVbaGVEgZZek5jz9+7gEoZHdNotXjKHchpAmvVOPgUsfjyew6psKNx8l1K0zox+mBT49kSMS2llMSFDxGrygkGCGA/R1BRBITjEvK2raC0wmXd4P0PHuLvX74W/jLdDD2GBEctrJRsttVaHOGGDdGvqIJ84x8DUKgqK79p4cnVFikl3N6PVEqcJo+ssqJDcGd40whT/rcvXiEyb+9e3FRjjAV0mpsL7Uu9360kBQkOOpEVvA9FB4xGyAnfvjyIzsSzmvJlc9C5IDoJ+hnpdlXhzWlC6gtAyT7iY7+rRfupDTkyemBVWXRTwBwjcipq92DTIJyB6eNSGHCcUFmyJaN1Bt4l9J6gJWozhELfXHeYQhQE83NTORwHX2oYk7CE9CKYmBEBbAamGNH7IJpP1B9GKlxRxmEJkhWCfQxBsvVoXeP9yw26SWVLNNaVxT9e32Gg+MtmEevKIKSIMRTAMQsPVhV6n3F6q5pEMiB0fbiqcNFUuB+9OENwMwtMP7NEuwyMDpA5pCuV0iZAzTHmHzzdYZqD4IBopeWwJPhAKiUxZp3Gtqkw+yiAooDxPqV3v66FWo+XRgSKDGBma4oPWzEZFNjIgM3KEUrCDJs0ZOPdupYaSUhQomJPP9jh66+vpcEUdBfAOWcwTYtExhbMdGtDQCpUtZE+shWMKjx9b4u+m3FzP2DVnrUcwOwZbFJahZR5OfgCwLet1S8RX371+txuizHN9BDkbDSNxbQUlGtr5L74zi5wbtG7iwZdN0sX7aeylilgZtkpczYFhNQAUus0LjgeJ6kNM8AmwuvHzgsI2dlYv6uLVr6zJ/A3gcr0a6NxGjy2rRMhe/26k3IwrLZ2AnRKeeX02fmUpReQ8t++OeFu8DCqCA1BQlTzPilY0Ay5R5QzFdyUCF9iacEFD0BNAassVs6IuLEXkEksF/vDura42jXikKVWk6fX3fwupaxtnzgDQqjGJsSRik125Eg1edF4mQty4TX/68ahmxehcHfuorwva1k2a+RZSvqjXS2gspQsSsFPvrcXujEKTjCifEsQWjEiIp5RkefMCA2/VUBm66KtZM1pWsQGpx06T2C3lTmPbFrsEqj+bMOqBBk2H+0a0e5nz3Y4HSccjzNWjcXlrsGWrXNaJNV8rVqIAVedWSOXy6y0XldYJ9KyKqzhW1ElEa2yEpLtmLPSSSELwqFwsW8kXfMUpCzsWpy3u85jmGPRBkY3cTou897/GwGbePktgFQK+32LzaoS2X7rAMcxusMpW3oBR61Va8GGcH09CIqNoQ5YpJTlOx1hd6Nxopvg7CYPxTKcdYPR+SWcZ4SieMkovHh5wn5Vy4iWdcaKcwWAbeNwP/hsOZRyoKBHjI4P8hxwcyoTcNtYqJjx38OIxmlxjDSjWh76Qr91Y3EYFtx0kxhm3UnR2zeDbM4x734YZBbgfLA5zw10yoaU1TiF/OK2x+ADplAmHWoBZZOAJMiIft7n7PigrQRgLBfvkV78fZw9qk5j7UqzImX5ooyzW/IwQhCTUTwbkBk2n4dHIvU0c7LV2LeVGPcpYV5Km2YHZLOxRmHwUehGJgjSzweQq00jG9LOPC/SiGQcJ005cRP5yNg1zKBFN3vFyThT1b5/uREmcLZj3ZkJDg40TrXjmZEez3OQSEi10+gFeDLrOSMTlEzH7Ibn7PBERfQycmKKikrHOMCSOJbqxg1kuLC2zGwaWFPfAemEVEe2V9Fv6YoUHi11npcgzel89kKjtWzOwZPgJcN2m1Kyw2FERepS3DjSkwUxLeq2z7mayoaPdi1MgbZoPNFOYwQWAZiVhp/ZWM71paEMWBoGZDqi09/dD7jcNgLSu7tRcNDUVoKgXZ4xXZJDNfCHX/8McZp5zj5f4dwn50SOdkiJbCM1Kc4KPobCTTlLRijNw40R0HGYyanYJU/pABWSF3iPZUhZwTVO/faPf8X/AJzGPrSazSrhAAAAAElFTkSuQmCC'; // v372: ภาพสระรอน้ำ (ภาพที่บอสหนึ่งส่งมา ย่อ 32px)
+
 // ---------- v306t: ปุ่มเวลา/ความเร็ว/พัก ขวาบน เรียงแถวเดียว (จอกว้าง 700px ขึ้นไป) ----------
 {
   hud.id = 'hudRow305';
@@ -14451,6 +14453,20 @@ window.addEventListener('orientationchange', () => setTimeout(fitCanvasToWindow,
   const rest = all.filter((b) => !used.has(b));
   for (const b of rest) { b.classList.add('b358', 'w358'); s2.lastChild.appendChild(b); }
   row.classList.add('tools358');
+  // v372: แผงเครื่องมือไม่บังกลางสนาม — จอกว้าง (>=700px) ชิดขอบขวาเหนือแถบหมวด / มือถือสูงไม่เกินครึ่งจอ
+  const d372 = document.createElement('style');
+  d372.textContent = '@media (min-width:700px){html body div.tools358[data-t][data-t]{position:absolute!important;bottom:calc(100% + 6px)!important;width:min(360px,calc(100vw - 20px))!important;max-height:calc(100vh - 170px)!important;}}'
+    + '@media (max-width:699px){html body div.tools358[data-t][data-t]{max-height:min(calc(100vh - 150px),52vh)!important;}}';
+  document.head.appendChild(d372);
+  function place372() {
+    try {
+      if (openRow === row && window.innerWidth >= 700) { const r = toolbar.getBoundingClientRect(); row.style.right = Math.round(r.right - (window.innerWidth - 10)) + 'px'; row.style.left = 'auto'; }
+      else { row.style.right = ''; row.style.left = ''; }
+    } catch (e) { /* ignore */ }
+  }
+  const sg372 = showGroup;
+  showGroup = function (r, t) { sg372(r, t); place372(); };
+  window.addEventListener('resize', place372);
   row.textContent = '';
   row.append(head, s1, s2, s3);
   const st = document.createElement('style');
