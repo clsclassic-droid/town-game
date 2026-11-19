@@ -15082,7 +15082,19 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
 #prodChain .cb386.ok .st{color:#2e7d12}
 #prodChain .cb386.ok .ic{filter:none}
 #prodChain .cb386:not(.ok) .ic{filter:grayscale(1);opacity:.7}
-#prodChain .cb386.lk{opacity:.6;cursor:not-allowed}`;
+#prodChain .cb386.lk{opacity:.6;cursor:not-allowed}
+#prodChain .tw386{overflow-x:auto;padding:6px 2px 10px;background:#fbf7ea;border-radius:10px;margin-top:4px}
+#prodChain .tn{display:flex;flex-direction:column;align-items:center;min-width:max-content}
+#prodChain .trow{display:flex;gap:10px;align-items:flex-start;justify-content:center}
+#prodChain .ta{color:#8a5d33;font-size:15px;line-height:1;margin:1px 0;font-weight:bold}
+#prodChain .tb{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:10px;border:2px solid #b9b39a;background:#efefef;color:#555;font-size:12.5px;line-height:1.25;text-align:left;max-width:170px}
+#prodChain .tb small{display:block;font-size:10.5px;color:#777}
+#prodChain .tb.prod{background:#fff6d6;border-color:#c9a227;color:#3a2814;font-weight:bold}
+#prodChain .tb.bld{cursor:pointer}
+#prodChain .tb.bld.ok{background:#e3f5d8;border-color:#5aa03c;color:#1b4a0c}
+#prodChain .tb.bld:not(.ok) .ic{filter:grayscale(1);opacity:.75}
+#prodChain .tb.bld.lk{opacity:.6;cursor:not-allowed}
+#prodChain .tb .ic{flex:none;display:flex}`;
   document.head.appendChild(css);
 
   // นับอาคารที่ผู้เล่นสร้างแล้วบนกระดานของตัวเอง
@@ -15115,7 +15127,7 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
 
   // แตะรายการอาคารในหน้าสายการผลิต (เฉพาะแคมเปญ)
   document.addEventListener('click', (e) => {
-    const row = e.target.closest && e.target.closest('#prodChain .cb386');
+    const row = e.target.closest && e.target.closest('#prodChain .cb386, #prodChain .tb.bld');
     if (!row || !campActive()) return;
     const t = row.dataset.bt;
     if (buildLocked(t)) { showMessage(unlockText(t), 3000); return; }
@@ -15124,6 +15136,39 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
     if (buildType !== t && toolButtons[t]) toolButtons[t].click();
   });
 
+  // ต้นไม้สายการผลิตแบบกล่อง+ลูกศร (แทนข้อความ "ทำมาจากอะไร" ในแคมเปญ) · ลูกศรชี้ขึ้นจากวัตถุดิบไปหาสินค้า
+  function bldBox(t, extra) {
+    const lk = buildLocked(t), ok = builtTypes().has(t);
+    return `<div class="tb bld${ok ? ' ok' : ''}${lk ? ' lk' : ''}" data-bt="${t}"><span class="ic">${thumbHtml(t, 28)}</span><span>${LABEL[t]}${ok ? ' ✓' : lk ? ' 🔒' : ''}${extra ? `<small>${extra}</small>` : ''}</span></div>`;
+  }
+  function treeNode(k, n, seen, need) {
+    const qty = n ? ` ×${n}` : '';
+    const prod = `<div class="tb prod"><span class="ic">${prodIcon(k, 24)}</span><span>${prodKindName(k)}${qty}</span></div>`;
+    if (k === 'water') { need.add('well'); return `<div class="tn">${prod}<div class="ta">▲</div>${bldBox('well', 'บ่อน้ำ/กังหันลม/สระ')}</div>`; }
+    const srcs = PROD_SOURCES[k] || [];
+    if (!srcs.length) return `<div class="tn">${prod}</div>`;
+    const src = srcs[0];
+    need.add(src.b);
+    prodStoreOf(k).forEach((t, i) => { if (i === 0) need.add(t); });
+    const carrier = prodCarrierOf(src.b); if (carrier) need.add(carrier);
+    const mode = src.mode ? ` (${prodKindName(src.mode)})` : '';
+    let h = `<div class="tn">${prod}<div class="ta">▲</div>${bldBox(src.b, `${src.sec} วิ${mode}`)}`;
+    const inp = Object.entries(src.inp || {});
+    if (inp.length) {
+      if (seen.has(k)) return h + '</div>';
+      seen.add(k);
+      h += `<div class="ta">▲</div><div class="trow">${inp.map(([ik, iv]) => treeNode(ik, iv, seen, need)).join('')}</div>`;
+    }
+    return h + '</div>';
+  }
+  const _prodTreeHtml = prodTreeHtml;
+  prodTreeHtml = function (k, n, seen, depth, need) {
+    if (!campActive() || depth !== 0) return _prodTreeHtml(k, n, seen, depth, need);
+    return `<li style="list-style:none;margin:0;padding:0"><div class="tw386">${treeNode(k, 0, seen, need)}</div><div class="pnote" style="margin-left:2px">▲ ลูกศรชี้จากวัตถุดิบไปหาสินค้า · กล่องอาคาร เขียว = สร้างแล้ว เทา = ยังไม่มี (แตะเพื่อสร้าง)</div></li>`;
+  };
+
+  function centerTree386() { const w = document.querySelector('#prodChain .tw386'); if (w) w.scrollLeft = Math.max(0, (w.scrollWidth - w.clientWidth) / 2); }
+  document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('#prodChain')) setTimeout(centerTree386, 0); });
   // เปิดหน้าสายการผลิตของสินค้าเป้าหมายด่าน
   const _openProdChain = openProdChain;
   openProdChain = function (kind) {
@@ -15131,6 +15176,7 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
     _openProdChain(kind);
     if (!campActive() || !prodOverlay) return;
     prodOverlay.classList.add('camp386');
+    setTimeout(centerTree386, 0);
     const L = campLv(), pn = prodOverlay.firstChild;
     const box = document.createElement('div'); box.className = 'camp386box';
     box.innerHTML = `<div class="t">⚔ ด่าน ${humanSide.camp.lv + 1} ${L.name} · ${L.leader}</div>`
