@@ -14868,4 +14868,118 @@ showSetupMenu = function () {
 // เมนูแรกถูกสร้างก่อนสคริปต์นี้โหลด: สร้างใหม่ให้มีปุ่มแคมเปญ
 if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340') && !setupPanel.textContent.includes('แคมเปญ')) showSetupMenu();
 </script>
+<script>
+// ===== v378: ฉากบทสนทนาแคมเปญ (หัวหน้าทหารเข้ามาสั่งชาวบ้าน) · ภาพตัวละครเป็นภาพชั่วคราว วาดด้วยโค้ด =====
+(function () {
+  const IMG = {"get": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAqCAYAAADWFImvAAACVklEQVR42tWYvUvDUBDAL6WW4vegEDpIBNEgIsXBRZBOpUhHh1BQnJyc/ANE/AOcnDqVDpLBUUrpVMTJoRQRERGMDiFgKaIiUgcd6isvHy9595qI3tJyuZf3y929u0sA/ohIIotSSubL77pp1KVIQWiAdS3haXOid4SAJCwEC4AFxAsTiwKCtg0KIwrED+Ig34GDfAe1pi+QqCUucipo2TtNoE+ZV95IvPlwf/ck9KTTM5NcSRzrNymxwkpiyQkSJYTTM7RXYn4FKUoI31NDCKOEYeWIxJPla7MtGFxKCW383jChcjsR2IviQU2LQL03TDjc3wEAALWgw82x5rkxfW13/4i778R5nooAYIWsqxT0aCoryxtB11Ddl1VVRTdQf7zBHRoa4FJXegaLmtH3SeEZBWw5QgM4daqmo72icuSGUI5gboyxteUICc2lrsCiZrh+dzP2Ire9vel5w2KxbD859QQuNKZRlzDt37lh0BgQBMMVmtxWUjhRl3Of4oORl1wro4E288ZL7/95EvdG4emRFfnB9vurL1gkP7w2H8nNcd2M5ZGL6gBfQSMQW+lnABhzWzUtsNIyyE3LF6RNQwHAtTyEH567EGyRf2CCpG29hjfFhyXlzY1ucavq//y9hiXV0gcAAKxOtXq6s8cJmy5J6Xg84QIpNcd986TUHA+947pCQxaxNiN6ke8e6ILGgqEhML0IY8s9oRHIlJL5Whi2D0pXb915xUuP8WAcEdusgMezAFAL89RknR5wCkvPCyNhQQSlFlZBq0UJIfx5k8NDNfiv8g2UggO/05fDIgAAAABJRU5ErkJggg==", "sara": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAqCAYAAADWFImvAAAB8klEQVR42u2YMUvDQBTH/4kpCLrZIQSRTlJEUFpwlAolFKeOEoqIq0uHTpk6FSfpRyiC2o9QgmJx7FRBijgVh5JBXdRJsA6akKZ36d01sS30TXeXl8sv/3vvXXLA3OY2Iybx3qAlMn0Wv163KUUC4gU4XLcDfc+fVG4giQdiFAANiAVGigqCpE6QSkwgohA8Ksn/nR20l5Inla7+7JsICEkVLhCzXIRZLobm5zVFNOAeLw+I15JGHabAnAqrElGbUIzQ1Bh1bWyQpFEXmpymJKnIyWFvXqwmXNBEVEka9aG3J6khtPuyxkAQuNBeQ6uEQekrsrQSD0DuaHHkhG/2u9tuNWLMQEx1xA9gGqeB/qWzEwDATu5rCCjUyqppq9NR0KamskZhXEujttm+1DbsTwBAR12iZp0/eLlA7G2Vyc8LAADX5vdAP1uRXTAHiGlpqnoeVT3PLXetkEatkHb7t/evLpgD5wBFFiOV1AJ6nTYurm6oPl6lFKFyXQr2bzViQOr3IXtbK+64t80drP6g0hKZ/vF+xu3fPccBALtrLx6v+PSkb7Yic/koUfyA+x9Eyhq/4hIvyOZyd2Ds4SMBACCN97pNiQY/Th3RBVZIZ/0MUHghHAX8Rhv/u9cK63xEHzN2rbCyxooSQujoilEhC7NqP66zt83WTaCXAAAAAElFTkSuQmCC", "ray": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAqCAYAAADWFImvAAAB/0lEQVR42mNgGAWogJESzVIKDv+R+c8eHGCkm0PQLRfX/cjAwMDA8PIyPwMljmIkx3IdPzY4+/X91wwMDAwMooqicLErm36R7ChGYh2AbDkpANlR+BzESMgR5DoAl4NwOYYJn2ZqOYIYs5gGS/YdNA5hIRSvUkZfqGLRs3M85IUIJYUTOWayEOMTB5kXKGJvjOTw6hE59wiFf+CJBGVR8+zBAUbksmRGVwEDAwMDQ0bZBLyGYlNHKIRZyAniA08kGG4si8AqpxG1gvqJFd2HpAKYPmIcR1b2xRUahOQodgi5wU2KXiZKshw1si3JUUNOqJCih4kUH5FiMEwtsSHKQq4vqZ19GUlpnfU1aBA08OHjt3D2xLmviQ5tokKEGAdgAwkGHxgYGBgY/hgkoUbDhXkMDAwMDAsuCAyxZgA1QM2SPVhEoxhaYlyGYMMIHUzp2UGS4XYqkDSwad8lFHE/Jz3KHJJT4kFSrvl49jZOi8lyiJeaAQMDAwPDtlsXyAp2qocIuYBqIYJeWtrJvYGzDz0SwSmWYEDFEEGvK9D7wXQNEUoAenlBFYeQGhrIRTjVQ0SH5wHDu3conQcGBgYGhnfvviCp+cJw5YsCSY0qUkpWNzJixo3aIQI38MoXBezdUxziUL27qDV05UZhmt1FrajZRUtHUDKq6EZDhw8sAAAaDbUeGujpFwAAAABJRU5ErkJggg==", "lena": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAqCAYAAADWFImvAAACR0lEQVR42tVYMUgjQRR9E7ZIEc5GwiFBFrUQTCUWFkewCKmOqw45rpIgFilT2AgWlilSXGEpVx3HYSWpQopwVYrDygMLOZZDJIjk4NgihRiLdZJxnc3+Pzt74R4szO78nX3z/p//Z0cgARbcrZF6f+N1helYmaQkWu4QLXeoJcaBSKKCJCDx1ssaqyNMXNA6qQWNo+Zzw8N6QKh6DK7LBNkF8uNhSDJPJMKQpOLIiEQkiKCQEWQ3JEQcGe2qubo4tUqCMpaWyErxPf41XhC58bpCyheOfhuuYQfrgrs1UuXMvN40IvDQ70WSUeMlgxlAxqAKh/pyrj+ZzV+sT7V9hfOptroYdDgzyWfdoDE8J9ndDj3oYtBa0StVe8hnXe1VqvbSrb5jNUwUTGsbcPnlg1FfKvsR2xDU0m8609WPX0nBytqPcMlIEpT9SCb8QXlRZsdRIg6OLuvpEk6nEGwLr/c/AwAKjR3tgLK/Uwjuy9dZfoyoSkg55TNJhAtJJM49DiWQ9t4A8MxWw7s1H2c/c3zXROGbGy/xtjdR7dPcPWkzLic/szwSrsAzIxJeEKzq2/nxa3q/enMHFJfzWjtdLLKIlDeWYm36f3wjhUhE6rUgozaPeUmqcbALADgjJDeHWmtmWvSismxp8W7c/v57PvIZ5//XoUS2OghVKe5pgGNrIOs/WJzjCVu27OULAMWch8FAfRLEw2DgKzY+Lnw3NUUqBopXbCsyHjBqplMUqABo2zpDqySMxbYt17TTJGF0qkhUqI3/FY+EH91vs4b3gwAAAABJRU5ErkJggg==", "bronze": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAqCAYAAADWFImvAAACGElEQVR42mNgGAWogJFUDVIKDv+JUffswQFGqjsE3fK+SXVw9rlzVxgYGBgYjIx04GJFeU0kO4qRWEcgW44MsDkEGcAcRcgxTJQ4ghgA00soSplo6QhSHMNEjAHUAITMYhos2Zdkh7xTMGJ4p2BEtjwuwIJPEpYjYEAhKA7FwgfrFqGoxSdPkUOQwZIF6xgYFqzDrwiLfExCEGUFGnoKr9m0Aas6oQfn4CGADbT4BRBVuBFVoN1YFgEJFZ4IrI5Ajg6U0PiygoGBgYFBI2oFwQKNhZQEFfNlBdwxMV9WMDCIoCn4cgtVnpa5JubLCozgRo8KUh1BdjkCiypS5SiOGo2oFQw2Ek/IsuDICxnqNgOwOWROXwkKP6Woh2SHwBIxRQ4hBIKqZuGVL8prgjtk6NU1R17IEB3fpKQNohMrcglr5xdG0MAPbyBRqKdEg1xDjAMoBSy0NBy99h4wh1y69QJCHzvGkGDwAVJBXxCgv0NI6fOQ5JAn+7pIspBHL4o2USPjVEZ0rqFJYp0VASlu0lb8I8nwVTlykLrq2DHa1L4Dln01olDbF3Zyb+DsQ49EUMQEkMSICQmiHYKewskZDSBGz9DsYBEbGqSqJatA0+F5wPDuHbIIJD28e/cFSc0XhitfFGhW17iREeJuDAwMu/AV7aQ6BO4IXD7FEwJuVBkxoiA0kMEuaiXWXbR0BFmjikSG0C6GoQoAh7nPkwkQI9YAAAAASUVORK5CYII=", "vance": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAqCAYAAADWFImvAAACEElEQVR42mNkoCKQUnD4T0jNswcHGLGJM1LbEVsUfuBU4/OAA6djmKgZIvgcQUiehRrBTU7ooYcKCzEaxUz+EWfDG+JCDRZFNIuaJBE2svWyUGLxgQJUfzhM+EcwodLEIcSGyqszTHizLtWjhpzyg6hyBJZjri2hzBFaMYQdQzBq/v24w6ARQnmIMHGo4JdnGCSAkdjC7MayCLIs0IhaQVR6YSImgZHrCGS9fZPqGO5cWUPdqMHmS2LkhkQaYaIkuEmVo7hk1YhaAbfgAY8dUQYrfDlEUlQxUVoiUguwkJJAbyyLgPuU0kRNVhqBhQopBsPUEhuiLORmXVyJktzsS1JTEVb5OUz4x2DXtwyrel6VLwwnG/jglR2xTU0Sm4qk5XZelU8MDAwMDJ/v8FG3HHGY8I/BYcI/eMts3ptfKC01GN+84RODecOnEVSywtqmsGYhOp/mjecXR+6RZDi/jhhtHCJho0RQzfcPX4juniKXMYzEaIKVGbiyLC6HnG5KY/j3bwXOdiyyQ4ZGUxFX39dODtG3PPRIBKcYMkgw+MDAwMDAsOCCANYKlYXU2pfYkhJZH7oemg9L0KUZQOoQBfrQA3KUUKX21eF5wPDuHbIIJD28e/cFSc0XhitfFEhqXJESNW5khLgbtaMGbiCyT5EBLnGo3l0UZ18KQgMZ7KJW1OyipSMoGd50o6HDBxYAADU3z6PNGVNGAAAAAElFTkSuQmCC", "farmer": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAqCAYAAADWFImvAAAB2UlEQVR42mNkoBBIKTj8h7GfPTjASK45TNRwxKUVChiOoptD0B1BqWMYKYkKmOXIQC/iAVnRxEhJKNw49wAup2GkQJFjmMh1BD5ATjQxUtsR2KKJmNBhpJUjSE03jKQmyr6OC0RZXlRhQJJjGEnNFZQA5KhCdxRWh6wqo57lT2TqGGSeNMFpmFhRXhOKQ5gYBglgwSYY1oUpdmNZBHkh8gZiXt8khLl9k4hwCHpiklJw+E+uI2he12hErSBLjuSooTbom1SHQlMtRPBFFbnRSHTJSq4FsKhKMPjAwMDAwLDgggDW9EgwRChpdeEzE91cJmokUGroYSLWB6QaDFNLbIiykOtLXGmGZtkXuRKEJTgGBgaGXzJqWNUjq1lwQYDoxhFRUXPpUB3DpUN1JPty+cxohuUzo2nfnRjwIn5YO4TsuqYvr2hwOKRoUh9VHUiUQ9ie3CLLcEPev0MvjTCSUqDBQJwDG5y96MAvnGLYCroFFwSwFvsspNa+xJaUyPqI0TM0yxFSOtWkjpOQnH11eB4wnDuDLALpDZ47cwtJDQPDlS8KNCtH3MgIcTcGBoZd6E1EShwCdwQun+IJATdiGkeMNAwNZLCLWol1Fy0dQdZgHpEhtIthqAIAaPvOLrTN8pMAAAAASUVORK5CYII=", "woodcutter": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAqCAYAAADWFImvAAACAUlEQVR42u1YPUvDUBQ9CUEFC7ZSBbsYQaRDEQcXtw7SH+AkpUj31A6dSge/foBDxVVCKdKpPyA4dHMrpWRwcIhLpVWKgoqKUIeYEEKSvveaqIWeJZfk3ryTc9+9770AE0wwJuBoA2JickDi19EaXCBErAT21h89fSvtKDUhjobEMAJuhEjI8EGRsMaQpJOneSELSGP5/1I1EyIjESkVcygVc775WSGwsK+0o7i53HV8Fk/XUGJojAKpEiww4irpmiOJTHYHAFCV62yKuKnh9cyuwGn5AM2mSqdIPF3zHHxYrHVw5slKu3i5Ibvx5E/VxG159juGp1nSaV5s+JIqKrB+pVf5skCgqXcp0sPWwjwA4Ewqm/b1Q9+0pUgfizPTAIDD+znijRSRItW1r58B9UENuNm99w8AwPHSs0nI99Q4qWC3DUXsaF8UILfCjqX8Z4teIX8ymiI0qXFTpqM1uJiYHFTlOjuR1+UpAMDs3edQG13yRklNZPstpCuAvqu90uX8L18A2DzK6INIZarU7J/n9aoh6C2/WjUjnWucGlIisWraqnrres9p0ZNbYce2L9CuvixHTt/ONf9u80yqBq0v02RNhDRA0yx3RP2iXVl8APVFDGwXn2JQPAVAMSapH0RMEm5f6qFAimRzxAWohhWKX5NVCZIE068rQoUUjCu+AWtU7Au7jYcIAAAAAElFTkSuQmCC"};
+  const SCENE = "data:image/png;base64,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";
+  const NAMES = ["เก็ตต์", "ซาร่า", "กัปตันเรย์", "ลีน่า", "บรอนซ์", "นายพลแวนซ์"];
+  const KEYS = ["get", "sara", "ray", "lena", "bronze", "vance"];
+  const TALK = [{"nar": "ตอนเย็น กองทหารเดินทัพเข้ามาในหมู่บ้านชานเมืองพร้อมรถเสบียงที่ว่างเปล่า", "story": "กองทหารมาตั้งค่ายใกล้หมู่บ้านและขาดเสบียง เก็ตต์ขอให้ชาวไร่ปลูกข้าวสาลีกับอ้อยส่งให้ทันเวลา", "end": "เสบียงชุดแรกถึงค่ายแล้ว ขอบใจทุกคน แต่นี่ยังเป็นแค่จุดเริ่มต้น", "lines": [["L", "ชาวบ้านทุกคน ฟังทางนี้! ตอนนี้ค่ายทหารขาดเสบียง ต้องใช้ข้าวสาลีกับอ้อยด่วน"], ["F", "มีครับท่าน แต่ปีนี้ฝนแล้ง ผลผลิตไม่ค่อยดี"], ["L", "ไม่มีเวลาบ่น ส่งให้ครบภายในเวลาที่กำหนด เราจ่ายค่าตอบแทนให้"], ["W", "ผมจะทำรถเข็นเพิ่มให้ ขนได้เร็วขึ้นครับ"], ["L", "ดี! เริ่มเดี๋ยวนี้!"]]}, {"nar": "กองทหารกลับมาที่หมู่บ้าน ท้องร้องกันทั้งกอง", "story": "ทหารหิวมาสามวัน ซาร่าต้องการขนมปังให้ทั้งกองพัน ช่วยโม่แป้ง ทำน้ำตาล แล้วอบขนมปังส่งไปที่ค่าย", "end": "ขนมปังอุ่นๆ ส่งถึงมือทหารแล้ว หน้าพวกเขายิ้มได้อีกครั้ง", "lines": [["L", "ทหารหิวมาสามวันแล้ว ฉันต้องการขนมปังให้ทั้งกองพัน"], ["F", "แป้งเรามีครับ แต่ยังไม่มีเตาอบ"], ["L", "ฉันจะส่งเตาอบมาให้ พวกคุณมีหน้าที่นวดแป้งกับอบ"], ["W", "ไม้ฟืนผมจัดให้เอง ไฟไม่ดับแน่"], ["L", "เยี่ยม! กลิ่นขนมปังคือกำลังใจของทหาร"]]}, {"nar": "กองทหารมาถึงเมืองใหญ่ ที่เป็นคลังอาหารของกองทัพ", "story": "เมืองใหญ่คือคลังอาหารของกองทัพ กัปตันเรย์ต้องการไข่และนมเก็บเป็นเสบียงสำรอง", "end": "คลังเต็มแล้ว เมืองนี้กลายเป็นหัวใจของสายส่งเสบียง", "lines": [["L", "เมืองนี้คือคลังอาหารของเรา ต้องมีไข่และนมสำรองไว้"], ["F", "ไก่กับวัวมีครับ แต่ต้องมีโรงเลี้ยงก่อน"], ["L", "สร้างให้เร็วที่สุด ผมรอรายงานทุกครึ่งชั่วโมง"], ["W", "เดี๋ยวผมตัดไม้ทำรั้วกับโรงให้"], ["L", "รับทราบ ทำงานเป็นระเบียบ เสบียงจะไม่ขาด"]]}, {"nar": "หิมะเริ่มตก กองทหารเดินทัพมาถึงหมู่บ้านทางเหนือ", "story": "หิมะมาเร็วกว่าที่คิด ลีน่าต้องการขนแกะทำผ้าห่ม และเกลือถนอมอาหารให้ทหาร", "end": "ผ้าห่มถึงแล้ว ทหารหลับได้อย่างอุ่นเป็นครั้งแรก", "lines": [["L", "หิมะมาเร็วกว่าที่คิด ทหารต้องมีผ้าห่มขนแกะและเกลือถนอมอาหาร"], ["F", "แกะผมเลี้ยงไว้ครับ แต่เกลือต้องไปเอาที่ทะเล"], ["L", "ฉันจะเปิดเส้นทางให้ อย่าให้หยุดแม้แต่วันเดียว"], ["W", "ผมจะก่อกองไฟตามทาง ไม่ให้คนขนของหนาวตาย"], ["L", "ขอบคุณ ฤดูหนาวนี้เราจะผ่านไปด้วยกัน"]]}, {"nar": "กองทหารเดินทัพมาถึงเชิงเขา ข้าศึกกำลังใกล้เข้ามา", "story": "ข้าศึกใกล้เข้ามา บรอนซ์ต้องใช้ไม้แปรรูปสร้างรั้วป้อม ตั้งโรงเลื่อยให้เร็วที่สุด", "end": "ป้อมสร้างเสร็จแล้ว ข้าศึกไม่มีวันผ่านเข้ามาง่ายๆ", "lines": [["L", "ข้าศึกใกล้เข้ามาแล้ว ผมต้องสร้างรั้วป้อม ต้องใช้ไม้แปรรูปจำนวนมาก"], ["W", "ป่าไม้ยังเหลือเพียบ ผมกับพรรคพวกพร้อมเลื่อยทั้งวัน"], ["L", "ดี ไม้ต้องหนาและตรง ผมไม่รับของห่วย"], ["F", "ผมช่วยขนครับ ไม่ให้ล้อรถติดโคลน"], ["L", "ทุกคนเป็นส่วนหนึ่งของกำแพงนี้ เริ่มได้!"]]}, {"nar": "กองทัพใหญ่มารวมกันที่ฐานเสบียง ศึกครั้งสุดท้ายใกล้เข้ามาแล้ว", "story": "ศึกครั้งสุดท้ายใกล้แล้ว นายพลแวนซ์ต้องการเนยและขนมปังเต็มคลังเพื่อเลี้ยงทัพใหญ่", "end": "ชัยชนะวันนี้เกิดจากมือของพวกเจ้าทุกคน สายส่งเสบียงสำเร็จแล้ว", "lines": [["L", "ศึกครั้งสุดท้ายใกล้แล้ว ทุกคนฟังคำสั่งของข้า"], ["L", "ข้าต้องการเนยและขนมปังเต็มคลัง เพื่อเลี้ยงทัพใหญ่ทั้งหมด"], ["F", "พวกเราทำเต็มที่ครับท่านนายพล เพื่อทหารและครอบครัว"], ["W", "เสบียงที่ท่านต้องการ จะไม่ขาดมือพวกเราแน่นอน"], ["L", "พวกเจ้าไม่ใช่แค่ชาวบ้าน พวกเจ้าคือกองหลังที่เก่งที่สุด"]]}];
+  const VNAME = { F: 'ชาวนา', W: 'คนตัดไม้' }, VKEY = { F: 'farmer', W: 'woodcutter' };
+  // ชื่อหัวหน้าด่านใหม่ + เรื่องย่อ/คำพูดจบด่าน
+  TALK.forEach((t, i) => { const L = CAMP_LEVELS[i]; L.leader = NAMES[i]; L.story = t.story; L.end = t.end; });
+
+  const css = document.createElement('style');
+  css.textContent = `
+#cs378{position:fixed;inset:0;z-index:2147483000;background:#120c06;display:flex;flex-direction:column;font:15px/1.55 sans-serif;color:#3a2814;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+#cs378 .stage{flex:1;min-height:0;position:relative;overflow:hidden;background-color:#6ea84a;background-size:100% auto;background-repeat:no-repeat;background-position:top center;image-rendering:pixelated}
+#cs378 .stage:after{content:'';position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,0) 50%,rgba(0,0,0,.4));pointer-events:none}
+#cs378 .pt{position:absolute;bottom:5%;height:44%;width:auto;image-rendering:pixelated;transition:filter .2s,transform .2s,opacity .2s;z-index:1;pointer-events:none}
+#cs378 .pl{left:5%}
+#cs378 .pr{right:5%;transform:scaleX(-1)}
+#cs378 .pt.dim{filter:brightness(.5)}
+#cs378 .pl.on{transform:translateY(-8px)}
+#cs378 .pr.on{transform:scaleX(-1) translateY(-8px)}
+#cs378 .pt.off{opacity:0}
+#cs378 .btn{position:absolute;top:calc(10px + env(safe-area-inset-top));z-index:2;background:#fbf3df;border:2px solid #8a5d33;border-radius:12px;padding:4px 12px;font-weight:bold;color:#3a2814;font-size:14px}
+#cs378 .skip{right:10px} #cs378 .back{left:10px}
+#cs378 .dlg{flex:none;background:#fbf3df;border-top:4px solid #8a5d33;padding:20px 16px calc(16px + env(safe-area-inset-bottom));min-height:158px;position:relative}
+#cs378 .nm{position:absolute;top:-17px;left:14px;background:#8a5d33;color:#fff4d8;font-weight:bold;padding:2px 14px;border-radius:9px;border:2px solid #3a1a05}
+#cs378 .tx{font-size:16px}
+#cs378 .tx.nar{font-style:italic;color:#6b5230}
+#cs378 .nx{position:absolute;right:14px;bottom:8px;color:#8a5d33;animation:cs378b 1s infinite}
+@keyframes cs378b{50%{opacity:.2}}
+#cs378 .go{display:block;width:100%;margin-top:10px;background:#7bbf5a;border:3px solid #3b6d11;border-radius:12px;padding:9px;font-size:17px;font-weight:bold;color:#173a05}
+#cs378 .gl div{margin:3px 0}`;
+  document.head.appendChild(css);
+
+  function cutscene(i, done) {
+    const T = TALK[i], L = CAMP_LEVELS[i];
+    const steps = [{ k: 'N', text: T.nar }].concat(T.lines.map(([k, text]) => ({ k, text })), [{ k: 'G' }]);
+    let right = (T.lines.find((l) => l[0] !== 'L') || ['F'])[0];
+    steps.forEach((s) => { if (s.k === 'F' || s.k === 'W') right = s.k; s.right = right; });
+    const el = document.createElement('div'); el.id = 'cs378';
+    el.innerHTML = `<div class="stage" style="background-image:url(${SCENE})">
+      <img class="pt pl" src="${IMG[KEYS[i]]}" alt=""><img class="pt pr" src="" alt="">
+      <button type="button" class="btn back">← กลับ</button><button type="button" class="btn skip">ข้าม ⏭</button></div>
+      <div class="dlg"><div class="nm"></div><div class="tx"></div><div class="nx">▶</div></div>`;
+    document.body.appendChild(el);
+    const $ = (s) => el.querySelector(s);
+    const pl = $('.pl'), pr = $('.pr'), nm = $('.nm'), tx = $('.tx'), nx = $('.nx');
+    let n = 0, timer = null, full = '';
+    function close() { clearInterval(timer); el.remove(); }
+    function typeText(text) {
+      clearInterval(timer); full = text; let c = 0; tx.textContent = '';
+      timer = setInterval(() => { c += 2; tx.textContent = text.slice(0, c); if (c >= text.length) { clearInterval(timer); timer = null; } }, 26);
+    }
+    function show() {
+      const s = steps[n];
+      pr.src = IMG[VKEY[s.right]];
+      const nar = s.k === 'N', goal = s.k === 'G';
+      pl.classList.toggle('off', nar); pr.classList.toggle('off', nar);
+      pl.classList.toggle('on', s.k === 'L'); pr.classList.toggle('on', s.k === 'F' || s.k === 'W');
+      pl.classList.toggle('dim', !nar && !goal && s.k !== 'L'); pr.classList.toggle('dim', !nar && !goal && s.k === 'L');
+      tx.classList.toggle('nar', nar);
+      nm.style.display = nar || goal ? 'none' : '';
+      if (!nar && !goal) nm.textContent = s.k === 'L' ? NAMES[i] : VNAME[s.k];
+      $('.skip').style.display = goal ? 'none' : '';
+      if (goal) {
+        clearInterval(timer); timer = null; nx.style.display = 'none';
+        tx.innerHTML = `<div class="gl"><b>🎯 เป้าหมายด่าน ${i + 1} · ${L.name}</b>${L.goals.map((g) => `<div>${campGoalText(g)}</div>`).join('')}<div>⏱ เวลา ${L.min} นาที · เงินเริ่มต้น $${L.coins.toLocaleString('en-US')}</div></div><button type="button" class="go">▶ เริ่มด่าน</button>`;
+        tx.querySelector('.go').addEventListener('click', (e) => { e.stopPropagation(); close(); done(); });
+        try { imgifyEmoji(tx); } catch (e) { }
+      } else { nx.style.display = ''; typeText(s.text); }
+    }
+    function next() {
+      if (steps[n].k === 'G') return;
+      if (timer) { clearInterval(timer); timer = null; tx.textContent = full; return; }
+      n++; show();
+    }
+    el.addEventListener('click', (e) => { if (e.target.closest('.btn') || e.target.closest('.go')) return; next(); });
+    $('.skip').addEventListener('click', () => { n = steps.length - 1; show(); });
+    $('.back').addEventListener('click', close);
+    show();
+  }
+
+  // เริ่มด่าน: ฉากบทสนทนาก่อน แล้วค่อยเริ่มเล่นด่านเดิม (เล่นด่านนี้ใหม่ = ข้ามฉาก)
+  const _start = startCampaignLevel;
+  startCampaignLevel = function (i, replay) {
+    if (replay) return _start(i);
+    cutscene(i, () => {
+      const sm = showMessage; showMessage = function () { };
+      try { _start(i); } finally { showMessage = sm; }
+    });
+  };
+  // การ์ดด่านในแผนที่: ใส่รูปหัวหน้าแทนรูปอาคาร
+  const _map = showCampaignMap;
+  showCampaignMap = function (sel) {
+    _map(sel);
+    const ic = setupPanel.querySelector('.cp377 .who .ic');
+    if (ic) ic.innerHTML = `<img src="${IMG[KEYS[campSel]]}" alt="" style="height:40px;width:auto;image-rendering:pixelated">`;
+  };
+  // หน้าสรุปผลด่าน: รูปหัวหน้า + คำพูดจบด่าน
+  const _res = campResult;
+  campResult = function (i, win, got, t, left) {
+    _res(i, win, got, t, left);
+    const st = setupPanel.querySelector('.cp377 .story');
+    if (st) {
+      st.style.cssText = 'display:flex;gap:8px;align-items:flex-start;border-left:0;padding:0';
+      st.innerHTML = `<img src="${IMG[KEYS[i]]}" alt="" style="width:51px;height:63px;flex:none;image-rendering:pixelated"><div><b>${NAMES[i]}:</b> ${win ? TALK[i].end : 'ไม่เป็นไร ลองใหม่อีกครั้งนะ เสบียงยังรอเราอยู่'}</div>`;
+    }
+    const rb = [...setupPanel.querySelectorAll('.cp377 button')].find((b) => b.textContent.includes('↻'));
+    if (rb) { const c = rb.cloneNode(true); rb.replaceWith(c); c.addEventListener('click', () => startCampaignLevel(i, true)); }
+  };
+})();
+</script>
 </body></html>
