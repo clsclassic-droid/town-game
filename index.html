@@ -15057,4 +15057,104 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
   refresh();
 })();
 </script>
+<script>
+// ===== v386: แคมเปญ — แตะแถบเป้าหมายเพื่อดู "วิธีทำ" (ต้นไม้สายการผลิต) + รายการอาคารแบบมีรูป ติ๊กเขียวอัตโนมัติ แตะที่ยังไม่มีเพื่อเลือกสร้าง =====
+// ใช้หน้า "สายการผลิต" เดิม (openProdChain) ไม่แก้ฟังก์ชันเดิม แค่ห่อ: ในโหมดแคมเปญ รายการ "ต้องสร้างอะไรบ้าง" ใช้รูปอาคารจริง
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `
+#prodChain .camp386box{background:#fbf3df;border:2px solid #a8814f;border-radius:10px;padding:8px 10px;margin:8px 0;color:#3a2814}
+#prodChain .camp386box .t{font-weight:bold;font-size:15px;margin-bottom:3px}
+#prodChain .camp386box .s{font-size:12.5px;color:#6b5230;margin-bottom:6px}
+#prodChain .camp386box .g{display:flex;flex-wrap:wrap;gap:6px}
+#prodChain .camp386box .g button{display:inline-flex;align-items:center;gap:4px;border:2px solid #a8814f;border-radius:10px;background:#fff;padding:3px 9px;font-size:13px;cursor:pointer;color:#3a2814}
+#prodChain .camp386box .g button.on{background:#ffe08a;border-color:#8a5d33;font-weight:bold}
+#prodChain.camp386>div>details:first-of-type{display:none}
+#prodChain.camp386>div>div>details:last-of-type>summary+div{font-size:0!important;margin:0!important}
+#prodChain.camp386>div>div>details:last-of-type>summary+div::before{content:'เขียว ✓ = สร้างแล้ว · เทา = ยังไม่มี (แตะเพื่อเลือกสร้างเลย)';font-size:12px;color:#666}
+#prodChain .cb386{display:flex;align-items:center;gap:8px;margin:5px 0;padding:5px 8px;border:2px solid #b9b39a;border-radius:10px;background:#efefef;color:#555;cursor:pointer;font-size:13px}
+#prodChain .cb386 .ic{flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#fff}
+#prodChain .cb386 .tx{flex:1;min-width:0;line-height:1.35}
+#prodChain .cb386 .tx b{display:block;font-size:14px}
+#prodChain .cb386 .tx span{font-size:11.5px;color:#777}
+#prodChain .cb386 .st{flex:none;font-weight:bold;font-size:12.5px;white-space:nowrap}
+#prodChain .cb386.ok{background:#e3f5d8;border-color:#5aa03c;color:#1b4a0c}
+#prodChain .cb386.ok .st{color:#2e7d12}
+#prodChain .cb386.ok .ic{filter:none}
+#prodChain .cb386:not(.ok) .ic{filter:grayscale(1);opacity:.7}
+#prodChain .cb386.lk{opacity:.6;cursor:not-allowed}`;
+  document.head.appendChild(css);
+
+  // นับอาคารที่ผู้เล่นสร้างแล้วบนกระดานของตัวเอง
+  function builtTypes() {
+    const b = (activeSide === humanSide ? board : humanSide.board) || [];
+    const s = new Set();
+    for (const row of b) for (const c of row || []) if (c && c.type) s.add(c.type);
+    return s;
+  }
+  function costParts(t) {
+    const b = BUILDINGS[t], p = [`$${b.cost.toLocaleString('en-US')}`];
+    if (b.woodCost) p.push(`ไม้ ${b.woodCost}`);
+    if (b.oakCost) p.push(`ไม้โอ๊ก ${b.oakCost}`);
+    if (b.lumberCost) p.push(`ไม้แปรรูป ${b.lumberCost}`);
+    if (b.energyCost) p.push(`ไฟฟ้า ${b.energyCost}`);
+    if (b.wage) p.push(`ค่าแรง ${b.wage}/นาที`);
+    if (b.needsPaved) p.push('ติดถนนลาดยาง'); else if (b.needsRoad) p.push('ติดถนน');
+    if (b.needsPump) p.push('ติดปั๊มน้ำ');
+    if (t === 'tradedepot') p.push('ที่ขอบแผนที่');
+    return p.join(' · ');
+  }
+  const _prodBuildRow = prodBuildRow;
+  prodBuildRow = function (t) {
+    if (!campActive()) return _prodBuildRow(t);
+    const lk = buildLocked(t), ok = builtTypes().has(t);
+    const st = lk ? '🔒 ยังไม่ปลดล็อก' : ok ? '✓ สร้างแล้ว' : 'แตะเพื่อสร้าง';
+    return `<div class="cb386${ok ? ' ok' : ''}${lk ? ' lk' : ''}" data-bt="${t}"><div class="ic">${thumbHtml(t, 30)}</div>`
+      + `<div class="tx"><b>${LABEL[t]}</b><span>${costParts(t)}</span></div><div class="st">${st}</div></div>`;
+  };
+
+  // แตะรายการอาคารในหน้าสายการผลิต (เฉพาะแคมเปญ)
+  document.addEventListener('click', (e) => {
+    const row = e.target.closest && e.target.closest('#prodChain .cb386');
+    if (!row || !campActive()) return;
+    const t = row.dataset.bt;
+    if (buildLocked(t)) { showMessage(unlockText(t), 3000); return; }
+    if (row.classList.contains('ok')) { showMessage(`${LABEL[t]} สร้างแล้ว ✓`, 1500); return; }
+    closeProdChain();
+    if (buildType !== t && toolButtons[t]) toolButtons[t].click();
+  });
+
+  // เปิดหน้าสายการผลิตของสินค้าเป้าหมายด่าน
+  const _openProdChain = openProdChain;
+  openProdChain = function (kind) {
+    if (kind == null && campActive()) kind = campLv().goals[0].k;
+    _openProdChain(kind);
+    if (!campActive() || !prodOverlay) return;
+    prodOverlay.classList.add('camp386');
+    const L = campLv(), pn = prodOverlay.firstChild;
+    const box = document.createElement('div'); box.className = 'camp386box';
+    box.innerHTML = `<div class="t">⚔ ด่าน ${humanSide.camp.lv + 1} ${L.name} · ${L.leader}</div>`
+      + `<div class="s">${L.story}<br>เป้า: ${L.goals.map(campGoalText).join(' + ')} ภายใน ${L.min} นาที</div>`
+      + `<div class="g">${L.goals.map((g) => `<button type="button" data-k="${g.k}" class="${g.k === prodSel ? 'on' : ''}">${itemIconHtml(g.k, 20)} วิธีทำ${KIND_LABEL[g.k]}</button>`).join('')}</div>`;
+    box.querySelectorAll('button[data-k]').forEach((b) => b.addEventListener('click', () => openProdChain(b.dataset.k)));
+    pn.insertBefore(box, pn.children[1]); // ต่อจากแถบหัวข้อ
+  };
+
+  // แตะแถบเป้าหมายด่าน -> เปิดวิธีทำ (ดักที่ window ก่อนตัวจัดการเดิมของ v377)
+  window.addEventListener('click', (e) => {
+    if (!campActive() || !goalLine.contains(e.target)) return;
+    e.stopPropagation(); e.stopImmediatePropagation();
+    const L = campLv();
+    const first = L.goals.find((g) => campSold(g.k) < g.n) || L.goals[0];
+    openProdChain(first.k);
+  }, true);
+
+  // ข้อความบนแถบ: "แตะดูเป้า" -> "แตะดูวิธีทำ"
+  const _updateMissionLine386 = updateMissionLine;
+  updateMissionLine = function () {
+    _updateMissionLine386();
+    if (campActive() && goalLine.innerHTML.includes('แตะดูเป้า')) goalLine.innerHTML = goalLine.innerHTML.replace('แตะดูเป้า', 'แตะดูวิธีทำ');
+  };
+})();
+</script>
 </body></html>
