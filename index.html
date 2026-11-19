@@ -7081,6 +7081,7 @@ function drawBoard(now) {
     } else if (!GROUND_TYPES.includes(cell.type)) {
       // อาคารวาดเล็กลงเล็กน้อย เพื่อให้เห็นทางเดินระหว่างอาคารที่วางติดกัน
       order.push({ depth, draw: () => { drawTileShadow(x, y); setTileBillboard(x, y, BUILDING_SCALE); withOutline(() => drawBuilding(cell, now)); } });
+      if (!showStatus && !isPaused(cell) && SOURCE_TYPES.includes(cell.type)) order.push({ depth: depth + 0.1, draw: () => drawRefillMark(cell, x, y, now) }); // v381: แถบเติมน้ำเรียงความลึกร่วมกับคนงาน คนงานอยู่หน้าแถบ
       if (cell.type === 'tradedepot' && cell.trip) { // v330: รถบรรทุกวิ่งออกไปตามถนนแล้ววิ่งกลับตอนขายเสร็จ
         const side = depotOpenSide(x, y);
         if (side) {
@@ -7138,7 +7139,7 @@ function drawBoard(now) {
   eachCell((cell, x, y) => {
     if (!cell) return;
     if (isPaused(cell)) drawPausedMark(x, y); // v193: อาคารที่ปิดการทำงานอยู่
-    else if (!showStatus && SOURCE_TYPES.includes(cell.type)) drawRefillMark(cell, x, y, now); // v252: เวลาเติมน้ำ (ทุกฝั่ง)
+    else if (!showStatus && SOURCE_TYPES.includes(cell.type)) { /* v381: วาดในชั้นที่ 2 แล้ว */ }
     else if (!showStatus && activeSide && activeSide.isHuman) drawStopMark(cell, x, y, now); // v242: ป้ายเตือนอาคารหยุด (ขาดวัตถุดิบ/เต็ม/ไม่มีถนน)
     // v194: ถนนชุดใหม่มีทางแยกเข้าประตูอยู่แล้ว ไม่ต้องวาดแถบประตูทับหลังคา (วาดเฉพาะเมื่อภาพถนนยังไม่โหลด)
     if (cell.door && !(artImg('road', ART_ROAD_SRC) && inBounds(cell.door.x, cell.door.y) && board[cell.door.y][cell.door.x] && board[cell.door.y][cell.door.x].type === 'road')) {
