@@ -19,7 +19,8 @@
     5: { title: 'ด่าน 5 · แนวป้องกัน', leader: 'bronze', bgL: base5 + 'village.webp', bgP: base5 + 'village-portrait.webp',
       sprites: { bronze: base5 + 'bronze.png' }, portraits: { bronze: base5 + 'portrait-bronze.png' }, feetL: 630, feetP: 810, cutL: 20, cutP: 100 }
   };
-  function initStoryArt(el, cfg) {
+  function initStoryArt(el, cfg, steps) {
+    const hasW = Array.isArray(steps) && steps.some((x) => x && x.k === 'W'); // v407: คนตัดไม้ยืนในขบวนเฉพาะด่านที่มีบท
     el.classList.add('chapter-one-art');
     el.querySelector('.stage').style.setProperty('--bgfull', "url('" + cfg.bgL + "')");
     const stage = el.querySelector('.stage');
@@ -27,7 +28,7 @@
     const cast = document.createElement('div');
     cast.className = 'cast';
     const actors = {};
-    ['cart', 'soldier', 'soldier', cfg.leader, 'farmer'].forEach((name) => {
+    ['cart', 'soldier', 'soldier', cfg.leader, 'farmer'].concat(hasW ? ['woodcutter'] : []).forEach((name) => {
       const img = new Image();
       img.className = 'actor ' + name;
       img.alt = '';
@@ -104,19 +105,19 @@
     return {
       close() { observer.disconnect(); },
       show(step) {
-        const name = step.k === 'L' ? cfg.leader : step.k === 'F' ? 'farmer' : null;
+        const name = step.k === 'L' ? cfg.leader : step.k === 'F' ? 'farmer' : step.k === 'W' ? 'woodcutter' : null;
         portrait.hidden = !name;
         dlg.classList.toggle('no-portrait', !name);
         dlg.classList.toggle('no-plate', step.k === 'N' || step.k === 'G');
-        dlg.classList.toggle('side-r', name === 'farmer'); // ชาวนาพูด: รูปหน้า+ป้ายชื่ออยู่ขวา
+        dlg.classList.toggle('side-r', name === 'farmer' || name === 'woodcutter'); // ชาวนาพูด: รูปหน้า+ป้ายชื่ออยู่ขวา
         if (name) portrait.src = cfg.portraits[name] || base + 'portrait-' + name + '.png';
         Object.entries(actors).forEach(([key, img]) => img.classList.toggle('speaking', key === name));
       }
     };
   }
-  window.initChapterOneStoryArt = (el) => initStoryArt(el, CONFIGS[1]);
-  window.initChapterTwoStoryArt = (el) => initStoryArt(el, CONFIGS[2]);
-  window.initChapterThreeStoryArt = (el) => initStoryArt(el, CONFIGS[3]);
-  window.initChapterFourStoryArt = (el) => initStoryArt(el, CONFIGS[4]);
-  window.initChapterFiveStoryArt = (el) => initStoryArt(el, CONFIGS[5]);
+  window.initChapterOneStoryArt = (el, steps) => initStoryArt(el, CONFIGS[1], steps);
+  window.initChapterTwoStoryArt = (el, steps) => initStoryArt(el, CONFIGS[2], steps);
+  window.initChapterThreeStoryArt = (el, steps) => initStoryArt(el, CONFIGS[3], steps);
+  window.initChapterFourStoryArt = (el, steps) => initStoryArt(el, CONFIGS[4], steps);
+  window.initChapterFiveStoryArt = (el, steps) => initStoryArt(el, CONFIGS[5], steps);
 })();
