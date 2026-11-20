@@ -1,0 +1,41 @@
+#cs378.chapter-one-art { font-family: Tahoma, system-ui, sans-serif; background: #526a35; }
+#cs378.chapter-one-art .stage { background-image: url('./village.webp') !important; background-size: cover; background-position: center; }
+#cs378.chapter-one-art .stage:after { background: linear-gradient(transparent 65%, #16200d55); }
+#cs378.chapter-one-art .pt { display: none; }
+#cs378.chapter-one-art .btn { border-radius: 4px; box-shadow: 0 3px 0 #38210d88; min-height: 42px; }
+#cs378.chapter-one-art .chapter-title { position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); padding: 5px 16px; color: #fff1c7; background: #442c1be8; border: 2px solid #d5ac65; box-shadow: 0 3px 0 #24150d88; white-space: nowrap; font-weight: bold; }
+#cs378.chapter-one-art .cast { position: absolute; left: 50%; top: 60%; transform: translate(-50%, -100%); width: min(76%, 790px); height: clamp(60px, 13vw, 130px); display: flex; align-items: flex-end; justify-content: center; gap: clamp(9px, 2vw, 35px); z-index: 1; pointer-events: none; }
+#cs378.chapter-one-art .actor { flex: 0 1 auto; height: 100%; min-width: 0; width: auto; object-fit: contain; filter: drop-shadow(0 5px 2px #1d261c66); image-rendering: pixelated; transition: filter .2s, translate .2s; }
+#cs378.chapter-one-art .actor.cart { height: 78%; max-width: 27%; }
+#cs378.chapter-one-art .actor.soldier { height: 98%; }
+#cs378.chapter-one-art .actor.farmer { height: 93%; margin-left: clamp(0px, 2vw, 35px); }
+#cs378.chapter-one-art .actor.speaking { translate: 0 -4px; filter: drop-shadow(0 6px 3px #1d261c88) brightness(1.1); }
+#cs378.chapter-one-art .dlg { box-sizing: border-box; margin: 0 clamp(8px, 2vw, 30px) calc(8px + env(safe-area-inset-bottom)); padding: 45px clamp(22px, 3vw, 48px) 45px; min-height: 205px; border: 0; background: #f6e6c5; border-radius: 8px; box-shadow: 0 8px 20px #15200f88; isolation: isolate; }
+#cs378.chapter-one-art .dlg:before { content: ''; position: absolute; inset: 0; background: url('./dialogue.png') center / 100% 100% no-repeat; pointer-events: none; z-index: -1; }
+#cs378.chapter-one-art .nm { left: clamp(140px, 15vw, 205px); top: 12px; padding: 0 8px; background: #4c301b; border: 0; border-radius: 2px; font-size: 17px; }
+#cs378.chapter-one-art .tx { font-size: clamp(16px, 1.7vw, 22px); line-height: 1.65; padding-left: clamp(105px, 12vw, 165px); }
+#cs378.chapter-one-art .tx.nar, #cs378.chapter-one-art .dlg.no-portrait .tx { padding-left: 0; }
+#cs378.chapter-one-art .dialogue-portrait { position: absolute; left: 22px; bottom: 25px; width: clamp(95px, 11vw, 150px); height: 145px; object-fit: contain; object-position: center bottom; image-rendering: pixelated; }
+#cs378.chapter-one-art .dialogue-portrait[hidden] { display: none; }
+#cs378.chapter-one-art .nx { cursor: pointer; right: 23px; bottom: 13px; min-height: 32px; padding: 0 10px; border: 2px solid #805428; border-radius: 4px; color: #3a2814; background: #ffd375; animation: none; font: bold 14px/1.6 Tahoma, sans-serif; }
+#cs378.chapter-one-art .nx:focus-visible, #cs378.chapter-one-art .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+#cs378.chapter-one-art .go { margin-top: 8px; }
+@media (max-width: 600px) {
+  #cs378.chapter-one-art .chapter-title { top: calc(66px + env(safe-area-inset-top)); font-size: 14px; }
+  #cs378.chapter-one-art .cast { width: 92%; height: clamp(55px, 18vw, 92px); gap: 8px; }
+  #cs378.chapter-one-art .dlg { min-height: 240px; padding: 42px 20px 52px; }
+  #cs378.chapter-one-art .dialogue-portrait { left: 15px; bottom: 53px; width: 75px; height: 105px; }
+  #cs378.chapter-one-art .tx { padding-left: 80px; font-size: 16px; }
+  #cs378.chapter-one-art .nm { left: 105px; font-size: 16px; }
+}
+@media (max-height: 520px) and (min-width: 601px) {
+  #cs378.chapter-one-art .dlg { min-height: 150px; padding-top: 38px; padding-bottom: 36px; }
+  #cs378.chapter-one-art .dialogue-portrait { height: 105px; width: 90px; bottom: 18px; }
+  #cs378.chapter-one-art .tx { font-size: 15px; padding-left: 95px; }
+  #cs378.chapter-one-art .cast { height: 62px; }
+  #cs378.chapter-one-art .gl { font-size: 13px; line-height: 1.25; }
+  #cs378.chapter-one-art .go { font-size: 15px; padding: 3px; margin-top: 3px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #cs378.chapter-one-art .actor { transition: none; }
+}
