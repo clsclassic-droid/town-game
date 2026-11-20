@@ -1,20 +1,29 @@
-/* Chapter 1 artwork only. Campaign text, goals and start callbacks stay in index.html. */
+/* Story artwork for campaign cutscenes (ด่าน 1, 2). Campaign text, goals and start callbacks stay in index.html. */
 (function () {
   'use strict';
   const base = new URL('./', document.currentScript.src).href;
-  window.initChapterOneStoryArt = function (el) {
+  const base2 = new URL('../chapter-2/', base).href;
+  // v397: ตั้งค่าต่อด่าน — ภาพฉาก (แนวนอน/แนวตั้ง), ตัวละคร, ตำแหน่งเท้า (พิกัดในภาพ), ขอบบนที่ยอมตัด
+  const CONFIGS = {
+    1: { title: 'ด่าน 1 · ชานเมือง', leader: 'captain', bgL: base + 'village.webp', bgP: base + 'village-portrait.webp',
+      sprites: {}, portraits: {}, feetL: 625, feetP: 900, cutL: 60, cutP: 150 },
+    2: { title: 'ด่าน 2 · หมู่บ้าน', leader: 'sara', bgL: base2 + 'village.webp', bgP: base2 + 'village-portrait.webp',
+      sprites: { sara: base2 + 'sara.png' }, portraits: { sara: base2 + 'portrait-sara.png' }, feetL: 620, feetP: 935, cutL: 20, cutP: 100 }
+  };
+  function initStoryArt(el, cfg) {
     el.classList.add('chapter-one-art');
+    el.querySelector('.stage').style.setProperty('--bgfull', "url('" + cfg.bgL + "')");
     const stage = el.querySelector('.stage');
     const dlg = el.querySelector('.dlg');
     const cast = document.createElement('div');
     cast.className = 'cast';
     const actors = {};
-    ['cart', 'soldier', 'soldier', 'captain', 'farmer'].forEach((name) => {
+    ['cart', 'soldier', 'soldier', cfg.leader, 'farmer'].forEach((name) => {
       const img = new Image();
       img.className = 'actor ' + name;
       img.alt = '';
       img.draggable = false;
-      img.src = base + name + '.png';
+      img.src = cfg.sprites[name] || base + name + '.png';
       const wrap = document.createElement('span'); // v396: ห่อรูป เพื่อวางเงาวงรีใต้เท้า (ไม่พึ่ง drop-shadow ของเบราว์เซอร์)
       wrap.className = 'aw ' + name;
       wrap.appendChild(img);
@@ -23,7 +32,7 @@
     });
     const title = document.createElement('div');
     title.className = 'chapter-title';
-    title.textContent = 'ด่าน 1 · ชานเมือง';
+    title.textContent = cfg.title;
     // v391: ภาพฉากวางเองใน .bgfit (ไม่ซูมตัดข้างมาก) · ส่วนที่เหลือเติมด้วยภาพเบลอ · ตัวละครผูกกับขนาดฉาก
     const bg = document.createElement('div');
     bg.className = 'bgfit';
@@ -42,18 +51,19 @@
         // v394: กันที่ให้กรอบแบบสูงสุด (หน้าเป้าหมาย) เสมอ → ฉากไม่ขยับตามความสูงกรอบ, เท้าตัวละครอยู่เหนือกรอบ มีหญ้าเหลือเล็กน้อย
         // หลังคา/ปล่องควันยังเห็น (ตัดบนไม่เกิน 150 พิกเซลของภาพ) · ภาพคลุมเต็มจอเสมอ
         const freeRef = height - Math.max(dh, 290);
-        top = Math.min(0, Math.max(height - imgH, -150 * scale, freeRef - 990 * scale));
-        feet = top + 900 * scale;
-        bg.style.backgroundImage = "url('" + base + "village-portrait.webp')";
+        top = Math.min(0, Math.max(height - imgH, -cfg.cutP * scale, freeRef - (cfg.feetP + 90) * scale));
+        feet = top + cfg.feetP * scale;
+        bg.style.backgroundImage = "url('" + cfg.bgP + "')";
         bg.style.webkitMaskImage = bg.style.maskImage = 'none';
       } else {
         scale = Math.max(width / 1536, 0.8 * free / 1024);
         imgW = 1536 * scale; imgH = 1024 * scale;
         // v395: เห็นหลังคา/ปล่องครบ (ตัดบนไม่เกิน 60px ของภาพ) ส่วนเกินตัดจากล่าง (กรอบบังอยู่) · เท้าตัวละครต้องอยู่เหนือกรอบ · ภาพคลุมเต็มจอ
         const freeRef = height - Math.max(dh, Math.min(275, height * 0.45)); // กันที่ให้กรอบแบบสูงสุด (หน้าเป้าหมาย) ฉากจะได้ไม่ขยับ
-        top = Math.max(height - imgH - 8, Math.min(-60 * scale, freeRef - 650 * scale)); // -8 = ยอมให้ขอบล่างภาพสูงขึ้นได้เล็กน้อย (ใต้กรอบ)
-        feet = top + 625 * scale;
-        bg.style.backgroundImage = bg.style.webkitMaskImage = bg.style.maskImage = '';
+        top = Math.max(height - imgH - 8, Math.min(-cfg.cutL * scale, freeRef - (cfg.feetL + 25) * scale)); // -8 = ยอมให้ขอบล่างภาพสูงขึ้นได้เล็กน้อย (ใต้กรอบ)
+        feet = top + cfg.feetL * scale;
+        bg.style.backgroundImage = "url('" + cfg.bgL + "')";
+        bg.style.webkitMaskImage = bg.style.maskImage = '';
       }
       bg.style.width = imgW + 'px';
       bg.style.height = imgH + 'px';
@@ -85,14 +95,16 @@
     return {
       close() { observer.disconnect(); },
       show(step) {
-        const name = step.k === 'L' ? 'captain' : step.k === 'F' ? 'farmer' : null;
+        const name = step.k === 'L' ? cfg.leader : step.k === 'F' ? 'farmer' : null;
         portrait.hidden = !name;
         dlg.classList.toggle('no-portrait', !name);
         dlg.classList.toggle('no-plate', step.k === 'N' || step.k === 'G');
         dlg.classList.toggle('side-r', name === 'farmer'); // ชาวนาพูด: รูปหน้า+ป้ายชื่ออยู่ขวา
-        if (name) portrait.src = base + 'portrait-' + name + '.png';
+        if (name) portrait.src = cfg.portraits[name] || base + 'portrait-' + name + '.png';
         Object.entries(actors).forEach(([key, img]) => img.classList.toggle('speaking', key === name));
       }
     };
-  };
+  }
+  window.initChapterOneStoryArt = (el) => initStoryArt(el, CONFIGS[1]);
+  window.initChapterTwoStoryArt = (el) => initStoryArt(el, CONFIGS[2]);
 })();
