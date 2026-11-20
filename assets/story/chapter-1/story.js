@@ -5,6 +5,7 @@
   const base2 = new URL('../chapter-2/', base).href;
   const base3 = new URL('../chapter-3/', base).href;
   const base4 = new URL('../chapter-4/', base).href;
+  const base5 = new URL('../chapter-5/', base).href;
   // v397: ตั้งค่าต่อด่าน — ภาพฉาก (แนวนอน/แนวตั้ง), ตัวละคร, ตำแหน่งเท้า (พิกัดในภาพ), ขอบบนที่ยอมตัด
   const CONFIGS = {
     1: { title: 'ด่าน 1 · ชานเมือง', leader: 'captain', bgL: base + 'village.webp', bgP: base + 'village-portrait.webp',
@@ -14,7 +15,9 @@
     3: { title: 'ด่าน 3 · ในเมือง', leader: 'ray', bgL: base3 + 'village.webp', bgP: base3 + 'village-portrait.webp',
       sprites: { ray: base3 + 'ray.png' }, portraits: { ray: base3 + 'portrait-ray.png' }, feetL: 640, feetP: 930, cutL: 20, cutP: 100 },
     4: { title: 'ด่าน 4 · ฤดูหนาว', leader: 'leena', bgL: base4 + 'village.webp', bgP: base4 + 'village-portrait.webp',
-      sprites: { leena: base4 + 'leena.png' }, portraits: { leena: base4 + 'portrait-leena.png' }, feetL: 640, feetP: 960, cutL: 20, cutP: 100 }
+      sprites: { leena: base4 + 'leena.png' }, portraits: { leena: base4 + 'portrait-leena.png' }, feetL: 640, feetP: 960, cutL: 20, cutP: 100 },
+    5: { title: 'ด่าน 5 · แนวป้องกัน', leader: 'bronze', bgL: base5 + 'village.webp', bgP: base5 + 'village-portrait.webp',
+      sprites: { bronze: base5 + 'bronze.png' }, portraits: { bronze: base5 + 'portrait-bronze.png' }, feetL: 630, feetP: 810, cutL: 20, cutP: 100 }
   };
   function initStoryArt(el, cfg) {
     el.classList.add('chapter-one-art');
@@ -115,4 +118,5 @@
   window.initChapterTwoStoryArt = (el) => initStoryArt(el, CONFIGS[2]);
   window.initChapterThreeStoryArt = (el) => initStoryArt(el, CONFIGS[3]);
   window.initChapterFourStoryArt = (el) => initStoryArt(el, CONFIGS[4]);
+  window.initChapterFiveStoryArt = (el) => initStoryArt(el, CONFIGS[5]);
 })();
