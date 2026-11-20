@@ -46,7 +46,9 @@
       } else {
         scale = Math.max(width / 1536, 0.8 * free / 1024);
         imgW = 1536 * scale; imgH = 1024 * scale;
-        top = (free - imgH) / 2;                          // ติดลบ = ตัดบน/ล่างเท่าๆ กัน
+        // v395: เห็นหลังคา/ปล่องครบ (ตัดบนไม่เกิน 60px ของภาพ) ส่วนเกินตัดจากล่าง (กรอบบังอยู่) · เท้าตัวละครต้องอยู่เหนือกรอบ · ภาพคลุมเต็มจอ
+        const freeRef = height - Math.max(dh, Math.min(275, height * 0.45)); // กันที่ให้กรอบแบบสูงสุด (หน้าเป้าหมาย) ฉากจะได้ไม่ขยับ
+        top = Math.max(height - imgH - 8, Math.min(-60 * scale, freeRef - 650 * scale)); // -8 = ยอมให้ขอบล่างภาพสูงขึ้นได้เล็กน้อย (ใต้กรอบ)
         feet = top + 625 * scale;
         bg.style.backgroundImage = bg.style.webkitMaskImage = bg.style.maskImage = '';
       }
