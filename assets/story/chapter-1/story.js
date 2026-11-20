@@ -33,10 +33,11 @@
       const free = Math.max(120, height - dh);           // พื้นที่เหนือกรอบบทสนทนา
       let scale, imgW, imgH, top, feet;
       if (width < height) {
-        // จอแนวตั้ง (v392): ใช้ภาพแนวตั้ง 1024x1536 · คลุมเต็มจอ ไม่ตัดมากเกินจำเป็น · ทางดินอยู่ราว 58% ของพื้นที่เหนือกรอบ
+        // จอแนวตั้ง (v392): ใช้ภาพแนวตั้ง 1024x1536 · คลุมเต็มจอ ไม่ตัดมากเกินจำเป็น
         scale = Math.max(width / 1024, height / 1536);
         imgW = 1024 * scale; imgH = 1536 * scale;
-        top = Math.min(0, Math.max(height - imgH, 0.58 * free - 900 * scale));
+        // v393: เลื่อนภาพลงให้เห็นหลังคา/ปล่องครบ (ตัดบนไม่เกิน 80 พิกเซลของภาพ) · หญ้าล่างส่วนเกินถูกกรอบบัง
+        top = Math.min(0, Math.max(height - imgH, -80 * scale));
         feet = top + 900 * scale;
         bg.style.backgroundImage = "url('" + base + "village-portrait.webp')";
         bg.style.webkitMaskImage = bg.style.maskImage = 'none';
