@@ -3,12 +3,15 @@
   'use strict';
   const base = new URL('./', document.currentScript.src).href;
   const base2 = new URL('../chapter-2/', base).href;
+  const base3 = new URL('../chapter-3/', base).href;
   // v397: ตั้งค่าต่อด่าน — ภาพฉาก (แนวนอน/แนวตั้ง), ตัวละคร, ตำแหน่งเท้า (พิกัดในภาพ), ขอบบนที่ยอมตัด
   const CONFIGS = {
     1: { title: 'ด่าน 1 · ชานเมือง', leader: 'captain', bgL: base + 'village.webp', bgP: base + 'village-portrait.webp',
       sprites: {}, portraits: {}, feetL: 625, feetP: 900, cutL: 60, cutP: 150 },
     2: { title: 'ด่าน 2 · หมู่บ้าน', leader: 'sara', bgL: base2 + 'village.webp', bgP: base2 + 'village-portrait.webp',
-      sprites: { sara: base2 + 'sara.png' }, portraits: { sara: base2 + 'portrait-sara.png' }, feetL: 620, feetP: 935, cutL: 20, cutP: 100 }
+      sprites: { sara: base2 + 'sara.png' }, portraits: { sara: base2 + 'portrait-sara.png' }, feetL: 620, feetP: 935, cutL: 20, cutP: 100 },
+    3: { title: 'ด่าน 3 · ในเมือง', leader: 'ray', bgL: base3 + 'village.webp', bgP: base3 + 'village-portrait.webp',
+      sprites: { ray: base3 + 'ray.png' }, portraits: { ray: base3 + 'portrait-ray.png' }, feetL: 640, feetP: 930, cutL: 20, cutP: 100 }
   };
   function initStoryArt(el, cfg) {
     el.classList.add('chapter-one-art');
@@ -107,4 +110,5 @@
   }
   window.initChapterOneStoryArt = (el) => initStoryArt(el, CONFIGS[1]);
   window.initChapterTwoStoryArt = (el) => initStoryArt(el, CONFIGS[2]);
+  window.initChapterThreeStoryArt = (el) => initStoryArt(el, CONFIGS[3]);
 })();
