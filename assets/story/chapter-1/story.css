@@ -89,3 +89,27 @@
 @media (min-width: 601px) and (min-height: 521px) and (max-height: 900px) and (orientation: landscape) {
   #cs378.chapter-one-art .dlg { min-height: 190px; padding-bottom: 34px; }
 }
+
+/* v396: เงาวงรีใต้เท้าตัวละคร + รูปหน้า/ป้ายชื่อชาวนาอยู่ฝั่งขวา */
+#cs378.chapter-one-art .aw { position: relative; isolation: isolate; flex: 0 1 auto; height: 100%; min-width: 0; display: flex; align-items: flex-end; }
+#cs378.chapter-one-art .aw:after { content: ''; position: absolute; left: 8%; right: 8%; bottom: -5%; height: 16%; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(25, 35, 12, .6) 0%, rgba(25, 35, 12, .45) 55%, rgba(25, 35, 12, 0) 100%); z-index: -1; pointer-events: none; }
+#cs378.chapter-one-art .aw.cart { max-width: 27%; }
+#cs378.chapter-one-art .aw.cart:after { left: 4%; right: 14%; }
+#cs378.chapter-one-art .aw.farmer { margin-left: clamp(0px, 1vw, 18px); }
+#cs378.chapter-one-art .aw .actor { height: 98%; max-width: 100%; margin: 0; filter: none; }
+#cs378.chapter-one-art .aw .actor.cart { height: 78%; }
+#cs378.chapter-one-art .aw .actor.farmer { height: 93%; margin: 0; }
+#cs378.chapter-one-art .aw .actor.captain { height: 100%; }
+#cs378.chapter-one-art .aw .actor.speaking { translate: 0 -4px; filter: brightness(1.12); }
+#cs378.chapter-one-art .dlg.side-r .dialogue-portrait { left: auto; right: 22px; transform: scaleX(-1); }
+#cs378.chapter-one-art .dlg.side-r .tx { padding-left: 0; padding-right: clamp(105px, 12vw, 165px); }
+#cs378.chapter-one-art .dlg.side-r .nm { left: auto; right: 18.5%; }
+@media (max-width: 600px) {
+  #cs378.chapter-one-art .dlg.side-r .dialogue-portrait { right: 15px; }
+  #cs378.chapter-one-art .dlg.side-r .tx { padding-right: 80px; }
+  #cs378.chapter-one-art .dlg.side-r .nm { right: 62px; }
+}
+@media (max-height: 520px) and (min-width: 601px) {
+  #cs378.chapter-one-art .dlg.side-r .tx { padding-right: 95px; }
+}
+#cs378.chapter-one-art .dlg.side-r .nx { right: auto; left: 23px; }
