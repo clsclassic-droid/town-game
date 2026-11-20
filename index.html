@@ -2781,6 +2781,36 @@ function renderProd(div, c) {
   div.dataset.h = h;
   div.innerHTML = h;
 }
+// v409: ของในคลัง/ไซโล/โรงเก็บไม้ แสดงเป็นช่องไอคอน + จำนวน (ช่องที่เป็น 0 จางลง)
+function stockGridEl(items, note) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'margin:6px 0 2px;';
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px;';
+  for (const [k, n] of items) {
+    const c = document.createElement('div');
+    c.title = `${KIND_LABEL[k] || k} ${n}`;
+    c.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 2px;border-radius:8px;background:${n > 0 ? '#f3e6c8' : 'rgba(0,0,0,0.04)'};opacity:${n > 0 ? 1 : 0.4};`;
+    const ic = itemIconEl(k, 28);
+    ic.style.marginRight = '0';
+    const num = document.createElement('div');
+    num.style.cssText = `font-size:15px;font-weight:bold;color:${n > 0 ? '#6b4423' : '#777'};line-height:1.1;`;
+    num.textContent = String(n);
+    const lb = document.createElement('div');
+    lb.style.cssText = 'font-size:11px;color:#6b5a45;line-height:1.1;white-space:nowrap;';
+    lb.textContent = KIND_LABEL[k] || k;
+    c.append(ic, num, lb);
+    grid.appendChild(c);
+  }
+  wrap.appendChild(grid);
+  if (note) {
+    const nt = document.createElement('div');
+    nt.style.cssText = 'font-size:12px;color:#888;margin-top:5px;';
+    nt.textContent = note;
+    wrap.appendChild(nt);
+  }
+  return wrap;
+}
 function openSellPopup(cell, x, y) {
   closeSellPopup();
   closeDepotPopup();
@@ -2837,13 +2867,12 @@ function openSellPopup(cell, x, y) {
     lines.push(`ข้าวสาลี ${cell.wheat} · อาหารสัตว์ ${cell.feed} (จะหายไป)`);
   } else if (cell.type === 'silo') {
     const g = cell.goods;
-    lines.push(`ข้าวสาลี ${g.wheat} · ฝ้าย ${g.cotton} · อ้อย ${g.sugarcane} · น้ำเกลือ ${g.brine || 0}`);
-    lines.push(`รวม ${cell.stock} ชิ้น (จะหายไป)`);
+    lines.push({ grid: ['wheat', 'cotton', 'sugarcane', 'brine'].map((k) => [k, g[k] || 0]), note: `รวม ${cell.stock} ชิ้น (จะหายไป)` }); // v409
   } else if (WOOD_STORES.includes(cell.type)) {
-    lines.push(`ไม้ ${woodOf(cell)} · ไม้โอ๊ก ${cell.oak || 0} · ไม้แปรรูป ${cell.lumber || 0} (รวม ${cell.stock} ชิ้น จะหายไป)`);
+    lines.push({ grid: [['wood', woodOf(cell)], ['oakwood', cell.oak || 0], ['lumber', cell.lumber || 0]], note: `รวม ${cell.stock} ชิ้น (จะหายไป)` }); // v409
   } else if (cell.type === 'storehouse') {
     const g = cell.goods;
-    lines.push(`${STORE_KINDS.map((k) => `${KIND_LABEL[k]} ${g[k] || 0}`).join(' · ')} (รวม ${cell.stock} ชิ้น จะหายไป)`);
+    lines.push({ grid: STORE_KINDS.map((k) => [k, g[k] || 0]), note: `รวม ${cell.stock} ชิ้น (จะหายไป)` }); // v409
   } else if (cell.type === 'warehouse') {
     lines.push(`${WAREHOUSE_KINDS.map((k) => `${KIND_LABEL[k]} ${cell.goods[k] || 0}`).join(' · ')} (รวม ${cell.stock}/${STORE_CAP.warehouse} ชิ้น จะหายไป)`);
   } else if (cell.type === 'waterfacility') {
@@ -2873,6 +2902,7 @@ function openSellPopup(cell, x, y) {
   for (const text of lines) {
     const d = document.createElement('div');
     d.style.cssText = 'font-size:13px;color:#333;margin:2px 0;white-space:pre-line;';
+    if (text && typeof text === 'object' && text.grid) { panel.appendChild(stockGridEl(text.grid, text.note)); continue; } // v409
     if (text === 'WM_LIVE') { wmDivs = windmillInfoLines(cell, gameNow()).map((segs) => { const e = document.createElement('div'); e.style.cssText = 'font-size:13px;color:#333;margin:2px 0;'; renderSegs(e, segs); panel.appendChild(e); return e; }); continue; }
     if (text === 'STATUS_LIVE') { setStatusText(d, buildingStatusText(cell)); statusDiv = d; panel.appendChild(d); continue; }
     if (text === 'ANIMAL_LIVE') { renderAnimalStock(d, cell); animalDiv = d; panel.appendChild(d); continue; }
