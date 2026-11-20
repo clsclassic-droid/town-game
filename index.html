@@ -10334,7 +10334,8 @@ function startDemo340() {
     if (gridTop < t * 1.2) viewOY = t * 2 + GRID_SIZE * t / 2; // เห็นแม่น้ำอย่างน้อย ~2 ช่อง
     if (window.innerHeight > window.innerWidth) { // v349: มือถือแนวตั้ง ซูมให้พื้นหญ้าคลุมจอสูงทั้งหมด (ไม่มีส่วนว่าง) แม่น้ำอยู่เหนือโลโก้
       viewZoom = Math.max(viewZoom, (canvas.height + 30) / (GRID_SIZE + 2 * TS_M) / TOP_TILE_PX);
-      viewOY = canvas.height / 2;
+      viewOY = canvas.height / 2 - canvas.height * 0.1; // v401: เลื่อนฉากขึ้น ~10% ให้เห็นเมืองเหนือโลโก้มากขึ้น
+      viewZoom = Math.max(viewZoom, (canvas.height * 1.2 + 30) / (GRID_SIZE + 2 * TS_M) / TOP_TILE_PX); // ขยายพอให้ขอบล่างไม่โล่ง
     }
   }
 }
