@@ -3668,8 +3668,8 @@ const shadeBtn = document.createElement('button');
 shadeBtn.style.cssText = btnStyle;
 // v321: สวิตช์เดียว เปิด = เห็นสีเงา/เค็ม/มลพิษบนแผนที่ตลอด (จำค่าไว้ในเครื่อง)
 const PEN321_KEY = 'townGame.pen321';
-let pen321On = true;
-try { pen321On = localStorage.getItem(PEN321_KEY) !== 'off'; } catch (e) { /* ใช้ค่าเริ่มต้น */ }
+let pen321On = false; // v399: เริ่มเกมปิดไว้ก่อน กดปุ่มเปิดเองได้
+try { pen321On = localStorage.getItem(PEN321_KEY) === 'on'; } catch (e) { /* ใช้ค่าเริ่มต้น */ }
 function refreshPen321Btn() {
   shadeBtn.textContent = pen321On ? '🎨 เงา/เค็ม/มลพิษ: เปิด' : '🎨 เงา/เค็ม/มลพิษ: ปิด';
   shadeBtn.style.background = pen321On ? '' : '#ddd';
