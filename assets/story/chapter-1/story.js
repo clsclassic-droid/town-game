@@ -31,18 +31,30 @@
       if (!width || !height) return;
       const dh = dlg.offsetHeight || 0;
       const free = Math.max(120, height - dh);           // พื้นที่เหนือกรอบบทสนทนา
-      const scale = Math.max(width / 1536, 0.8 * free / 1024);
-      const imgW = 1536 * scale, imgH = 1024 * scale;
-      const top = (free - imgH) / 2;                      // ติดลบ = ตัดบน/ล่างเท่าๆ กัน
+      let scale, imgW, imgH, top, feet;
+      if (width < height) {
+        // จอแนวตั้ง (v392): ใช้ภาพแนวตั้ง 1024x1536 · คลุมเต็มจอ ไม่ตัดมากเกินจำเป็น · ทางดินอยู่ราว 58% ของพื้นที่เหนือกรอบ
+        scale = Math.max(width / 1024, height / 1536);
+        imgW = 1024 * scale; imgH = 1536 * scale;
+        top = Math.min(0, Math.max(height - imgH, 0.58 * free - 900 * scale));
+        feet = top + 900 * scale;
+        bg.style.backgroundImage = "url('" + base + "village-portrait.webp')";
+        bg.style.webkitMaskImage = bg.style.maskImage = 'none';
+      } else {
+        scale = Math.max(width / 1536, 0.8 * free / 1024);
+        imgW = 1536 * scale; imgH = 1024 * scale;
+        top = (free - imgH) / 2;                          // ติดลบ = ตัดบน/ล่างเท่าๆ กัน
+        feet = top + 625 * scale;
+        bg.style.backgroundImage = bg.style.webkitMaskImage = bg.style.maskImage = '';
+      }
       bg.style.width = imgW + 'px';
       bg.style.height = imgH + 'px';
       bg.style.left = (width - imgW) / 2 + 'px';
       bg.style.top = top + 'px';
-      const ch = Math.max(30, 100 * scale);
       cast.style.width = 520 * scale + 'px';
-      cast.style.height = ch + 'px';
+      cast.style.height = Math.max(30, 100 * scale) + 'px';
       cast.style.gap = Math.max(4, 14 * scale) + 'px';
-      cast.style.top = (top + 625 * scale) + 'px';
+      cast.style.top = feet + 'px';
     };
     const observer = new ResizeObserver(positionCast);
     observer.observe(stage);
