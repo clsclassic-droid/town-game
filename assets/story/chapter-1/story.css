@@ -71,3 +71,16 @@
 #cs378.chapter-one-art .stage:before { content: ''; position: absolute; inset: -24px; background: url('./village.webp') center / cover no-repeat; filter: blur(12px) brightness(.85); }
 #cs378.chapter-one-art .bgfit { position: absolute; background: url('./village.webp') center / 100% 100% no-repeat; image-rendering: auto; -webkit-mask-image: linear-gradient(transparent, #000 5%, #000 95%, transparent); mask-image: linear-gradient(transparent, #000 5%, #000 95%, transparent); }
 #cs378.chapter-one-art .cast { transform: translate(-50%, -100%); max-width: none; }
+
+/* v394: กรอบบทสนทนาตัดเป็น 9 ส่วน (มุม/ความหนาขอบไม้ไม่บีบตามขนาดจอ) · ป้ายไม้เป็นรูปแยก แสดงพร้อมชื่อเท่านั้น */
+#cs378.chapter-one-art .dlg { background: transparent; border-radius: 0; }
+#cs378.chapter-one-art .dlg:before, #cs378.chapter-one-art .dlg.no-plate:before { background: none; box-sizing: border-box; border: 28px solid transparent; border-image: url('./dialogue-noplate.png') 34 fill / 28px / 0 stretch; image-rendering: pixelated; }
+#cs378.chapter-one-art .nm { left: 18.5%; top: 7px; width: 173px; height: 52px; line-height: 44px; background: url('./plaque.png') center / 100% 100% no-repeat; image-rendering: pixelated; }
+@media (max-width: 600px) {
+  #cs378.chapter-one-art .dlg:before, #cs378.chapter-one-art .dlg.no-plate:before { border-width: 22px; border-image-width: 22px; }
+  #cs378.chapter-one-art .nm { left: 62px; top: 4px; width: 130px; height: 39px; line-height: 33px; font-size: 15px; }
+}
+@media (max-height: 520px) and (min-width: 601px) {
+  #cs378.chapter-one-art .dlg:before, #cs378.chapter-one-art .dlg.no-plate:before { border-width: 22px; border-image-width: 22px; }
+  #cs378.chapter-one-art .nm { left: 18.5%; top: 4px; width: 130px; height: 39px; line-height: 33px; font-size: 14px; }
+}

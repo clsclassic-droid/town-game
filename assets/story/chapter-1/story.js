@@ -36,8 +36,10 @@
         // จอแนวตั้ง (v392): ใช้ภาพแนวตั้ง 1024x1536 · คลุมเต็มจอ ไม่ตัดมากเกินจำเป็น
         scale = Math.max(width / 1024, height / 1536);
         imgW = 1024 * scale; imgH = 1536 * scale;
-        // v393: เลื่อนภาพลงให้เห็นหลังคา/ปล่องครบ (ตัดบนไม่เกิน 80 พิกเซลของภาพ) · หญ้าล่างส่วนเกินถูกกรอบบัง
-        top = Math.min(0, Math.max(height - imgH, -80 * scale));
+        // v394: กันที่ให้กรอบแบบสูงสุด (หน้าเป้าหมาย) เสมอ → ฉากไม่ขยับตามความสูงกรอบ, เท้าตัวละครอยู่เหนือกรอบ มีหญ้าเหลือเล็กน้อย
+        // หลังคา/ปล่องควันยังเห็น (ตัดบนไม่เกิน 150 พิกเซลของภาพ) · ภาพคลุมเต็มจอเสมอ
+        const freeRef = height - Math.max(dh, 290);
+        top = Math.min(0, Math.max(height - imgH, -150 * scale, freeRef - 990 * scale));
         feet = top + 900 * scale;
         bg.style.backgroundImage = "url('" + base + "village-portrait.webp')";
         bg.style.webkitMaskImage = bg.style.maskImage = 'none';
