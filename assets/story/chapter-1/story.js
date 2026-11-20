@@ -21,14 +21,32 @@
     const title = document.createElement('div');
     title.className = 'chapter-title';
     title.textContent = 'ด่าน 1 · ชานเมือง';
+    // v391: ภาพฉากวางเองใน .bgfit (ไม่ซูมตัดข้างมาก) · ส่วนที่เหลือเติมด้วยภาพเบลอ · ตัวละครผูกกับขนาดฉาก
+    const bg = document.createElement('div');
+    bg.className = 'bgfit';
+    stage.prepend(bg);
     stage.append(title, cast);
     const positionCast = () => {
       const { width, height } = stage.getBoundingClientRect();
-      const scale = Math.max(width / 1536, height / 1024);
-      cast.style.top = ((height - 1024 * scale) / 2 + 625 * scale) + 'px';
+      if (!width || !height) return;
+      const dh = dlg.offsetHeight || 0;
+      const free = Math.max(120, height - dh);           // พื้นที่เหนือกรอบบทสนทนา
+      const scale = Math.max(width / 1536, 0.8 * free / 1024);
+      const imgW = 1536 * scale, imgH = 1024 * scale;
+      const top = (free - imgH) / 2;                      // ติดลบ = ตัดบน/ล่างเท่าๆ กัน
+      bg.style.width = imgW + 'px';
+      bg.style.height = imgH + 'px';
+      bg.style.left = (width - imgW) / 2 + 'px';
+      bg.style.top = top + 'px';
+      const ch = Math.max(30, 100 * scale);
+      cast.style.width = 520 * scale + 'px';
+      cast.style.height = ch + 'px';
+      cast.style.gap = Math.max(4, 14 * scale) + 'px';
+      cast.style.top = (top + 625 * scale) + 'px';
     };
     const observer = new ResizeObserver(positionCast);
     observer.observe(stage);
+    observer.observe(dlg);
     positionCast();
     const portrait = new Image();
     portrait.className = 'dialogue-portrait';

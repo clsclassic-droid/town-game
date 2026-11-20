@@ -65,3 +65,9 @@
   #cs378.chapter-one-art .cast { height: 31px; }
   #cs378.chapter-one-art .dlg.no-plate { padding-top: 34px; }
 }
+
+/* v391: ฉากเห็นครบขึ้น — ภาพจริงอยู่ใน .bgfit, ส่วนที่เหลือเติมด้วยภาพเบลอ, ตัวละครขนาดตามฉาก (JS กำหนด) */
+#cs378.chapter-one-art .stage { background-image: none !important; background-color: #3f5a2a; }
+#cs378.chapter-one-art .stage:before { content: ''; position: absolute; inset: -24px; background: url('./village.webp') center / cover no-repeat; filter: blur(12px) brightness(.85); }
+#cs378.chapter-one-art .bgfit { position: absolute; background: url('./village.webp') center / 100% 100% no-repeat; image-rendering: auto; -webkit-mask-image: linear-gradient(transparent, #000 5%, #000 95%, transparent); mask-image: linear-gradient(transparent, #000 5%, #000 95%, transparent); }
+#cs378.chapter-one-art .cast { transform: translate(-50%, -100%); max-width: none; }
