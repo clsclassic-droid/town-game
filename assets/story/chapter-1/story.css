@@ -101,7 +101,7 @@
 #cs378.chapter-one-art .aw .actor.farmer { height: 93%; margin: 0; }
 #cs378.chapter-one-art .aw .actor.captain { height: 100%; }
 #cs378.chapter-one-art .aw .actor.speaking { translate: 0 -4px; filter: brightness(1.12); }
-#cs378.chapter-one-art .dlg.side-r .dialogue-portrait { left: auto; right: 22px; transform: scaleX(-1); }
+#cs378.chapter-one-art .dlg.side-r .dialogue-portrait { left: auto; right: 22px; }
 #cs378.chapter-one-art .dlg.side-r .tx { padding-left: 0; padding-right: clamp(105px, 12vw, 165px); }
 #cs378.chapter-one-art .dlg.side-r .nm { left: auto; right: 18.5%; }
 @media (max-width: 600px) {
