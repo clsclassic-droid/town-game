@@ -17,7 +17,7 @@
     4: { title: 'ด่าน 4 · ฤดูหนาว', leader: 'leena', bgL: base4 + 'village.webp', bgP: base4 + 'village-portrait.webp',
       sprites: { leena: base4 + 'leena.png' }, portraits: { leena: base4 + 'portrait-leena.png' }, feetL: 640, feetP: 960, cutL: 20, cutP: 100 },
     5: { title: 'ด่าน 5 · แนวป้องกัน', leader: 'bronze', bgL: base5 + 'village.webp', bgP: base5 + 'village-portrait.webp',
-      sprites: { bronze: base5 + 'bronze.png' }, portraits: { bronze: base5 + 'portrait-bronze.png' }, feetL: 630, feetP: 810, cutL: 20, cutP: 100 }
+      sprites: { bronze: base5 + 'bronze.png' }, portraits: { bronze: base5 + 'portrait-bronze.png' }, feetL: 630, feetP: 740, cutL: 20, cutP: 100 }
   };
   function initStoryArt(el, cfg, steps) {
     const hasW = Array.isArray(steps) && steps.some((x) => x && x.k === 'W'); // v407: คนตัดไม้ยืนในขบวนเฉพาะด่านที่มีบท
