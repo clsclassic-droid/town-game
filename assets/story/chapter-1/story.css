@@ -39,3 +39,15 @@
 @media (prefers-reduced-motion: reduce) {
   #cs378.chapter-one-art .actor { transition: none; }
 }
+
+/* v389: ชื่อผู้พูดวางลงในป้ายไม้ของกรอบ และเลื่อนข้อความลงมาใต้ป้าย (กรอบยืดเต็มกว้าง ป้ายอยู่ ~18–34% ของความกว้าง, ~8–28% ของความสูง) */
+#cs378.chapter-one-art .nm { left: 18.5%; width: 15%; top: 9%; height: 17%; box-sizing: border-box; padding: 0; background: transparent; color: #fff4d8; text-align: center; line-height: 36px; font-size: 17px; overflow: hidden; white-space: nowrap; text-shadow: 0 1px 0 #2a170a; }
+#cs378.chapter-one-art .dlg { min-height: 235px; padding-top: 74px; padding-bottom: 40px; }
+@media (max-width: 600px) {
+  #cs378.chapter-one-art .nm { left: 18.5%; font-size: 15px; line-height: 34px; }
+  #cs378.chapter-one-art .dlg { min-height: 250px; padding-top: 74px; padding-bottom: 52px; }
+}
+@media (max-height: 520px) and (min-width: 601px) {
+  #cs378.chapter-one-art .nm { line-height: 24px; font-size: 14px; }
+  #cs378.chapter-one-art .dlg { min-height: 175px; padding-top: 50px; padding-bottom: 30px; }
+}

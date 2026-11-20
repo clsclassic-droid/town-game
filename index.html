@@ -141,6 +141,8 @@
     </div>
   </div>
   <script src="supabase.js"></script>
+  <link rel="stylesheet" href="assets/story/chapter-1/story.css">
+  <script src="assets/story/chapter-1/story.js"></script>
 <script>window.TOWN_ONLINE = { url: "https://uokxrijfhezojnasnzps.supabase.co", key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVva3hyaWpmaGV6b2puYXNuenBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyMDY1MzgsImV4cCI6MjA5Njc4MjUzOH0.q1BVGxQKhZt7mUCx8zYpSocfyEuaC3zXsKbWak0YqBo" };</script>
 <script>// ขั้นที่ 7: ขายสิ่งก่อสร้าง / เงินหมดคือเกมจบ / บ่อน้ำเริ่มต้น / แก้บั๊ก
 // - ทุ่งข้าวสาลีต้องมีน้ำ 3, ต้นไม้ต้องมีน้ำ 5 (น้ำ passive จากสระ/ปั๊มใช้กับทั้งสองอย่าง)
@@ -14946,13 +14948,17 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
     const $ = (s) => el.querySelector(s);
     const pl = $('.pl'), pr = $('.pr'), nm = $('.nm'), tx = $('.tx'), nx = $('.nx');
     let n = 0, timer = null, full = '';
-    function close() { clearInterval(timer); el.remove(); }
+    // v389: ด่าน 1 ใช้ภาพฉากใหม่ (assets/story/chapter-1) · ถ้าโหลดไม่ได้ก็ใช้ฉากเดิม
+    let art = null;
+    if (i === 0 && typeof window.initChapterOneStoryArt === 'function') { try { art = window.initChapterOneStoryArt(el); } catch (e) { art = null; } }
+    function close() { clearInterval(timer); try { art && art.close(); } catch (e) { } el.remove(); }
     function typeText(text) {
       clearInterval(timer); full = text; let c = 0; tx.textContent = '';
       timer = setInterval(() => { c += 2; tx.textContent = text.slice(0, c); if (c >= text.length) { clearInterval(timer); timer = null; } }, 26);
     }
     function show() {
       const s = steps[n];
+      if (art) { try { art.show(s); } catch (e) { } }
       pr.src = IMG[VKEY[s.right]];
       const nar = s.k === 'N', goal = s.k === 'G';
       pl.classList.toggle('off', nar); pr.classList.toggle('off', nar);
