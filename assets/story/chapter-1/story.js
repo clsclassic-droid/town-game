@@ -50,6 +50,7 @@
         const name = step.k === 'L' ? 'captain' : step.k === 'F' ? 'farmer' : null;
         portrait.hidden = !name;
         dlg.classList.toggle('no-portrait', !name);
+        dlg.classList.toggle('no-plate', step.k === 'N' || step.k === 'G');
         if (name) portrait.src = base + 'portrait-' + name + '.png';
         Object.entries(actors).forEach(([key, img]) => img.classList.toggle('speaking', key === name));
       }
