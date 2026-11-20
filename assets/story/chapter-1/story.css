@@ -119,4 +119,4 @@
 
 /* v407: คนตัดไม้ (ยืนต่อจากชาวนา) */
 #cs378.chapter-one-art .aw.woodcutter { margin-left: clamp(0px, 0.6vw, 10px); }
-#cs378.chapter-one-art .aw .actor.woodcutter { height: 96%; margin: 0; }
+#cs378.chapter-one-art .aw .actor.woodcutter { height: 100%; margin: 0; }
