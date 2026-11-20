@@ -10397,7 +10397,7 @@ body #setupOv340.ov340 { background: rgba(10,20,14,0.06) !important; align-items
   border-style:solid !important; border-color:transparent !important; border-width:var(--fb) !important;
   border-image-source:url(${SM340.frame}); border-image-slice:${SM340.frameSlice}; border-image-width:var(--fb); border-image-repeat:stretch;
   padding:10px 10px 12px !important;
-  filter:drop-shadow(1px 0 0 #250a00) drop-shadow(-1px 0 0 #250a00) drop-shadow(0 1px 0 #250a00) drop-shadow(0 -1px 0 #250a00) drop-shadow(0 8px 0 rgba(20,8,0,0.34)) drop-shadow(0 0 16px rgba(0,0,0,0.65)); }
+  filter:none !important; } /* v402: ไม่ใช้ filter บนแผงที่เลื่อนได้ (Safari iPhone วาดข้อความซ้อนเบลอ/ตัดเนื้อหา) */
 @media (max-width:480px) { .wd397:not(.sm340) { --m:1px; min-width:0; } }
 .wd397:not(.sm340) { max-width:calc(100vw - 16px) !important; }
 .wd397:not(.sm340) .t397 { background:linear-gradient(#8a5a2b,#5e3a17); color:#fff4d8; border:3px solid #3a1f08; box-shadow:inset 0 2px 0 rgba(255,220,160,.35), 0 3px 0 rgba(40,18,4,.45); text-shadow:0 2px 0 rgba(0,0,0,.55); padding:6px 12px; margin:0 auto 10px !important; width:fit-content; max-width:100%; box-sizing:border-box; clip-path:polygon(var(--c) 0,calc(100% - var(--c)) 0,100% var(--c),100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,var(--c) 100%,0 calc(100% - var(--c)),0 var(--c)); }
@@ -10409,7 +10409,7 @@ body #setupOv340.ov340 { background: rgba(10,20,14,0.06) !important; align-items
   clip-path:polygon(calc(var(--c) - 2px) 0,calc(100% - var(--c) + 2px) 0,100% calc(var(--c) - 2px),100% calc(100% - var(--c) + 2px),calc(100% - var(--c) + 2px) 100%,calc(var(--c) - 2px) 100%,0 calc(100% - var(--c) + 2px),0 calc(var(--c) - 2px)); box-shadow:inset 0 2px 0 var(--hi), inset 0 -3px 0 rgba(0,0,0,.2); }
 .wd397:not(.sm340) button[style*="255, 209, 102"]:not(.pk) { --bd:#7a4a00; --top:#ffe38a; --bot:#f0a92a; }
 .wd397:not(.sm340) button:not(.pk):not(.pchk):active { transform:translateY(2px) scale(.98); }
-.wd397:not(.sm340) button:not(.pk):not(.pchk):not(:last-child) { filter:drop-shadow(0 3px 0 rgba(40,18,4,.45)); }
+
 #prodChain .pk { border:2px solid #8a5a2b !important; border-radius:4px !important; background:#fff8e6 !important; }
 #prodChain .pk.on { background:#ffd166 !important; border-color:#6a3d17 !important; }
 #prodChain .pn397 { max-height:92vh; }
