@@ -10361,7 +10361,7 @@ function showSetupMenu() {
   const solo = mk('big green', 'm_solo', 'เล่นคนเดียว', showSoloSetup);
   rows.push(onlineAvailable() ? row('two', solo, mk('big blue', 'm_online', 'เล่นออนไลน์', () => showOnlineMenu())) : row('one', solo));
   rows.push(row('three', mk('mid', 'm_quick', 'แข่งด่วน 15 นาที', showQuickSetup), mk('mid', 'm_chain', 'เป้าหลายขั้น', showChainSetup), mk('mid', 'm_vsai', 'สู้กับ AI', showVsSetup)));
-  rows.push(row('one', mk('wide' + (!saved && !tutSeen() ? ' hl' : ''), 'm_tutorial', tutSeen() ? 'บทเรียนสำหรับมือใหม่' : 'เล่นครั้งแรก? ลองบทเรียน 5 นาที', startTutorial)));
+  rows.push(row('one tut427', mk('wide' + (!saved && !tutSeen() ? ' hl' : ''), 'm_tutorial', tutSeen() ? 'บทเรียนสำหรับมือใหม่' : 'เล่นครั้งแรก? ลองบทเรียน 5 นาที', startTutorial)));
   rows.push(row('four', mk('small', 'm_badges', 'เหรียญตรา', showBadgesPage), mk('small', 'm_records', 'สถิติ', showRecordsPage),
     mk('small', 'm_prodchain', 'วิธีเล่น', () => openProdChain()), mk('small', 'm_buildinfo', 'ข้อมูลอาคาร', showBuildInfo)));
   const orn = (src, cls) => { const im = document.createElement('img'); im.src = src; im.alt = ''; im.draggable = false; im.className = 'orn340 ' + cls; return im; };
@@ -15100,6 +15100,8 @@ showSetupMenu = function () {
   const rows = fr.querySelectorAll('.r340');
   const after = rows[0] && rows[0].querySelector('.ic414[data-n="play"]') ? rows[0] : null;
   if (after) after.after(r); else fr.prepend(r);
+  const tut = fr.querySelector('.tut427'); // v427: ปุ่มบทเรียนมือใหม่ขึ้นมาแถวที่ 2 (ต่อจากเล่นต่อ/แคมเปญ→ถ้ามีเซฟ: เล่นต่อ · บทเรียน · แคมเปญ)
+  if (tut) { if (after) after.after(tut); else r.after(tut); }
 };
 // เมนูแรกถูกสร้างก่อนสคริปต์นี้โหลด: สร้างใหม่ให้มีปุ่มแคมเปญ
 if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340') && !setupPanel.textContent.includes('แคมเปญ')) showSetupMenu();
