@@ -120,3 +120,8 @@
 /* v407: คนตัดไม้ (ยืนต่อจากชาวนา) */
 #cs378.chapter-one-art .aw.woodcutter { margin-left: clamp(0px, 0.6vw, 10px); }
 #cs378.chapter-one-art .aw .actor.woodcutter { height: 100%; margin: 0; }
+
+/* v426: ตัวละครชุดใหม่ (ภาพตัดแล้วเติมขอบบนให้ทุกตัวสูงเท่ากัน 560px รวมหอก) → ขยาย 112% ให้ตัวสูงเท่าเดิม ส่วนหอกยื่นขึ้นด้านบน */
+#cs378.chapter-one-art .aw .actor.captain, #cs378.chapter-one-art .aw .actor.soldier, #cs378.chapter-one-art .aw .actor.farmer,
+#cs378.chapter-one-art .aw .actor.woodcutter, #cs378.chapter-one-art .aw .actor.sara, #cs378.chapter-one-art .aw .actor.ray,
+#cs378.chapter-one-art .aw .actor.leena, #cs378.chapter-one-art .aw .actor.bronze, #cs378.chapter-one-art .aw .actor.vance { height: 112%; }

@@ -15156,7 +15156,7 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
     let n = 0, timer = null, full = '';
     // v389: ด่าน 1 ใช้ภาพฉากใหม่ (assets/story/chapter-1) · ถ้าโหลดไม่ได้ก็ใช้ฉากเดิม
     let art = null;
-    const artFn = i === 0 ? window.initChapterOneStoryArt : i === 1 ? window.initChapterTwoStoryArt : i === 2 ? window.initChapterThreeStoryArt : i === 3 ? window.initChapterFourStoryArt : i === 4 ? window.initChapterFiveStoryArt : null;
+    const artFn = i === 0 ? window.initChapterOneStoryArt : i === 1 ? window.initChapterTwoStoryArt : i === 2 ? window.initChapterThreeStoryArt : i === 3 ? window.initChapterFourStoryArt : i === 4 ? window.initChapterFiveStoryArt : i === 5 ? window.initChapterSixStoryArt : null;
     if (typeof artFn === 'function') { try { art = artFn(el, steps); } catch (e) { art = null; } }
     function close() { clearInterval(timer); try { art && art.close(); } catch (e) { } el.remove(); }
     function typeText(text) {
