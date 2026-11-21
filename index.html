@@ -9261,15 +9261,28 @@ function updateFullWarn(s) {
   if (!s || !s.isHuman || demo340) return;
   const first = !s.fullWarn;
   if (first) s.fullWarn = {};
-  const newly = [];
+  const newly = [], nearList = [];
   for (const g of FULL_WARN_GROUPS) {
     const cells = [];
     eachCell((c) => { if (c && g.types.includes(c.type) && isUsable(c)) cells.push(c); });
     const full = cells.length > 0 && cells.every(storeFull);
     if (full && !s.fullWarn[g.key] && !first) newly.push({ g, cells });
     s.fullWarn[g.key] = full;
+    // v425: เตือนล่วงหน้าเมื่อใช้พื้นที่ถึง 80% (เตือนครั้งเดียว จนกว่าจะลดต่ำกว่า 60%)
+    const stk = cells.reduce((a, c) => a + (c.stock || 0), 0), capT = cells.reduce((a, c) => a + STORE_CAP[c.type], 0);
+    if (!s.nearWarn) s.nearWarn = {};
+    const near = cells.length > 0 && !full && stk >= Math.ceil(capT * 0.8);
+    if (near && !s.nearWarn[g.key] && !first) nearList.push({ g, cells, stk, capT });
+    if (near || full) s.nearWarn[g.key] = true; else if (stk < capT * 0.6) s.nearWarn[g.key] = false;
   }
-  if (!newly.length) return;
+  if (!newly.length) {
+    if (nearList.length) {
+      const n = nearList[0];
+      const what = fullWarnContents(n.cells);
+      showMessage(`📦 ${n.g.label}ใกล้เต็ม (${n.stk}/${n.capT})${what ? '\nตอนนี้เก็บ: ' + what : ''}\nสร้าง${n.g.build}เพิ่มก่อน ไม่งั้นการผลิตจะค้าง`, 4000);
+    }
+    return;
+  }
   if (newly.length === 1) {
     const { g, cells } = newly[0];
     const stock = cells.reduce((a, c) => a + (c.stock || 0), 0), cap = cells.reduce((a, c) => a + STORE_CAP[c.type], 0);
@@ -13867,10 +13880,11 @@ if (UI312.lines) {
     } else if (penaltyTarget(c) && c.pen) { sec = r.sec / shadeSpeed(c); why = penaltyWhy304(c); }
     const x = prodRates({ ...r, sec });
     const ins = Object.entries(x.inMin).map(([k, n]) => `${prodKL(k)} ${prodFmt(n)}`).join(' + ');
-    const L = [`⏱ อัตรา: ${prodKL(r.out)} ${prodFmt(x.perMin)}/นาที (${prodFmt(sec)} วิ/ชิ้น${salt})`];
+    const L = [`⏱ กำลังผลิตตามสูตร: ${prodKL(r.out)} ${prodFmt(x.perMin)}/นาที (${prodFmt(sec)} วิ/ชิ้น${salt})`];
     if (why) L.push('⚠ ' + why.replace(/^ · /, ''));
     if (ins) L.push(`ใช้: ${ins}/นาที`);
-    if (x.val) L.push(`💰 รายได้: ~$${Math.round(x.val).toLocaleString('en-US')}/นาที (ไม่รวมเวลารอวัตถุดิบ/คนงาน)`);
+    if (x.val) L.push(`💰 รายได้สูงสุด: ~$${Math.round(x.val).toLocaleString('en-US')}/นาที`);
+    L.push('ℹ ตัวเลขนี้ยังไม่รวมเวลาขนวัตถุดิบและส่งของ ที่ทำได้จริงจะน้อยกว่า');
     return L.join('\n');
   };
 }
@@ -14300,9 +14314,42 @@ function nearTiles313(tiles, n) {
   eachCell((c, x, y) => { if (c && c.type === 'silo') { cx = x; cy = y; } });
   return tiles.map((t) => [Math.abs(t[0] - cx) + Math.abs(t[1] - cy), t]).sort((a, b) => a[0] - b[0]).slice(0, n).map(([, t]) => t);
 }
+// v425: คำใบ้ในแคมเปญ ตามเป้าด่านจริง (เดิมแนะนำให้ขายข้าวสาลี/ไม้ ทั้งที่เป็นวัตถุดิบที่ต้องเก็บไว้ใช้)
+const CHAIN425 = {
+  bread: 'ข้าวสาลี → แป้ง (โรงโม่) + อ้อย → น้ำตาล แล้วอบขนมปังที่เตาอบ',
+  eggs: 'เลี้ยงไก่ในโรงไก่ ให้อาหารและน้ำ แล้วเก็บไข่',
+  milk: 'เลี้ยงวัวในโรงวัว ให้อาหารและน้ำ แล้วเก็บนม',
+  wool: 'เลี้ยงแกะในคอกแกะ แล้วเก็บขนแกะ',
+  lumber: 'ตัดไม้ แล้วส่งเข้าโรงเลื่อยทำไม้แปรรูป',
+};
+function campHint425(depot) {
+  const L = campLv();
+  if (!L) return null;
+  const goals = L.goals.map((g) => g.k);
+  const prog = L.goals.map((g) => `${KIND_LABEL[g.k] || g.k} ${Math.min(campSold(g.k), g.n)}/${g.n}`).join(' · ');
+  const head = `🎯 <b>เป้าด่าน:</b> ขาย ${prog}`;
+  if (!depot) {
+    return { step: 'depot', html: `${head} · ยังไม่มี <b>สถานีขนส่งสินค้า</b> สร้างที่ขอบแผนที่ช่องกรอบเหลือง`, tiles: nearTiles313(placeTiles313('tradedepot'), 3) };
+  }
+  const [dx, dy, dc] = depot;
+  if (dc.trip) return { step: 'trip', html: '🚚 รถกำลังไปขาย ได้เงินและดาวตอนรถกลับมา (ประมาณ 10 วินาที)', tiles: [[dx, dy]] };
+  const ready = goals.find((k) => kindStock(k) >= SHIPMENT);
+  if (ready) return { step: 'ship', html: `${head}<br>💡 ${KIND_LABEL[ready] || ready}ครบ ${SHIPMENT} แล้ว แตะ <b>สถานีขนส่งสินค้า</b> (กรอบเหลือง) แล้วกด <b>ส่ง ${SHIPMENT} ชิ้น</b> หรือติ๊ก auto`, tiles: [[dx, dy]] };
+  if (UI318.stuck) {
+    const st = stuck318();
+    if (st) {
+      if (st.step === 'stuck-silo') return { step: st.step, tiles: st.tiles, html: '⚠ <b>ไซโลเต็ม</b> เกษตรกรหยุดเก็บ · สร้างไซโลเพิ่ม หรือโม่เป็นแป้ง/น้ำตาลเพื่อใช้ของที่ค้าง (ไม่ต้องขายวัตถุดิบ ต้องเก็บไว้ผลิตต่อ)' };
+      return st;
+    }
+  }
+  const next = L.goals.find((g) => campSold(g.k) < g.n) || L.goals[0];
+  const chain = CHAIN425[next.k] || 'ผลิตสินค้าเป้าด่านให้ครบ แล้วส่งขาย';
+  return { step: 'wait', html: `${head}<br>💡 ${chain} · <b>เก็บวัตถุดิบไว้ผลิตต่อ อย่าขาย</b> ส่งขายเฉพาะสินค้าเป้าด่านเมื่อครบ ${SHIPMENT} ชิ้น`, tiles: [] };
+}
 function hintStep313() {
   const sold = Object.values(humanSide.produced || {}).some((v) => v > 0);
   const depot = (() => { let p = null; eachCell((c, x, y) => { if (!p && c && c.type === 'tradedepot') p = [x, y, c]; }); return p; })();
+  if (campActive()) { const ch = campHint425(depot); if (ch) return ch; } // v425: คำใบ้ตามเป้าด่าน ไม่ให้ขายวัตถุดิบ
   if (sold && !hint313.force) return { step: 'done', html: '🎉 <b>ขายได้ครั้งแรกแล้ว!</b> ผลิต → เก็บ → ขาย คือวงจรหลัก ติ๊ก "auto" ที่ สถานีขนส่งสินค้า ให้ส่งเองได้', tiles: [] };
   if (!depot && countType('field') < 4) {
     return { step: 'field', html: `💡 <b>ขั้น 1:</b> ปลูก <b>ทุ่งข้าวสาลี</b> ที่ช่องกรอบเหลือง (น้ำฟรีมาก ไม่ติดเงา) · ปลูกแล้ว ${countType('field')}/4`, tiles: bestFieldTiles313() };
