@@ -3356,6 +3356,13 @@ function updateHud(now) {
   const sec = Math.max(0, Math.floor(((gameOver && matchEndAt ? matchEndAt : now) - roundStartAt) / 1000)); // v261: จบรอบแล้วนาฬิกาหยุด
   const pad = (n) => String(n).padStart(2, '0');
   hudTimer.textContent = `${pad(Math.floor(sec / 3600))}:${pad(Math.floor(sec / 60) % 60)}:${pad(sec % 60)}`;
+  // v422: ไอคอนข้างนาฬิกาเปลี่ยนตามช่วงแสงของเกม (เช้า/กลางวัน/เย็น) แทนนาฬิกาจับเวลา
+  try {
+    const L = (typeof matchActive !== 'undefined' && matchActive) ? light305() : null;
+    const ph = L ? (L.morning > 0.5 ? 'dawn' : L.evening > 0.5 ? 'dusk' : 'day') : 'day';
+    const im = hudTimer.previousSibling && hudTimer.previousSibling.querySelector && hudTimer.previousSibling.querySelector('img');
+    if (im && im.dataset.ph !== ph) { im.dataset.ph = ph; im.src = 'assets/clock/' + ph + '.png'; im.style.imageRendering = 'pixelated'; }
+  } catch (e) { /* ไอคอนเวลาไม่สำคัญ */ }
 }
 
 // ---------- ปุ่มเครื่องมือ ----------
