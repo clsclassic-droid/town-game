@@ -125,3 +125,10 @@
 #cs378.chapter-one-art .aw .actor.captain, #cs378.chapter-one-art .aw .actor.soldier, #cs378.chapter-one-art .aw .actor.farmer,
 #cs378.chapter-one-art .aw .actor.woodcutter, #cs378.chapter-one-art .aw .actor.sara, #cs378.chapter-one-art .aw .actor.ray,
 #cs378.chapter-one-art .aw .actor.leena, #cs378.chapter-one-art .aw .actor.bronze, #cs378.chapter-one-art .aw .actor.vance { height: 112%; }
+
+/* v427: ทิศหันให้ตรงกับตำแหน่งยืน/ตำแหน่งในกล่องคำพูด (วัดจากตาในไฟล์จริง: ทุกตัวหันขวา ยกเว้นทหาร/บรอนซ์/แวนซ์ที่ต้นฉบับหันซ้าย)
+   - ตัวเต็ม: เรียงจากซ้าย รถ · ทหาร · หัวหน้า · ชาวนา · คนตัดไม้ → ทหารและหัวหน้าหันขวา (เข้าหาชาวบ้าน) · ชาวนา/คนตัดไม้ต้องหันซ้าย (หาหัวหน้า)
+   - รูปครึ่งตัว: รูปอยู่ซ้ายกล่อง → หันขวาเข้าหาข้อความ · รูปอยู่ขวากล่อง (ชาวนา/คนตัดไม้) → หันซ้ายเข้าหาข้อความ */
+#cs378.chapter-one-art .aw .actor.soldier, #cs378.chapter-one-art .aw .actor.bronze, #cs378.chapter-one-art .aw .actor.vance,
+#cs378.chapter-one-art .aw .actor.farmer, #cs378.chapter-one-art .aw .actor.woodcutter { transform: scaleX(-1); }
+#cs378.chapter-one-art .dlg.side-r .dialogue-portrait, #cs378.chapter-one-art .dlg.flip-p .dialogue-portrait { transform: scaleX(-1); }

@@ -113,6 +113,7 @@
         dlg.classList.toggle('no-portrait', !name);
         dlg.classList.toggle('no-plate', step.k === 'N' || step.k === 'G');
         dlg.classList.toggle('side-r', name === 'farmer' || name === 'woodcutter'); // ชาวนาพูด: รูปหน้า+ป้ายชื่ออยู่ขวา
+        dlg.classList.toggle('flip-p', name === 'bronze' || name === 'vance'); // v427: รูปครึ่งตัวที่ต้นฉบับหันซ้าย → กลับด้านให้หันเข้าหาข้อความ
         if (name) portrait.src = cfg.portraits[name] || base + 'portrait-' + name + '.png';
         Object.entries(actors).forEach(([key, img]) => img.classList.toggle('speaking', key === name));
       }
