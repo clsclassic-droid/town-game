@@ -11949,18 +11949,19 @@ const ONLINE_GOALS = [
 const ONLINE_LIMITS = [['0', 'ไม่จำกัดเวลา'], ['600000', '10 นาที'], ['900000', '15 นาที'], ['1200000', '20 นาที'], ['1800000', '30 นาที'], ['2700000', '45 นาที']];
 const ONLINE_BIOMES = { forest: 'ป่า', plains: 'ที่ราบ', desert: 'ทะเลทราย' };
 const ONLINE_BORDERS = { random: 'ขอบสุ่ม', none: 'ไม่มีขอบพิเศษ', ocean: 'ทะเลด้านบน', river: 'แม่น้ำด้านบน', mountain: 'ภูเขาด้านบน' };
+const ONLINE_COINS429 = [150000, 500000, 1000000, 2000000, 5000000, 10000000];
 function onlineLobbyText(lb) {
   if (!lb) return 'รอเจ้าห้องตั้งค่า...';
   const g = ONLINE_GOALS[lb.goalIdx] || ONLINE_GOALS[0];
   const lim = (ONLINE_LIMITS.find(([v]) => Number(v) === lb.limitMs) || ONLINE_LIMITS[0])[1];
-  return `🎯 ${g.label}\n⏱ ${lim} · 🗺 ${ONLINE_BIOMES[lb.biome] || 'ที่ราบ'}, ${ONLINE_BORDERS[lb.border] || ''}`;
+  return `🎯 ${g.label}\n⏱ ${lim} · 💰 เงินเริ่มต้น ${(lb.coins || START_COINS).toLocaleString('en-US')} · 🗺 ${ONLINE_BIOMES[lb.biome] || 'ที่ราบ'}, ${ONLINE_BORDERS[lb.border] || ''}`;
 }
 
 // ---------- สถานะห้อง ----------
 function onlineNew(code, isHost, name) {
   return {
     code, isHost, name, myId: onlineMyId(), joinedAt: Date.now(), net: null, status: 'connecting',
-    peers: [], ready: isHost, lobby: isHost ? { goalIdx: 0, limitMs: QUICK_LIMIT_MS, biome: 'plains', border: 'random', bots: [] } : null,
+    peers: [], ready: isHost, lobby: isHost ? { goalIdx: 0, limitMs: QUICK_LIMIT_MS, coins: START_COINS, biome: 'plains', border: 'random', bots: [] } : null,
     cfg: null, started: false, ended: null, players: {}, lastSt: 0, lastBoard: 0, view: 'lobby', sawHost: false, outNoted: false,
   };
 }
@@ -12098,6 +12099,9 @@ function showOnlineLobby() {
     const limSel = document.createElement('select');
     for (const [v, t] of ONLINE_LIMITS) { const o = document.createElement('option'); o.value = v; o.textContent = t; limSel.appendChild(o); }
     limSel.value = String(lb.limitMs);
+    const coinSel = document.createElement('select'); // v429: เงินเริ่มต้น (ทุกคนในห้องเท่ากัน รวม AI)
+    for (const v of ONLINE_COINS429) { const o = document.createElement('option'); o.value = String(v); o.textContent = '$' + v.toLocaleString('en-US') + (v === START_COINS ? ' (ปกติ)' : ''); coinSel.appendChild(o); }
+    coinSel.value = String(lb.coins || START_COINS);
     const tp = terrainPickers();
     const [bSel, eSel] = tp.rows.map((r) => r.querySelector('select'));
     bSel.value = lb.biome; eSel.value = lb.border;
@@ -12110,12 +12114,12 @@ function showOnlineLobby() {
       onlineTrack(); renderOnlineLobby();
     }, false);
     const sync = () => {
-      lb.goalIdx = Number(goalSel.value); lb.biome = bSel.value; lb.border = eSel.value; lb.limitMs = Number(limSel.value);
+      lb.goalIdx = Number(goalSel.value); lb.biome = bSel.value; lb.border = eSel.value; lb.limitMs = Number(limSel.value); lb.coins = Number(coinSel.value);
       onlineTrack(); renderOnlineLobby();
     };
     goalSel.addEventListener('change', () => { limSel.value = String(ONLINE_GOALS[Number(goalSel.value)].limit); sync(); });
-    for (const s of [limSel, bSel, eSel]) s.addEventListener('change', sync);
-    hostBox.append(sRow('เป้าหมาย', goalSel), sRow('เวลาจำกัด', limSel), ...tp.rows, sRow('ความยาก AI', diffSel), addBot);
+    for (const s of [limSel, coinSel, bSel, eSel]) s.addEventListener('change', sync);
+    hostBox.append(sRow('เป้าหมาย', goalSel), sRow('เวลาจำกัด', limSel), sRow('เงินเริ่มต้น', coinSel), ...tp.rows, sRow('ความยาก AI', diffSel), addBot);
   }
   lobbyEls = { connEl, listEl, infoEl, readyBtn, startBtn, err };
   setupPanel.replaceChildren(
@@ -12159,7 +12163,7 @@ function onlineHostStart() {
   if (humans.length + lb.bots.length > ONLINE_MAX) { lobbyEls.err.textContent = 'คนเกิน 4 คน'; return; }
   const g = ONLINE_GOALS[lb.goalIdx] || ONLINE_GOALS[0];
   const cfg = {
-    goal: JSON.parse(JSON.stringify(g.goal)), limitMs: lb.limitMs, coins: START_COINS,
+    goal: JSON.parse(JSON.stringify(g.goal)), limitMs: lb.limitMs, coins: lb.coins || START_COINS,
     terrain: makeTerrain(lb.biome, lb.border), startAt: Date.now() + 3500,
     players: humans.map((m) => ({ id: m.id, name: m.name })), bots: lb.bots.map((b) => ({ ...b })),
   };
@@ -12186,7 +12190,7 @@ function onlineScheduleStart(cfg) {
   tick();
 }
 function onlinePlayerInit(id, name, bot) {
-  if (!online.players[id]) online.players[id] = { id, name, bot, m: 0, txt: '', coins: START_COINS, stars: 0, out: false, board: null, hist: [], tg: 0, seenAt: 0 };
+  if (!online.players[id]) online.players[id] = { id, name, bot, m: 0, txt: '', coins: (online.cfg && online.cfg.coins) || START_COINS, stars: 0, out: false, board: null, hist: [], tg: 0, seenAt: 0 };
   return online.players[id];
 }
 function onlineBegin(cfg) {
@@ -12512,7 +12516,7 @@ function onlineResume(info) {
   online.cfg = info.cfg;
   online.started = true;
   online.view = 'game';
-  if (online.isHost) online.lobby = { goalIdx: 0, limitMs: info.cfg.limitMs, biome: info.cfg.terrain.biome, border: 'random', bots: info.cfg.bots };
+  if (online.isHost) online.lobby = { goalIdx: 0, limitMs: info.cfg.limitMs, coins: info.cfg.coins || START_COINS, biome: info.cfg.terrain.biome, border: 'random', bots: info.cfg.bots };
   for (const p of info.cfg.players) onlinePlayerInit(p.id, p.name, false);
   for (const b of info.cfg.bots) onlinePlayerInit(b.id, '🤖 ' + b.name, true);
   online.net = netOpen(info.code, online.myId, {
