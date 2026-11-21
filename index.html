@@ -13249,7 +13249,7 @@ function drawLight305() {
   ctx.restore();
 }
 
-// ---------- v423: หิ่งห้อยบินตามถนนตอนเย็น-กลางคืน (ช่วงถนนตรง ห่างกัน ~5 ช่อง จำกัดจำนวน) ----------
+// ---------- v423: หิ่งห้อยบินตามถนนตอนเย็น-กลางคืน (ช่วงถนนตรง ห่างกัน ~3 ช่อง จำกัดจำนวน) ----------
 const FF423 = { on: true, cache: new WeakMap(), glow: null };
 function ffAnchors423() {
   const side = activeSide;
@@ -13262,10 +13262,11 @@ function ffAnchors423() {
   const list = [];
   const far = (x, y, d) => list.every(a => Math.abs(a.x - x) + Math.abs(a.y - y) >= d);
   const cap = bat371 ? 4 : 8;
+  roads.sort((p, q) => hash305(p[0], p[1]) - hash305(q[0], q[1])); // v424: สุ่มลำดับ ให้กระจายทั่วถนน ไม่กระจุกแถวแรก
   for (const [x, y] of roads) { // ช่วงถนนตรงเท่านั้น (ข้ามสี่แยก/ทางโค้ง/ปลายตัน)
     const h = R(x - 1, y) && R(x + 1, y) && !R(x, y - 1) && !R(x, y + 1);
     const v = R(x, y - 1) && R(x, y + 1) && !R(x - 1, y) && !R(x + 1, y);
-    if ((h || v) && far(x, y, 5) && list.length < cap) list.push({ x, y, h, seed: hash305(x, y) });
+    if ((h || v) && far(x, y, 3) && list.length < cap) list.push({ x, y, h, seed: hash305(x, y) });
   }
   if (!list.length && roads.length) { const [x, y] = roads[Math.floor(roads.length / 2)]; list.push({ x, y, h: true, seed: hash305(x, y) }); } // ถนนสั้น: อย่างน้อย 1 ตัว
   FF423.cache.set(side, { t: now, list });
@@ -13294,7 +13295,7 @@ function drawFireflies423() {
     const b = Math.pow(0.5 + 0.5 * Math.sin(T * (1.1 + a.seed) + k * 3), 1.4) * amt;
     if (b < 0.05) continue;
     const [sx, sy] = gridToScreen(gx, gy), tw = tileW305(a.x, a.y);
-    const gs = tw * 1.7;
+    const gs = tw * 0.85; // v424: วงแสงเล็กลงครึ่งหนึ่ง
     ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, b);
     ctx.drawImage(FF423.glow, sx - gs / 2, sy - gs / 2, gs, gs);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, b * 1.3);
