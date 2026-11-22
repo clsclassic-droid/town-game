@@ -36,7 +36,7 @@
       img.className = 'actor ' + name;
       img.alt = '';
       img.draggable = false;
-      img.src = cfg.sprites[name] || base + name + '.png';
+      img.src = (cfg.sprites[name] || base + name + '.png') + '?v=430'; // v430: กันแคชรูปเก่า
       const wrap = document.createElement('span'); // v396: ห่อรูป เพื่อวางเงาวงรีใต้เท้า (ไม่พึ่ง drop-shadow ของเบราว์เซอร์)
       wrap.className = 'aw ' + name;
       wrap.appendChild(img);
@@ -114,7 +114,7 @@
         dlg.classList.toggle('no-plate', step.k === 'N' || step.k === 'G');
         dlg.classList.toggle('side-r', name === 'farmer' || name === 'woodcutter'); // ชาวนาพูด: รูปหน้า+ป้ายชื่ออยู่ขวา
         dlg.classList.toggle('flip-p', name === 'bronze' || name === 'vance'); // v427: รูปครึ่งตัวที่ต้นฉบับหันซ้าย → กลับด้านให้หันเข้าหาข้อความ
-        if (name) portrait.src = cfg.portraits[name] || base + 'portrait-' + name + '.png';
+        if (name) portrait.src = (cfg.portraits[name] || base + 'portrait-' + name + '.png') + '?v=430';
         Object.entries(actors).forEach(([key, img]) => img.classList.toggle('speaking', key === name));
       }
     };
