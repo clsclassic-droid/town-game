@@ -15499,4 +15499,105 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
   };
 })();
 </script>
+<script>
+// ==================== v433: คำแนะนำครั้งเดียวตอนเจอจริง ====================
+// แสดงการ์ดเล็กชิดล่าง (เหนือแถบเมนู) ทีละใบ · ปิดเองใน 15 วิ หรือกด "เข้าใจแล้ว" · จำใน localStorage ไม่ขึ้นซ้ำ
+// ไม่ขึ้นในบทเรียน/ฉากหลังเมนู · ผู้เล่นที่ทำภารกิจไปแล้ว 6 ข้อขึ้นไป ถือว่ารู้แล้ว (บันทึกว่าเห็นแล้วเงียบๆ)
+const JIT433_KEY = 'townGame.jit433';
+const jit433 = { seen: {}, el: null, queue: [], timer: null, startCoins: 0, startAt: 0 };
+try { jit433.seen = JSON.parse(localStorage.getItem(JIT433_KEY) || '{}') || {}; } catch (e) { jit433.seen = {}; }
+function jitSave433() { try { localStorage.setItem(JIT433_KEY, JSON.stringify(jit433.seen)); } catch (e) { /* ไม่เป็นไร */ } }
+function jitOk433() { return matchActive && !demo340 && !tutorialMode && !gameOver; }
+const JIT433 = {
+  pen: { title: '⚠ ช่องนี้ทำให้ผลิตช้าลง', text: 'ช่องที่ติด<b>เงา</b> (อาคาร ต้นไม้ ภูเขา) <b>เค็ม</b> (ใกล้ทะเล) หรือ<b>มลพิษ</b> (ใกล้สถานีขนส่ง/โรงงาน) จะผลิตช้าลง 2–8 เท่า<br>เปิดสีบนแผนที่ไว้ จะเห็นว่าช่องไหนดี',
+    btn: ['🎨 เปิดสีบนแผนที่', () => { pen321On = true; try { localStorage.setItem(PEN321_KEY, 'on'); } catch (e) { /* ไม่เป็นไร */ } refreshPen321Btn(); }] },
+  auto: { title: '📦 คลังเต็มแล้ว', text: 'คลังเต็ม = คนงานหยุดเก็บของ<br>💡 แตะ<b>สถานีขนส่งสินค้า</b> แล้วติ๊ก <b>auto</b> รถจะส่งขายเองทุกครั้งที่ครบ' },
+  wage: { title: '💰 เงินเหลือน้อยแล้ว', text: 'บ้านคนงานมี<b>ค่าแรง</b>หักทุกนาที ถ้าเงินหมดเกมจะจบ<br>ส่งของขายให้บ่อยขึ้น และสร้างบ้านเท่าที่มีงานให้ทำ' },
+  chain: { title: '🧭 ไม่รู้ว่าต้องสร้างอะไร?', text: 'แตะ<b>แถบภารกิจ</b>ด้านบน จะเห็นว่าของชิ้นนั้นต้องสร้างอะไรบ้าง<br>ดูได้ทุกเมื่อที่ <b>🧭 สายการผลิต</b> ในแท็บเครื่องมือ',
+    btn: ['🧭 ดูวิธีทำภารกิจนี้', () => { const m = SOLO_MISSIONS[humanSide.mission || 0]; openProdChain(m && m.k ? m.k : undefined); }] },
+};
+function jit433Show(key) {
+  if (jit433.seen[key] || !JIT433[key] || !jitOk433()) return;
+  if ((humanSide.mission || 0) >= 6) { jit433.seen[key] = 1; jitSave433(); return; } // ผู้เล่นมีประสบการณ์แล้ว
+  if (jit433.el) { if (!jit433.queue.includes(key)) jit433.queue.push(key); return; }
+  jit433.seen[key] = 1; jitSave433();
+  const t = JIT433[key];
+  const el = document.createElement('div');
+  el.id = 'jit433';
+  el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);z-index:115;width:min(420px,calc(100vw - 16px));background:rgba(251,243,223,0.97);color:#3a2a17;border:2px solid #7a5230;border-radius:14px;padding:9px 12px;box-shadow:0 4px 14px rgba(0,0,0,0.35);font-family:sans-serif;font-size:14px;line-height:1.5;box-sizing:border-box;';
+  el.innerHTML = `<div style="font-weight:bold;font-size:15px">${t.title}</div><div style="margin-top:4px">${t.text}</div>`;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px;';
+  const mk = (label, primary, fn) => { const b = document.createElement('button'); b.textContent = label; b.style.cssText = `padding:6px 12px;font-size:14px;cursor:pointer;border:1px solid #7a5230;border-radius:10px;background:${primary ? '#ffd166' : '#fffaf0'};color:#3a2a17;`; b.addEventListener('click', (e) => { e.stopPropagation(); if (fn) try { fn(); } catch (er) { /* ไม่เป็นไร */ } jit433Close(); }); return b; };
+  if (t.btn) row.append(mk(t.btn[0], false, t.btn[1]));
+  row.append(mk('เข้าใจแล้ว', true, null));
+  el.append(row);
+  imgifyEmoji(el);
+  document.body.appendChild(el);
+  jit433.el = el;
+  jit433Place();
+  clearTimeout(jit433.timer);
+  jit433.timer = setTimeout(jit433Close, 15000);
+}
+function jit433Close() {
+  clearTimeout(jit433.timer);
+  if (jit433.el) jit433.el.remove();
+  jit433.el = null;
+  const next = jit433.queue.shift();
+  if (next) setTimeout(() => jit433Show(next), 800);
+}
+function jit433Place() { // ชิดล่าง เหนือแถบเมนู/แถวการ์ดสร้าง (เหมือนกล่องบทเรียน v432)
+  if (!jit433.el) return;
+  let top = window.innerHeight;
+  for (const el of [document.getElementById('tabRow305'), document.getElementById('toolbar'), typeof openRow !== 'undefined' ? openRow : null]) {
+    if (!el || !el.getBoundingClientRect) continue;
+    const r = el.getBoundingClientRect();
+    if (r.height > 0 && r.top > window.innerHeight * 0.4) top = Math.min(top, r.top);
+  }
+  jit433.el.style.bottom = Math.max(8, Math.round(window.innerHeight - top + 6)) + 'px';
+}
+// 1. วางอาคาร/พืชแล้วติดผลกระทบ
+{
+  const _pb433 = placeBuilding;
+  placeBuilding = function (x, y, type) {
+    const mine = activeSide === humanSide && matchActive && !tutorialMode && !demo340;
+    let pen = 0;
+    try { if (mine) { const q = pen313(x, y, type); pen = q && q.pen ? q.pen : 0; } } catch (e) { pen = 0; }
+    const err = _pb433.apply(this, arguments);
+    if (!err && pen && !pen321On) setTimeout(() => jit433Show('pen'), 1200);
+    return err;
+  };
+}
+// 2. คลังเต็มครั้งแรก (ข้อความเตือนเดิม v263 ยังขึ้นตามปกติ)
+{
+  const _sm433 = showMessage;
+  showMessage = function (text) {
+    const r = _sm433.apply(this, arguments);
+    try { if (typeof text === 'string' && text.includes('เต็มทุกหลัง') && jitOk433()) setTimeout(() => jit433Show('auto'), 3800); } catch (e) { /* ไม่เป็นไร */ }
+    return r;
+  };
+}
+// 3. ภารกิจสำเร็จ (ตั้งแต่ข้อที่ 2) → บอกที่ดูวิธีทำ
+{
+  const _fm433 = funOnMission;
+  funOnMission = function (m, doneCount) {
+    const r = _fm433.apply(this, arguments);
+    if (doneCount >= 2) setTimeout(() => jit433Show('chain'), 3500);
+    return r;
+  };
+}
+// 4. เงินลดเหลือไม่ถึง 30% ของเงินตอนเริ่ม (ไม่นับ 20 วิแรก)
+{
+  const _st433 = startMatch;
+  startMatch = function () { const r = _st433.apply(this, arguments); jit433.startCoins = 0; jit433.startAt = performance.now(); jit433Close(); jit433.queue = []; return r; };
+  setInterval(() => {
+    try {
+      if (!jitOk433() || activeSide !== humanSide) return;
+      if (!jit433.startCoins) { jit433.startCoins = coins; return; }
+      if (performance.now() - jit433.startAt > 20000 && coins < jit433.startCoins * 0.3) jit433Show('wage');
+      jit433Place();
+    } catch (e) { /* ไม่เป็นไร */ }
+  }, 1000);
+}
+</script>
 </body></html>
