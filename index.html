@@ -11798,7 +11798,7 @@ function tutGo(i) {
 }
 function tutRender() {
   const st = TUT_STEPS[tut.i], b = tut.bubble;
-  const mk = (t, primary, fn) => { const x = document.createElement('button'); x.innerHTML = t.replace(/[▶◀]|↩️/g, (c) => `<span class="ic434">${c}</span>`); x.style.cssText = `padding:6px 12px;font-size:14px;cursor:pointer;border:1px solid #7a5230;border-radius:10px;background:${primary ? '#ffd166' : '#fffaf0'};color:#3a2a17;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none;`; x.addEventListener('click', fn); return x; }; // v434: ไอคอน ▶ ◀ ใหญ่แบบปุ่มเมนู
+  const mk = (t, primary, fn) => { const x = document.createElement('button'); x.innerHTML = t.replace(/[▶◀]|⏪/g, (c) => (c === '⏪' ? '<span class="ic434" style="transform:scaleX(-1)">▶</span>' : `<span class="ic434">${c}</span>`)); x.style.cssText = `padding:6px 12px;font-size:14px;cursor:pointer;border:1px solid #7a5230;border-radius:10px;background:${primary ? '#ffd166' : '#fffaf0'};color:#3a2a17;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none;`; x.addEventListener('click', fn); return x; }; // v434: ไอคอน ▶ ◀ ใหญ่แบบปุ่มเมนู
   b.replaceChildren();
   const head = document.createElement('div');
   head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:bold;font-size:15px;cursor:pointer;';
@@ -11821,7 +11821,7 @@ function tutRender() {
     );
   } else {
     row.append(mk('ข้ามบทเรียน', false, () => { if (confirmSkip()) { endTutorial(); location.reload(); } }));
-    if (tut.i > 0) row.append(mk('↩️ ย้อนกลับ', false, () => tutGo(tut.i - 1))); // v434
+    if (tut.i > 0) row.append(mk('⏪ ย้อนกลับ', false, () => tutGo(tut.i - 1))); // v434
     if (st.next || tut.i < (tut.maxI || 0)) row.append(mk('ต่อไป ▶', true, () => tutGo(tut.i + 1)));
   }
   b.append(body, prog, row);
