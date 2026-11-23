@@ -9902,6 +9902,7 @@ function drawSide(s, now) {
   if (s.isHuman && typeof drawPen321 === 'function') drawPen321(); // v321: แทนปุ่มแสดงเงา/เค็มเดิม
   if (s.isHuman) drawFloatFx(); // v235
   if (s.isHuman && tutorialMode) drawTutorialTiles(); // v239
+  if (s.isHuman && typeof drawRiver441 === 'function') drawRiver441(); // v441
   if (s.isHuman && typeof drawPlace313 === 'function') { drawHints313(); drawPlace313(); } // v313t
   ctx.restore();
   if (s.isHuman) drawMinimap(); // v289t
@@ -15656,5 +15657,99 @@ function jit433Place() { // ชิดล่าง เหนือแถบเม
     } catch (e) { /* ไม่เป็นไร */ }
   }, 1000);
 }
+</script>
+<script>
+// ==================== v441: แคมเปญด่าน 1 ชี้ช่องริมแม่น้ำ ====================
+// เลือก 3 ช่องว่างที่ได้น้ำจากแม่น้ำ ≥ 4 (พอทั้งข้าวสาลี 3 และอ้อย 4) ใกล้บ้านเกษตรกรที่สุด
+// แสดงตอนเริ่มด่าน 1 ทุกครั้ง (หลังฉากบทสนทนา) · การ์ดปิดได้ (กรอบเหลืองยังอยู่) · ทั้งหมดหายเมื่อทั้ง 3 ช่องมีของแล้ว
+const RIVER441_NEED = 4;
+function river441Tiles() {
+  const tf = terrainField(), out = [];
+  let hx = 8, hy = 8;
+  eachCell((c, x, y) => { if (c && c.type === 'farmhouse') { hx = x; hy = y; } });
+  eachCell((c, x, y) => {
+    if (c) return;
+    if (tf.water[y * GRID_SIZE + x] < RIVER441_NEED) return;
+    let bad = true; try { bad = !!placementProblem(x, y, 'field'); } catch (e) { bad = true; }
+    if (bad) return;
+    out.push([x, y, Math.abs(x - hx) + Math.abs(y - hy)]);
+  });
+  out.sort((a, b) => a[2] - b[2]);
+  return out.slice(0, 3).map(([x, y]) => [x, y]);
+}
+function river441On() { const c = humanSide && humanSide.camp; return !!(campActive() && c && c.river441 && c.river441 !== 'done'); }
+function drawRiver441() {
+  if (!river441On() || activeSide !== humanSide) return;
+  const tiles = humanSide.camp.river441.filter(([x, y]) => !board[y][x]);
+  if (!tiles.length) return;
+  const a = 0.75 + 0.25 * Math.sin(performance.now() / 180);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.lineWidth = 4;
+  ctx.strokeStyle = `rgba(255,209,102,${a.toFixed(2)})`; ctx.fillStyle = `rgba(255,209,102,${(a * 0.4).toFixed(2)})`;
+  for (const [x, y] of tiles) {
+    const pts = [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([gx, gy]) => gridToScreen(gx, gy));
+    ctx.beginPath(); pts.forEach(([px, py], k) => (k ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+function river441Close(done) {
+  const el = document.getElementById('river441'); if (el) el.remove();
+  if (done && humanSide && humanSide.camp) humanSide.camp.river441 = 'done';
+}
+function river441Place() {
+  const el = document.getElementById('river441'); if (!el) return;
+  let top = window.innerHeight;
+  for (const e of [document.getElementById('tabRow305'), document.getElementById('toolbar'), typeof openRow !== 'undefined' ? openRow : null]) {
+    if (!e || !e.getBoundingClientRect) continue;
+    const r = e.getBoundingClientRect();
+    if (r.height > 0 && r.top > window.innerHeight * 0.4) top = Math.min(top, r.top);
+  }
+  el.style.bottom = Math.max(8, Math.round(window.innerHeight - top + 6)) + 'px';
+}
+function river441Focus() { // ซูมให้เห็นช่องเหลืองกลางพื้นที่เหนือการ์ด
+  const tiles = humanSide.camp.river441;
+  if (!tiles || !tiles.length || !topView) return;
+  const r = canvas.getBoundingClientRect(); if (!r.width) return;
+  const k = canvas.width / r.width, card = document.getElementById('river441');
+  let top = r.top + 8; try { const h = document.getElementById('hudPanel'); if (h) { const q = h.getBoundingClientRect(); if (q.height && q.bottom < r.top + r.height * 0.4) top = Math.max(top, q.bottom + 4); } } catch (e) { /* ไม่เป็นไร */ }
+  const bot = card ? Math.min(r.bottom - 8, card.getBoundingClientRect().top - 6) : r.bottom - 8;
+  const xs = tiles.map((t) => t[0]), ys = tiles.map((t) => t[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs) + 1, y0 = Math.min(...ys), y1 = Math.max(...ys) + 1;
+  const zBox = Math.min(r.width * k / ((x1 - x0 + 5) * TOP_TILE_PX), Math.max(80, bot - top) * k / ((y1 - y0 + 5) * TOP_TILE_PX));
+  const z = Math.max(VIEW_ZOOM_MIN, Math.min(VIEW_ZOOM_MAX, Math.max(camFitZoom(), Math.min(44 * k / TOP_TILE_PX, zBox))));
+  viewAngle = 0; viewZoom = z;
+  viewOX = (r.width / 2) * k - z * ((x0 + x1) / 2 - 8) * TOP_TILE_PX;
+  viewOY = ((top + bot) / 2 - r.top) * k - z * ((y0 + y1) / 2 - 8) * TOP_TILE_PX;
+  // ไม่ clampView: ช่องริมแม่น้ำอยู่ขอบแผนที่ ให้อยู่กลางพื้นที่ว่างได้ (ผู้เล่นเลื่อนเมื่อไหร่ค่อย clamp ตามปกติ)
+}
+function river441Show() {
+  river441Close(false);
+  const el = document.createElement('div');
+  el.id = 'river441';
+  el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);z-index:115;width:min(440px,calc(100vw - 16px));background:rgba(251,243,223,0.97);color:#3a2a17;border:2px solid #7a5230;border-radius:14px;padding:9px 12px;box-shadow:0 4px 14px rgba(0,0,0,0.35);font-family:sans-serif;font-size:14px;line-height:1.5;box-sizing:border-box;';
+  el.innerHTML = `<div style="font-weight:bold;font-size:15px">💧 ปลูกริมแม่น้ำ ได้น้ำฟรีทันที</div>`
+    + `<div style="margin-top:4px">${thumbHtml('field', 22)}${thumbHtml('sugarcane', 22)} ปลูกตรง<b>ช่องเหลืองกะพริบ</b> ได้น้ำจากแม่น้ำครบ <b>ข้าวสาลีและอ้อยโตเองโดยไม่ต้องรดน้ำ</b>`
+    + `<br>💡 สระที่สร้างใหม่ต้องให้คนงานขนน้ำมาเติม <b>10 ถัง</b>ก่อน จึงจะเริ่มให้น้ำ</div>`;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px;';
+  const mk = (label, primary, fn) => { const b = document.createElement('button'); b.textContent = label; b.style.cssText = `padding:6px 12px;font-size:14px;cursor:pointer;border:1px solid #7a5230;border-radius:10px;background:${primary ? '#ffd166' : '#fffaf0'};color:#3a2a17;`; b.addEventListener('click', (e) => { e.stopPropagation(); fn(); }); return b; };
+  row.append(mk('📍 พาไปดูช่อง', false, () => river441Focus()), mk('เข้าใจแล้ว', true, () => { humanSide.camp.river441Hide = true; river441Close(false); })); // ปิดการ์ด กรอบเหลืองยังอยู่จนปลูกครบ
+  el.append(row);
+  imgifyEmoji(el);
+  document.body.appendChild(el);
+  river441Place();
+  setTimeout(river441Focus, 50);
+}
+setInterval(() => {
+  try {
+    if (!campActive() || !humanSide.camp || humanSide.camp.lv !== 0) { if (document.getElementById('river441')) river441Close(false); return; }
+    const c = humanSide.camp;
+    if (!c.river441) { const t = river441Tiles(); if (!t.length) { c.river441 = 'done'; return; } c.river441 = t; river441Show(); return; }
+    if (c.river441 === 'done') { river441Close(false); return; }
+    // ปลูกพืชครบทุกช่องที่ชี้แล้ว = จบ
+    if (c.river441.every(([x, y]) => board[y][x])) { const crops = c.river441.some(([x, y]) => isCrop(board[y][x])); river441Close(true); if (crops) showMessage('✅ ปลูกริมแม่น้ำแล้ว พืชตรงนั้นโตเองโดยไม่ต้องรดน้ำ', 2500); return; }
+    if (!c.river441Hide && !document.getElementById('river441')) river441Show();
+    river441Place();
+  } catch (e) { /* ไม่เป็นไร */ }
+}, 500);
 </script>
 </body></html>
