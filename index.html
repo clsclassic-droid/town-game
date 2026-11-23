@@ -15415,6 +15415,8 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
 #prodChain.camp386>div>details:first-of-type{display:none}
 #prodChain.camp386>div>div>details:last-of-type>summary+div{font-size:0!important;margin:0!important}
 #prodChain.camp386>div>div>details:last-of-type>summary+div::before{content:'เขียว ✓ = สร้างแล้ว · เทา = ยังไม่มี (แตะเพื่อเลือกสร้างเลย)';font-size:12px;color:#666}
+#prodChain.tree437>div>div>details:last-of-type>summary+div{font-size:0!important;margin:0!important}
+#prodChain.tree437>div>div>details:last-of-type>summary+div::before{content:'เขียว ✓ = สร้างแล้ว · เทา = ยังไม่มี (แตะเพื่อเลือกสร้างเลย)';font-size:12.5px;color:#6b5230}
 #prodChain .cb386{display:flex;align-items:center;gap:8px;margin:5px 0;padding:5px 8px;border:2px solid #b9b39a;border-radius:10px;background:#efefef;color:#555;cursor:pointer;font-size:13px}
 #prodChain .cb386 .ic{flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#fff}
 #prodChain .cb386 .tx{flex:1;min-width:0;line-height:1.35}
@@ -15441,6 +15443,7 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
   document.head.appendChild(css);
 
   // นับอาคารที่ผู้เล่นสร้างแล้วบนกระดานของตัวเอง
+  function tree437on() { return !!(matchActive && !demo340); } // v438: อยู่ในเกม (ทุกโหมด)
   function builtTypes() {
     const b = (activeSide === humanSide ? board : humanSide.board) || [];
     const s = new Set();
@@ -15461,7 +15464,7 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
   }
   const _prodBuildRow = prodBuildRow;
   prodBuildRow = function (t) {
-    if (!campActive()) return _prodBuildRow(t);
+    if (!tree437on()) return _prodBuildRow(t); // v438: เดิมเฉพาะแคมเปญ
     const lk = buildLocked(t), ok = builtTypes().has(t);
     const st = lk ? '🔒 ยังไม่ปลดล็อก' : ok ? '✓ สร้างแล้ว' : 'แตะเพื่อสร้าง';
     return `<div class="cb386${ok ? ' ok' : ''}${lk ? ' lk' : ''}" data-bt="${t}"><div class="ic">${thumbHtml(t, 30)}</div>`
@@ -15471,7 +15474,7 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
   // แตะรายการอาคารในหน้าสายการผลิต (เฉพาะแคมเปญ)
   document.addEventListener('click', (e) => {
     const row = e.target.closest && e.target.closest('#prodChain .cb386, #prodChain .tb.bld');
-    if (!row || !campActive()) return;
+    if (!row || !tree437on()) return; // v438
     const t = row.dataset.bt;
     if (buildLocked(t)) { showMessage(unlockText(t), 3000); return; }
     if (row.classList.contains('ok')) { showMessage(`${LABEL[t]} สร้างแล้ว ✓`, 1500); return; }
@@ -15481,7 +15484,7 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
 
   // ต้นไม้สายการผลิตแบบกล่อง+ลูกศร (แทนข้อความ "ทำมาจากอะไร" ในแคมเปญ) · ลูกศรชี้ขึ้นจากวัตถุดิบไปหาสินค้า
   function bldBox(t, extra) {
-    const lk = buildLocked(t), ok = builtTypes().has(t);
+    const inM = tree437on(), lk = inM && buildLocked(t), ok = inM && builtTypes().has(t); // v438: นอกเกม (เปิดจากเมนู) ไม่บอกสถานะ
     return `<div class="tb bld${ok ? ' ok' : ''}${lk ? ' lk' : ''}" data-bt="${t}"><span class="ic">${thumbHtml(t, 28)}</span><span>${LABEL[t]}${ok ? ' ✓' : lk ? ' 🔒' : ''}${extra ? `<small>${extra}</small>` : ''}</span></div>`;
   }
   function treeNode(k, n, seen, need) {
@@ -15506,7 +15509,7 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
   }
   const _prodTreeHtml = prodTreeHtml;
   prodTreeHtml = function (k, n, seen, depth, need) {
-    if (!campActive() || depth !== 0) return _prodTreeHtml(k, n, seen, depth, need);
+    if (depth !== 0) return _prodTreeHtml(k, n, seen, depth, need); // v438: ต้นไม้กล่องทุกโหมด
     return `<li style="list-style:none;margin:0;padding:0"><div class="tw386">${treeNode(k, 0, seen, need)}</div><div class="pnote" style="margin-left:2px">▲ ลูกศรชี้จากวัตถุดิบไปหาสินค้า · กล่องอาคาร เขียว = สร้างแล้ว เทา = ยังไม่มี (แตะเพื่อสร้าง)</div></li>`;
   };
 
@@ -15517,6 +15520,7 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
   openProdChain = function (kind) {
     if (kind == null && campActive()) kind = campLv().goals[0].k;
     _openProdChain(kind);
+    if (prodOverlay) { setTimeout(centerTree386, 0); if (tree437on() && !campActive()) prodOverlay.classList.add('tree437'); } // v438
     if (!campActive() || !prodOverlay) return;
     prodOverlay.classList.add('camp386');
     setTimeout(centerTree386, 0);
