@@ -10297,7 +10297,7 @@ function openProdChain(kind) {
   const guide = document.createElement('details');
   let guideOpen = true;
   try { guideOpen = localStorage.getItem('townGame.guideSeen') !== '1'; } catch (e) { /* ไม่เป็นไร */ }
-  guide.open = guideOpen;
+  guide.open = false; // v439: พับไว้เสมอ (เดิมเปิดจนกว่าจะปิดครั้งแรก)
   guide.addEventListener('toggle', () => { try { if (!guide.open) localStorage.setItem('townGame.guideSeen', '1'); } catch (e) { /* ไม่เป็นไร */ } });
   guide.innerHTML = '<summary>📖 วิธีเล่นเบื้องต้น</summary>' + PROD_GUIDE.map(([ic, t], i) => `<div style="margin:5px 0">${i + 1}. ${ic} ${t}</div>`).join('');
   const pickNote = document.createElement('div');
@@ -10320,9 +10320,9 @@ function openProdChain(kind) {
     if (k !== 'wood' && [...need].some((t) => WOOD_COST[t])) { need.add('tree'); need.add('lumberjack'); need.add('woodshed'); }
     const builds = PROD_ORDER.filter((t) => need.has(t));
     body.innerHTML = `<div style="margin:10px 0 4px;padding:6px 10px;background:#fff6d6;border-radius:8px">${prodIcon(k, 24)}<b>${KIND_LABEL[k]}</b> ขายได้ $${SELL_PRICE[k].toLocaleString('en-US')} · ⭐${STAR_PER_ITEM[k]} ต่อชิ้น</div>`
-      + prodMatchHtml(k)
       + `<div style="font-weight:bold;margin-top:8px">🌳 ทำมาจากอะไร</div><ul style="border-left:none;margin-left:0;padding-left:0">${tree}</ul>`
-      + `<details open><summary>🏗 ต้องสร้างอะไรบ้าง (${builds.length})</summary><div style="font-size:12px;color:#666;margin:2px 0 4px">ติ๊กไว้ดูเองว่าสร้างแล้ว (ไม่มีผลกับเกม)</div>${builds.map(prodBuildRow).join('')}</details>`;
+      + `<details open><summary>🏗 ต้องสร้างอะไรบ้าง (${builds.length})</summary><div style="font-size:12px;color:#666;margin:2px 0 4px">ติ๊กไว้ดูเองว่าสร้างแล้ว (ไม่มีผลกับเกม)</div>${builds.map(prodBuildRow).join('')}</details>`
+      + prodMatchHtml(k); // v439: อัตราผลิตไว้ล่างสุด (พับไว้)
   };
   renderBody();
   pn.append(st, title, guide, pickNote, picks, body);
@@ -10655,7 +10655,7 @@ function prodMatchHtml(kind) {
     const sp = prodRates(sr).perMin;
     return `<li>${LABEL[st]} 1 ${prodUnit(st)} (${prodKL(k)} ${prodFmt(sp)}/นาที) พอสำหรับ ${LABEL[t]} ~<b>${prodFmt(sp / (q * x.perMin))}</b> ${prodUnit(t)}</li>`;
   }).filter(Boolean);
-  return `<details open><summary>⚖️ อัตราผลิตและการจับคู่</summary>`
+  return `<details><summary>⚖️ อัตราผลิตและการจับคู่</summary>` // v439: พับไว้
     + `<div style="margin:4px 0">${LABEL[t]} 1 ${prodUnit(t)}: ${prodKL(r.out)} <b>${prodFmt(x.perMin)}</b>/นาที (${r.sec} วิ/ชิ้น)`
     + (Object.keys(x.inMin).length ? ` · ใช้ ${Object.entries(x.inMin).map(([k, n]) => `${prodKL(k)} ${prodFmt(n)}`).join(' + ')} ต่อนาที` : '')
     + (x.val ? ` · ขายได้ ~$${Math.round(x.val).toLocaleString('en-US')}/นาที ⭐${prodFmt(x.stars)}/นาที` : '') + '</div>'
@@ -15413,10 +15413,10 @@ if (setupOverlay.style.display !== 'none' && setupPanel.querySelector('.frame340
 #prodChain .camp386box .g button{display:inline-flex;align-items:center;gap:4px;border:2px solid #a8814f;border-radius:10px;background:#fff;padding:3px 9px;font-size:13px;cursor:pointer;color:#3a2814}
 #prodChain .camp386box .g button.on{background:#ffe08a;border-color:#8a5d33;font-weight:bold}
 #prodChain.camp386>div>details:first-of-type{display:none}
-#prodChain.camp386>div>div>details:last-of-type>summary+div{font-size:0!important;margin:0!important}
-#prodChain.camp386>div>div>details:last-of-type>summary+div::before{content:'เขียว ✓ = สร้างแล้ว · เทา = ยังไม่มี (แตะเพื่อเลือกสร้างเลย)';font-size:12px;color:#666}
-#prodChain.tree437>div>div>details:last-of-type>summary+div{font-size:0!important;margin:0!important}
-#prodChain.tree437>div>div>details:last-of-type>summary+div::before{content:'เขียว ✓ = สร้างแล้ว · เทา = ยังไม่มี (แตะเพื่อเลือกสร้างเลย)';font-size:12.5px;color:#6b5230}
+#prodChain.camp386>div>div>details:first-of-type>summary+div{font-size:0!important;margin:0!important}
+#prodChain.camp386>div>div>details:first-of-type>summary+div::before{content:'เขียว ✓ = สร้างแล้ว · เทา = ยังไม่มี (แตะเพื่อเลือกสร้างเลย)';font-size:12px;color:#666}
+#prodChain.tree437>div>div>details:first-of-type>summary+div{font-size:0!important;margin:0!important}
+#prodChain.tree437>div>div>details:first-of-type>summary+div::before{content:'เขียว ✓ = สร้างแล้ว · เทา = ยังไม่มี (แตะเพื่อเลือกสร้างเลย)';font-size:12.5px;color:#6b5230}
 #prodChain .cb386{display:flex;align-items:center;gap:8px;margin:5px 0;padding:5px 8px;border:2px solid #b9b39a;border-radius:10px;background:#efefef;color:#555;cursor:pointer;font-size:13px}
 #prodChain .cb386 .ic{flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#fff}
 #prodChain .cb386 .tx{flex:1;min-width:0;line-height:1.35}
