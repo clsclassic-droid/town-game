@@ -11044,6 +11044,7 @@ let audioCtx = null, masterGain = null, musicTimer = null;
 // เบราว์เซอร์ต้องให้ผู้เล่นกดก่อนจึงเปิดเสียงได้ จึงสร้าง AudioContext ตอนมีการกดครั้งแรก
 function ensureAudio() {
   try {
+    if (document.hidden) return null; // v431: สลับแอป/ปิดจอ ไม่เล่นเสียง (ไม่ปลุกระบบเสียง)
     if (audioCtx) { if (audioCtx.state === 'suspended') audioCtx.resume(); return audioCtx; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
@@ -11167,6 +11168,16 @@ function startMusic() {
   musicTimer = setTimeout(beat, 900);
 }
 document.addEventListener('pointerdown', () => { ensureAudio(); startMusic(); }, { once: true });
+// v431: พักระบบเสียงของเครื่องเมื่อปิดเสียงหรือสลับแอป (เดิมเปิดค้างตลอดแม้ไม่มีเสียง) เปิดใหม่เมื่อกลับมา
+function audioPower431() {
+  try {
+    if (!audioCtx) return;
+    const want = soundOn && !document.hidden;
+    if (want && audioCtx.state === 'suspended') audioCtx.resume();
+    else if (!want && audioCtx.state === 'running') audioCtx.suspend();
+  } catch (e) { /* ไม่เป็นไร */ }
+}
+document.addEventListener('visibilitychange', audioPower431);
 
 // ==================== v283: ความสนุก (เหรียญตรา / สถิติ / ปลดล็อกอาคาร / ฉลอง / เตือนตอนแข่ง) ====================
 // ไม่แตะกติกาการผลิตหรือการตัดสินใจของ AI · เหรียญและสถิติเก็บในเครื่อง (localStorage) ของผู้เล่น
@@ -11501,6 +11512,7 @@ soundBtn.addEventListener('click', () => {
   try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (e) { /* จำค่าไม่ได้ก็ใช้ได้ปกติ */ }
   if (masterGain) masterGain.gain.value = soundOn ? 0.6 : 0;
   if (soundOn) { ensureAudio(); startMusic(); }
+  audioPower431(); // v431
   refreshSoundBtn();
 });
 refreshSoundBtn();
@@ -13607,6 +13619,11 @@ function place308(c) {
 function loop308() {
   const c = card308;
   if (!c) return;
+  { // v431: โหมดประหยัดแบต = จัดตำแหน่งการ์ดไม่เกิน 30 ครั้ง/วิ (เดิม 60 ตลอดที่เปิดหน้าต่าง)
+    const t431 = performance.now();
+    if (typeof bat371 !== 'undefined' && bat371 && c.t431 && t431 - c.t431 < 28) { c.raf = requestAnimationFrame(loop308); return; }
+    c.t431 = t431;
+  }
   const pop = c.pop === 'sell' ? sellPopup : depotPopup;
   if (!pop || pop.overlay !== c.overlay || !c.panel.isConnected) { card308 = null; return; }
   try {
