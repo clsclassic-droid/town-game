@@ -11672,40 +11672,49 @@ const TUT323 = true; // v323: ขั้นสอนผลกระทบ + แ�
 function tutTab323() { const t = tabList.find((o) => o.row === utilRow); return t ? t.tab : null; }
 // v432: บทเรียนใหม่ (14 ขั้น ข้อความสั้น) · tiles = กรอบเหลืองที่ต้องแตะ (ขึ้นเมื่อถือเครื่องมือแล้ว) · cam = ช่องที่กล้องซูมไปหา
 function tutDepot432() { const p = tutFind('tradedepot'); return p ? [p] : []; }
+// v434: ข้อความจังหวะถัดไปของขั้นสร้าง (ตามสิ่งที่ผู้เล่นทำอยู่)
+function tutDo434(type) {
+  if ((typeof sellPopup !== 'undefined' && sellPopup) || depotPopup) return '⚠ หน้าต่างอาคารเปิดอยู่ กด <b>✕</b> ปิดก่อน แล้วทำต่อ';
+  if (buildType === type) return '👉 แตะ<b>ช่องสีเหลือง</b>บนแผนที่';
+  const t = tabList.find((o) => o.row === groupRows[type]);
+  if (openRow === groupRows[type]) return `👉 เลือก ${thumbHtml(type, 24)} <b>${LABEL[type] || type}</b> (ปุ่มที่กะพริบ)`;
+  return `👉 กดแท็บ <b>${t ? t.tab.textContent.trim() : ''}</b> ที่แถบล่าง (ปุ่มที่กะพริบ)`;
+}
 function tutHold432(type, tiles) { return buildType === type ? tiles : []; }
 const TUT_STEPS_ALL = [
   { title: 'ยินดีต้อนรับสู่ SproutMill 👋', next: true,
     text: 'สร้างฟาร์ม ผลิตของ แล้วส่งขาย เพื่อเก็บ <b>💰 เงิน</b> และ <b>⭐ ดาว</b><br>ทำตาม<b>ปุ่มและช่องที่กะพริบสีเหลือง</b> ใช้เวลาราว 3 นาที' },
   { title: 'เมืองของคุณ', next: true,
     tiles: () => [[7, 7], [8, 7], [4, 10], [4, 9]], cam: () => [[3, 7], [9, 7], [4, 12]],
-    text: `${thumbHtml('farmhouse', 20)} <b>บ้านเกษตรกร</b> คนงานรดน้ำ เก็บข้าว<br>${thumbHtml('field', 20)} <b>ทุ่งข้าวสาลี</b> ต้องได้น้ำครบจึงโต<br>${thumbHtml('silo', 20)} <b>ไซโล</b> เก็บข้าวสาลี · ${thumbHtml('well', 20)} <b>บ่อน้ำ</b> ที่ตักน้ำ` },
+    text: `${thumbHtml('farmhouse', 26)} <b>บ้านเกษตรกร</b> คนงานรดน้ำ เก็บข้าว<br>${thumbHtml('field', 26)} <b>ทุ่งข้าวสาลี</b> ต้องได้น้ำครบจึงโต<br>${thumbHtml('silo', 26)} <b>ไซโล</b> เก็บข้าวสาลี<br>${thumbHtml('well', 26)} <b>บ่อน้ำ</b> ที่ตักน้ำ` },
   { title: 'ปลูกข้าวสาลี', el: () => tutPick('field'),
     tiles: () => tutHold432('field', TUT_FIELD_TILES.filter(([x, y]) => !board[y][x])), cam: () => TUT_FIELD_TILES,
     done: () => countType('field') >= 4,
     progress: () => `ปลูกแล้ว ${Math.max(0, countType('field') - 1)}/3 แปลง`,
-    text: () => `เลือก ${thumbHtml('field', 20)} <b>ทุ่งข้าวสาลี</b> แล้วแตะช่องเหลืองข้าง${thumbHtml('pond', 20)}<b>สระ</b> 3 ช่อง<br>💡 ทุ่งข้างสระได้น้ำฟรี โตเร็ว` },
+    water434: true,
+    text: () => `ปลูก ${thumbHtml('field', 24)} <b>ทุ่งข้าวสาลี</b> 3 แปลง<br>${tutDo434('field')}<br>💡 ช่องเหลืองอยู่ใกล้${thumbHtml('pond', 24)}<b>สระ</b> ได้น้ำจากสระครบ <b>ข้าวสาลีโตเองโดยไม่ต้องรดน้ำ</b>` },
   { title: 'สร้างบ่อน้ำ', el: () => tutPick('well'),
     tiles: () => tutHold432('well', tutLeft(TUT_WELL_TILES, 'well')), cam: () => TUT_WELL_TILES.concat([[4, 12]]),
     done: () => countType('well') >= 2,
-    text: () => `ทุ่งที่ไม่ติดสระ เกษตรกรต้องตักน้ำจากบ่อไปรด<br>เลือก ${thumbHtml('well', 20)} <b>บ่อน้ำ</b> แล้วแตะช่องเหลือง` },
+    text: () => `ทุ่งที่ไม่ติดสระ เกษตรกรต้องตักน้ำจาก ${thumbHtml('well', 24)} <b>บ่อน้ำ</b> ไปรด มาสร้างเพิ่ม 1 บ่อ<br>${tutDo434('well')}` },
   { title: 'ต่อถนน', el: () => tutPick('road'),
     tiles: () => tutHold432('road', tutLeft(TUT_ROAD_TILES, 'road')), cam: () => TUT_ROAD_TILES.concat(TUT_HOUSE_TILES, [[8, 8]]),
     done: () => !tutLeft(TUT_ROAD_TILES, 'road').length,
     progress: () => `วางแล้ว ${TUT_ROAD_TILES.length - tutLeft(TUT_ROAD_TILES, 'road').length}/${TUT_ROAD_TILES.length} ช่อง`,
-    text: () => `อาคารที่มีคนงานต้อง<b>ติดถนน</b>ที่ต่อกัน<br>เลือก ${thumbHtml('road', 20)} <b>ถนน</b> แล้วแตะช่องเหลือง 2 ช่อง` },
+    text: () => `อาคารที่มีคนงานต้อง<b>ติดถนน</b>ที่ต่อกัน วาง ${thumbHtml('road', 24)} <b>ถนน</b> 2 ช่อง<br>${tutDo434('road')}` },
   { title: 'สร้างบ้านเกษตรกร', el: () => tutPick('farmhouse'),
     tiles: () => tutHold432('farmhouse', countType('farmhouse') >= 2 ? [] : TUT_HOUSE_TILES), cam: () => TUT_ROAD_TILES.concat(TUT_HOUSE_TILES, [[8, 8]]),
     done: () => countType('farmhouse') >= 2,
-    text: () => `บ้าน 1 หลัง = คนงาน 1 คน มี<b>ค่าแรง</b>หักทุกนาที สร้างเท่าที่จำเป็น<br>เลือก ${thumbHtml('farmhouse', 20)} <b>บ้านเกษตรกร</b> แล้วแตะช่องเหลือง` },
+    text: () => `${thumbHtml('farmhouse', 24)} <b>บ้านเกษตรกร</b> 1 หลัง = คนงาน 1 คน มี<b>ค่าแรง</b>หักทุกนาที<br>${tutDo434('farmhouse')}` },
   { title: 'ปลูกต้นไม้', el: () => tutPick('tree'), enter: () => { tut.treeBase = countType('tree'); },
     tiles: () => tutHold432('tree', tutLeft(TUT_TREE_TILES, 'tree')), cam: () => TUT_TREE_TILES.concat([[8, 9]]),
     done: () => countType('tree') >= tut.treeBase + TUT_TREE_TILES.length || !tutLeft(TUT_TREE_TILES, 'tree').length,
     progress: () => `ปลูกแล้ว ${Math.min(TUT_TREE_TILES.length, Math.max(0, countType('tree') - tut.treeBase))}/${TUT_TREE_TILES.length} ต้น`,
-    text: () => `อาคารส่วนใหญ่ใช้<b>ไม้</b>สร้าง คนตัดไม้จะตัดต้นที่โตแล้ว<br>เลือก ${thumbHtml('tree', 20)} <b>ต้นไม้</b> แตะช่องเหลือง 2 ช่อง · 💡 ต้นไม้มีเงา อย่าปลูกชิดทุ่ง` },
+    text: () => `อาคารส่วนใหญ่ใช้<b>ไม้</b>สร้าง ปลูก ${thumbHtml('tree', 24)} <b>ต้นไม้</b> 2 ต้น ให้คนตัดไม้ตัด<br>${tutDo434('tree')}<br>💡 ต้นไม้มีเงา อย่าปลูกชิดทุ่ง` },
   { title: 'สร้างสถานีขนส่งสินค้า', el: () => tutPick('tradedepot'),
     tiles: () => tutHold432('tradedepot', countType('tradedepot') ? [] : TUT_DEPOT_TILES), cam: () => TUT_DEPOT_TILES.concat([[11, 8]]),
     done: () => countType('tradedepot') >= 1,
-    text: () => `ที่ส่งของไปขาย ต้องวาง<b>ที่ขอบแผนที่</b><br>เลือก ${thumbHtml('tradedepot', 20)} <b>สถานีขนส่งสินค้า</b> (แท็บ<b>ขนส่ง</b>) แล้วแตะช่องเหลือง` },
+    text: () => `${thumbHtml('tradedepot', 24)} <b>สถานีขนส่งสินค้า</b> ใช้ส่งของไปขาย ต้องวาง<b>ที่ขอบแผนที่</b><br>${tutDo434('tradedepot')}` },
   { title: 'ลองขยับแผนที่', next: true, cam432: 'free',
     done: () => !!(tut && tut.moved432),
     text: '📱 <b>ลากนิ้ว</b>เพื่อเลื่อน · <b>ถ่างสองนิ้ว</b>เพื่อซูม<br>🖱️ คอม: ลากเมาส์ · หมุนลูกกลิ้งเพื่อซูม' },
@@ -11720,7 +11729,7 @@ const TUT_STEPS_ALL = [
     el: () => (depotPopup && depotPopup.rows.wheat ? depotPopup.rows.wheat.btn : null),
     tiles: () => (depotPopup ? [] : tutDepot432()), cam: () => tutDepot432(),
     done: () => tutTrip() || tutSold(),
-    text: () => (depotPopup ? `กดปุ่ม <b>ส่ง ${SHIPMENT} ชิ้น</b> ที่แถว<b>ข้าวสาลี</b>` : `แตะ ${thumbHtml('tradedepot', 20)} <b>สถานีขนส่งสินค้า</b> ของคุณ`) },
+    text: () => (depotPopup ? `กดปุ่ม <b>ส่ง ${SHIPMENT} ชิ้น</b> ที่แถว<b>ข้าวสาลี</b>` : `แตะ ${thumbHtml('tradedepot', 24)} <b>สถานีขนส่งสินค้า</b> ของคุณ`) },
   { title: 'รถกำลังไปขาย 🚚', enter: () => closeDepotPopup(), cam: () => tutDepot432(),
     done: () => tutSold(),
     text: 'ได้ 💰 เงินและ ⭐ ดาว ตอนรถกลับถึง (ราว 10 วินาที)<br>💡 ติ๊ก <b>auto</b> ในหน้าสถานี รถจะส่งเองทุกครั้งที่ครบ' },
@@ -11733,7 +11742,8 @@ function tutText(st) { return typeof st.text === 'function' ? st.text() : st.tex
   const st = document.createElement('style');
   st.textContent = '.tutGlow{outline:3px solid #ffd166 !important;outline-offset:2px;animation:tutPulse 1s ease-in-out infinite;position:relative;z-index:3;}'
     + '@keyframes tutPulse{50%{outline-color:#ff8a00;box-shadow:0 0 14px 5px rgba(255,190,60,.85);}}'
-    + '#tutBubble b{color:#a04b00;}';
+    + '#tutBubble b{color:#a04b00;}'
+    + '.ic434{font-size:22px;line-height:1;display:inline-block;}'; // v434
   document.head.appendChild(st);
 })();
 function startTutorial() {
@@ -11757,12 +11767,14 @@ function tutGo(i) {
   tut.moved432 = false; // v432
   const st = TUT_STEPS[i];
   if (st.end) hintSetOff313(); // v336: จบบทเรียนแล้ว ไม่ต้องแนะนำขายครั้งแรกในเกมแข่งอีก
-  if (st.enter) st.enter();
+  const first434 = i > (tut.maxI == null ? -1 : tut.maxI); // v434: ย้อนดูขั้นเก่า = ไม่ทำ enter ซ้ำ
+  tut.maxI = Math.max(tut.maxI == null ? -1 : tut.maxI, i);
+  if (st.enter && first434) st.enter();
   tutRender();
 }
 function tutRender() {
   const st = TUT_STEPS[tut.i], b = tut.bubble;
-  const mk = (t, primary, fn) => { const x = document.createElement('button'); x.textContent = t; x.style.cssText = `padding:6px 12px;font-size:14px;cursor:pointer;border:1px solid #7a5230;border-radius:10px;background:${primary ? '#ffd166' : '#fffaf0'};color:#3a2a17;`; x.addEventListener('click', fn); return x; };
+  const mk = (t, primary, fn) => { const x = document.createElement('button'); x.innerHTML = t.replace(/[▶◀]/g, (c) => `<span class="ic434">${c}</span>`); x.style.cssText = `padding:6px 12px;font-size:14px;cursor:pointer;border:1px solid #7a5230;border-radius:10px;background:${primary ? '#ffd166' : '#fffaf0'};color:#3a2a17;display:inline-flex;align-items:center;gap:6px;`; x.addEventListener('click', fn); return x; }; // v434: ไอคอน ▶ ◀ ใหญ่แบบปุ่มเมนู
   b.replaceChildren();
   const head = document.createElement('div');
   head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:bold;font-size:15px;cursor:pointer;';
@@ -11781,11 +11793,12 @@ function tutRender() {
   if (st.end) {
     row.append(
       mk('🏠 เมนู', false, () => { endTutorial(); location.reload(); }),
-      mk('▶ เล่นต่อ', true, () => endTutorial()), // v432
+      mk('เล่นต่อ ▶', true, () => endTutorial()), // v432
     );
   } else {
     row.append(mk('ข้ามบทเรียน', false, () => { if (confirmSkip()) { endTutorial(); location.reload(); } }));
-    if (st.next) row.append(mk('ต่อไป ▶', true, () => tutGo(tut.i + 1)));
+    if (tut.i > 0) row.append(mk('◀ ย้อนกลับ', false, () => tutGo(tut.i - 1))); // v434
+    if (st.next || tut.i < (tut.maxI || 0)) row.append(mk('ต่อไป ▶', true, () => tutGo(tut.i + 1)));
   }
   b.append(body, prog, row);
   tutTick();
@@ -11801,7 +11814,7 @@ function tutTick() {
   if (typeof st.text === 'function' && !tut.min) { const h = tutText(st); if (h !== tut.txtRaw432) { tut.txtRaw432 = h; if (tut.txtSeen432 === tut.i) { tutRender(); return; } tut.txtSeen432 = tut.i; } }
   tutPlace432();
   tutCamTick432(st);
-  if (st.done && matchActive && st.done() && !(UI318.tut && st.minMs && performance.now() - (tut.at318 || 0) < st.minMs)) {
+  if (tut.i >= tut.maxI && st.done && matchActive && st.done() && !(UI318.tut && st.minMs && performance.now() - (tut.at318 || 0) < st.minMs)) {
     SFX.sell && playSfx('sell');
     tutGo(Math.min(TUT_STEPS.length - 1, tut.i + 1));
   }
@@ -11910,6 +11923,14 @@ function drawTutorialTiles() {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    if (st.water434) { // v434: ช่องนี้ได้น้ำฟรีจากสระ
+      const [cx, cy] = gridToScreen(x + 0.5, y + 0.5), r = Math.max(5, TOP_TILE_PX * viewZoom * 0.17); // หยดน้ำวาดเอง (ไม่พึ่งฟอนต์อีโมจิ)
+      ctx.save(); ctx.globalAlpha = 1; ctx.beginPath();
+      ctx.moveTo(cx, cy - r * 2.1); ctx.bezierCurveTo(cx + r * 0.4, cy - r * 1.3, cx + r, cy - r * 0.6, cx + r, cy);
+      ctx.arc(cx, cy, r, 0, Math.PI); ctx.bezierCurveTo(cx - r, cy - r * 0.6, cx - r * 0.4, cy - r * 1.3, cx, cy - r * 2.1);
+      ctx.closePath(); ctx.fillStyle = '#2f8fe0'; ctx.fill(); ctx.lineWidth = Math.max(1.5, r * 0.3); ctx.strokeStyle = '#fff'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx - r * 0.35, cy - r * 0.1, r * 0.25, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fill(); ctx.restore();
+    }
   }
   ctx.restore();
 }
