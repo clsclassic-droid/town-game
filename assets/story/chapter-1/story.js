@@ -1,4 +1,4 @@
-/* Story artwork for campaign cutscenes (ด่าน 1, 2). Campaign text, goals and start callbacks stay in index.html. */
+/* Story artwork for campaign cutscenes (ด่าน 1, 2). Chapter one dialogue is set in its scene initializer. */
 (function () {
   'use strict';
   const base = new URL('./', document.currentScript.src).href;
@@ -119,7 +119,24 @@
       }
     };
   }
-  window.initChapterOneStoryArt = (el, steps) => initStoryArt(el, CONFIGS[1], steps);
+  window.initChapterOneStoryArt = (el, steps) => {
+    const dialogue = [
+      ["L","ชาวบ้านทุกคน ฟังทางนี้! ตอนนี้ค่ายทหารขาดเสบียง ต้องใช้ข้าวสาลีกับอ้อยด่วน"],
+      ["F","ข้าวสาลีกับอ้อยหมู่บ้านเราพอมีครับท่าน ไม่ทราบว่าท่านนายพลต้องการเท่าไหร่ครับ"],
+      ["L","เราต้องการอย่างละ 30 ตัน!"],
+      ["F","แต่ปีนี้ฝนแล้ง ผลผลิตไม่ค่อยดี ของจำนวนมากขนาดนั้น เกรงว่าจะส่งให้ไม่ทัน"],
+      ["L","ไม่มีเวลาบ่น ส่งให้ครบภายในเวลาที่กำหนด เราจะจ่ายค่าตอบแทนให้คุ้มค่าแน่นอน"],
+      ["W","ถ้าอย่างนั้น ผมจะรีบตัดไม้แล้วเอามาสร้างที่พักให้กับแรงงานเกษตรกรเพิ่มขึ้นครับ"],
+      ["L","ดี! เริ่มเดี๋ยวนี้เลย!"]
+    ];
+    let right = 'F';
+    const lines = dialogue.map(([k, text]) => {
+      if (k !== 'L') right = k;
+      return { k, text, right };
+    });
+    steps.splice(1, steps.length - 2, ...lines);
+    return initStoryArt(el, CONFIGS[1], steps);
+  };
   window.initChapterTwoStoryArt = (el, steps) => initStoryArt(el, CONFIGS[2], steps);
   window.initChapterThreeStoryArt = (el, steps) => initStoryArt(el, CONFIGS[3], steps);
   window.initChapterFourStoryArt = (el, steps) => initStoryArt(el, CONFIGS[4], steps);
