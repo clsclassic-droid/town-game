@@ -9266,13 +9266,14 @@ function updateFullWarn(s) {
     const cells = [];
     eachCell((c) => { if (c && g.types.includes(c.type) && isUsable(c)) cells.push(c); });
     const full = cells.length > 0 && cells.every(storeFull);
-    if (full && !s.fullWarn[g.key] && !first) newly.push({ g, cells });
+    const skip442 = g.key === 'wood' && typeof campActive === 'function' && campActive(); // v442: แคมเปญไม่เตือนคลังไม้ (ดึงความสนใจจากเป้าหมาย)
+    if (full && !s.fullWarn[g.key] && !first && !skip442) newly.push({ g, cells });
     s.fullWarn[g.key] = full;
     // v425: เตือนล่วงหน้าเมื่อใช้พื้นที่ถึง 80% (เตือนครั้งเดียว จนกว่าจะลดต่ำกว่า 60%)
     const stk = cells.reduce((a, c) => a + (c.stock || 0), 0), capT = cells.reduce((a, c) => a + STORE_CAP[c.type], 0);
     if (!s.nearWarn) s.nearWarn = {};
     const near = cells.length > 0 && !full && stk >= Math.ceil(capT * 0.8);
-    if (near && !s.nearWarn[g.key] && !first) nearList.push({ g, cells, stk, capT });
+    if (near && !s.nearWarn[g.key] && !first && !skip442) nearList.push({ g, cells, stk, capT });
     if (near || full) s.nearWarn[g.key] = true; else if (stk < capT * 0.6) s.nearWarn[g.key] = false;
   }
   if (!newly.length) {
@@ -11797,6 +11798,7 @@ function tutGo(i) {
   tut.i = i;
   tut.at318 = performance.now();
   tut.moved432 = false; // v432
+  tut.skipAsk442 = false; // v442
   const st = TUT_STEPS[i];
   if (st.end) hintSetOff313(); // v336: จบบทเรียนแล้ว ไม่ต้องแนะนำขายครั้งแรกในเกมแข่งอีก
   const first434 = i > (tut.maxI == null ? -1 : tut.maxI); // v434: ย้อนดูขั้นเก่า = ไม่ทำ enter ซ้ำ
@@ -11829,9 +11831,12 @@ function tutRender() {
       mk('เล่นต่อ ▶', true, () => endTutorial()), // v432
     );
   } else {
-    row.append(mk('ข้ามบทเรียน', false, () => { if (confirmSkip()) { endTutorial(); location.reload(); } }));
-    if (tut.i > 0) row.append(mk('⏪ ย้อนกลับ', false, () => tutGo(tut.i - 1))); // v434
-    if (st.next || tut.i < (tut.maxI || 0)) row.append(mk('ต่อไป ▶', true, () => tutGo(tut.i + 1)));
+    if (tut.skipAsk442) { // v442: ถามยืนยันก่อนข้าม (เดิมกดแล้วกลับเมนูทันที กดพลาดง่าย)
+      body.innerHTML = '<b>ข้ามบทเรียน?</b><br>จะกลับไปหน้าเมนู และไม่ได้เรียนส่วนที่เหลือ';
+      row.replaceChildren(mk('ข้ามเลย', false, () => { endTutorial(); location.reload(); }), mk('เรียนต่อ', true, () => { tut.skipAsk442 = false; tutRender(); }));
+    } else { const sk = mk('ข้ามบทเรียน', false, () => { tut.skipAsk442 = true; tutRender(); }); sk.style.fontSize = '12px'; sk.style.padding = '4px 8px'; sk.style.border = '0'; sk.style.background = 'transparent'; sk.style.textDecoration = 'underline'; sk.style.color = '#7a6a50'; sk.style.marginRight = 'auto'; row.prepend(sk); } // v442: ปุ่มข้ามเล็ก ชิดซ้าย ห่างปุ่มหลัก
+    if (tut.i > 0 && !tut.skipAsk442) row.append(mk('⏪ ย้อนกลับ', false, () => tutGo(tut.i - 1))); // v434
+    if (!tut.skipAsk442 && (st.next || tut.i < (tut.maxI || 0))) row.append(mk('ต่อไป ▶', true, () => tutGo(tut.i + 1)));
   }
   b.append(body, prog, row);
   tutTick();
@@ -11875,7 +11880,7 @@ function tutPlace432() {
 const TUT432_TILE_PX = 44;
 function tutFree432() {
   const r = canvas.getBoundingClientRect();
-  let top = r.top + 8, bot = r.bottom - 8;
+  let top = Math.max(r.top + 8, tut.avoidTop442 || 0), bot = r.bottom - 8; // v442: หลบกล่องที่เคยบัง
   try { const h = document.getElementById('hudPanel'); if (h) { const q = h.getBoundingClientRect(); if (q.height && q.bottom < r.top + r.height * 0.3) top = Math.max(top, q.bottom + 4); } } catch (e) { /* ไม่เป็นไร */ }
   const bb = tut.bubble.getBoundingClientRect();
   if (bb.height && !tut.min) bot = Math.min(bot, bb.top - 6);
@@ -11911,7 +11916,7 @@ function tutCamGo432(tiles) {
 }
 function tutCamTick432(st) {
   if (tut.camStep432 !== tut.i) { // เข้าขั้นใหม่
-    tut.camStep432 = tut.i; tut.userCam432 = false;
+    tut.camStep432 = tut.i; tut.userCam432 = false; tut.hidTry442 = 0; // v442
     if (st.cam432 === 'free') { tut.camAnim432 = null; tut.camSet432 = { z: viewZoom, ox: viewOX, oy: viewOY, free: 0 }; return; }
     const t0 = st.cam ? st.cam() : (st.tiles ? st.tiles() : []);
     if (t0.length) tutCamGo432(t0);
@@ -11923,7 +11928,29 @@ function tutCamTick432(st) {
   if (st.cam432 === 'free' || !cs || tut.userCam432) return;
   // พื้นที่ว่างเปลี่ยนมาก (เปิด/ปิดแถวการ์ดสร้าง) = จัดกล้องใหม่
   const f = tutFree432();
-  if (Math.abs((f.bot - f.top) - cs.free) > 40) { const t = st.cam ? st.cam() : (st.tiles ? st.tiles() : []); if (t.length) tutCamGo432(t); }
+  if (Math.abs((f.bot - f.top) - cs.free) > 40) {
+    const t = st.cam ? st.cam() : (st.tiles ? st.tiles() : []);
+    // v442: ไม่ขยับกล้องตามแถวการ์ด (ChatGPT: แผนที่เลื่อนไปมาชวนงง) เว้นแต่ช่องเป้าหมายโดนกล่อง/แถวบัง
+    if (!tutHidden442(t, f)) cs.free = f.bot - f.top;
+  }
+  // v442: ช่องเป้าหมายโดนของบนจอบัง (กล่องข้อมูลอาคารที่ขึ้นตอนถือเครื่องมือ/กล่องบทเรียน/แถวการ์ด) → จัดกล้องหลบ (ไม่เกิน 3 ครั้งต่อขั้น)
+  if (cs && !tut.userCam432 && st.cam432 !== 'free' && (tut.hidTry442 || 0) < 3) {
+    const t = (st.tiles ? st.tiles() : []);
+    const cover = tutHidden442(t, tutFree432());
+    if (cover) { tut.hidTry442 = (tut.hidTry442 || 0) + 1; if (cover.top) tut.avoidTop442 = cover.top; tutCamGo432(st.cam ? st.cam() : t); }
+  }
+}
+// v442: คืนค่าสิ่งที่บังช่องเป้าหมาย (null = เห็นครบ) · ใช้ elementFromPoint ดูว่าจุดกลางช่องเป็นผืนผ้าใบจริงไหม
+function tutHidden442(tiles, f) {
+  const r = f.r;
+  for (const [x, y] of tiles) {
+    const [px, py] = gridToScreen(x + 0.5, y + 0.5), cx = r.left + px * r.width / canvas.width, cy = r.top + py * r.height / canvas.height;
+    if (cy > f.bot - 10) return { bottom: true };
+    const e = document.elementFromPoint(cx, cy);
+    if (e && e !== canvas && !tut.bubble.contains(e)) { const q = e.getBoundingClientRect(); return { top: q.bottom < window.innerHeight * 0.6 ? q.bottom + 6 : 0 }; }
+    if (cy < f.top + 10) return { top: 0 };
+  }
+  return null;
 }
 function endTutorial() {
   if (!tut) return;
@@ -15751,5 +15778,90 @@ setInterval(() => {
     river441Place();
   } catch (e) { /* ไม่เป็นไร */ }
 }, 500);
+</script>
+<script>
+// ==================== v442 ====================
+// 2. ผืนผ้าใบเปลี่ยนขนาด (เปิดแถวการ์ด/เลือกเครื่องมือ) เบราว์เซอร์ล้างภาพทิ้ง → วาดใหม่ทันที ไม่รอเฟรมถัดไป
+{
+  let busy442 = false, queued442 = false;
+  const redraw442 = () => {
+    queued442 = false;
+    if (busy442) return;
+    busy442 = true;
+    try {
+      useSide(humanSide);
+      const now = gameNow();
+      drawSide(humanSide, now);
+      if (vsMode) { drawSide(aiSide, now); useSide(humanSide); drawSideLabels(); }
+    } catch (e) { /* ไม่เป็นไร เฟรมถัดไปวาดเอง */ } finally { busy442 = false; }
+  };
+  for (const prop of ['width', 'height']) {
+    const d = Object.getOwnPropertyDescriptor(canvas, prop) || Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, prop);
+    if (!d || !d.set || (d.configurable === false)) continue;
+    Object.defineProperty(canvas, prop, {
+      configurable: true, enumerable: d.enumerable,
+      get() { return d.get.call(this); },
+      set(v) { const old = d.get.call(this); d.set.call(this, v); if (old !== d.get.call(this) && !queued442) { queued442 = true; queueMicrotask(redraw442); } },
+    });
+  }
+}
+// 4. เพิ่งวางของในช่องที่เมาส์ชี้อยู่ → ขึ้น ✔ วางแล้ว แทน "ช่องนี้มีของอยู่แล้ว"
+{
+  let last442 = null;
+  const _pb442 = placeBuilding;
+  placeBuilding = function (x, y, type) {
+    const err = _pb442.apply(this, arguments);
+    if (!err && activeSide === humanSide) last442 = { x, y, type };
+    return err;
+  };
+  const _pv442 = preview313;
+  preview313 = function (x, y, type) {
+    if (last442 && last442.x === x && last442.y === y && last442.type === type && board[y] && board[y][x] && board[y][x].type === type)
+      return [[`✔ วาง${LABEL[type] || ''}แล้ว`, '#c5e1a5']];
+    return _pv442.apply(this, arguments);
+  };
+}
+// 5. อาคารคลังเต็ม: บอกทางแก้ในการ์ด
+{
+  const _bst442 = buildingStatusText;
+  buildingStatusText = function (cell) {
+    const t = _bst442.apply(this, arguments);
+    try {
+      if (/^สถานะ: เต็ม/.test(t)) {
+        const g = FULL_WARN_GROUPS.find((q) => q.types.includes(cell.type));
+        if (g) return `${t} → ส่งไปขายที่สถานีขนส่ง หรือสร้าง${g.build}เพิ่ม`;
+      }
+    } catch (e) { /* ไม่เป็นไร */ }
+    return t;
+  };
+}
+// 6. แคมเปญ: หน้าสถานีขนส่งปักสินค้าเป้าหมายของด่านไว้บนสุด แสดงแม้ยังไม่มีในคลัง (ตั้ง auto ได้ทันที)
+{
+  const _odp442 = openDepotPopup;
+  openDepotPopup = function () {
+    const r = _odp442.apply(this, arguments);
+    try {
+      const L = typeof campActive === 'function' && campActive() ? campLv() : null;
+      if (L && depotPopup) {
+        const rows = depotPopup.rows;
+        const keys = L.goals.map((g) => g.k).filter((k) => rows[k]);
+        for (const k of keys.slice().reverse()) {
+          const row = rows[k].row, panel = row.parentNode;
+          rows[k].pin = true;
+          const kr = new Set(DEPOT_KINDS.map((q) => rows[q].row)), first = [...panel.children].find((n) => kr.has(n)); // แถวแรกตามลำดับบนจอ
+          if (first && first !== row) panel.insertBefore(row, first);
+          if (!row.querySelector('.goal442')) { const tag = document.createElement('span'); tag.className = 'goal442'; tag.textContent = '🎯 เป้าหมายด่าน'; tag.style.cssText = 'margin-left:6px;font-size:12px;font-weight:bold;color:#fff;background:#3b7a2a;border-radius:8px;padding:1px 7px;white-space:nowrap;'; (row.firstChild || row).appendChild(tag); }
+        }
+        refreshDepotPopup();
+      }
+    } catch (e) { /* ไม่เป็นไร */ }
+    return r;
+  };
+}
+// v442: การ์ดคำแนะนำ (ริมแม่น้ำ v441 / ครั้งเดียว v433) หลบเมื่อหน้าต่างอาคารหรือสถานีเปิดอยู่
+setInterval(() => {
+  const busy = !!(depotPopup || (typeof sellPopup !== 'undefined' && sellPopup));
+  for (const id of ['river441', 'jit433']) { const e = document.getElementById(id); if (e) e.style.visibility = busy ? 'hidden' : ''; }
+}, 250);
 </script>
 </body></html>
